@@ -28,6 +28,8 @@ npm-debug.log*
 *.tmp
 *.temp
 .cache/
+chat_backend_*.json
+nul
 
 # Evidence screenshots (may be large/sensitive)
 evidence/
