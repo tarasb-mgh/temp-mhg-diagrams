@@ -31,7 +31,14 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] Spec-first workflow is preserved (`spec.md` → `plan.md` → `tasks.md` → implementation)
+- [ ] Affected split repositories are explicitly listed with per-repo file paths
+- [ ] Test strategy aligns with each target repository conventions
+- [ ] Integration strategy enforces PR-only merges into `develop` from
+      feature/bugfix branches
+- [ ] Required approvals and required CI checks are identified for each target repo
+- [ ] Post-merge hygiene is defined: delete merged remote/local feature branches
+      and sync local `develop` to `origin/develop`
 
 ## Project Structure
 

@@ -1,22 +1,30 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 2.2.0 → 2.3.0
+  Version change: 3.1.0 → 3.2.0
 
-  Added principles:
-  - VIII. GCP CLI Infrastructure Management (NEW)
-    Mandates use of gcloud CLI for all cloud infrastructure changes;
-    prohibits manual Console edits for reproducibility.
+  Modified principles:
+  - IV. Branch and Integration Discipline: materially expanded with PR-only
+    integration to `develop`, mandatory reviews/checks, and mandatory
+    post-merge branch cleanup + local develop synchronization
 
-  Modified sections: None
-  Removed sections: None
+  Added sections:
+  - None
+
+  Removed sections:
+  - None
 
   Templates requiring updates:
-  - .specify/templates/plan-template.md: ✅ Compatible (Constitution Check is generic)
-  - .specify/templates/spec-template.md: ✅ Compatible (no repo-specific references)
-  - .specify/templates/tasks-template.md: ✅ Compatible (path conventions are per-feature)
+  - ✅ .specify/templates/plan-template.md
+  - ✅ .specify/templates/tasks-template.md
+  - ✅ CLAUDE.md
+  - ⚠️ .specify/templates/commands/*.md (directory not present in this repo;
+    equivalent review performed in .claude/commands/*.md)
 
-  Follow-up TODOs: None
+  Follow-up TODOs:
+  - TODO(COMMAND_TEMPLATE_PATH): Decide whether to add
+    .specify/templates/commands/ or update command docs to reference
+    .claude/commands/ as canonical.
 -->
 
 # Mental Health Global Client-Spec Constitution
@@ -41,8 +49,9 @@ This repository (`client-spec`) serves as the central orchestration point
 for feature development across multiple codebases.
 
 - Specifications and plans live here; implementation happens in target repos
-- Primary target repositories: `chat-client` (monorepo), `chat-backend`,
-  `chat-frontend`, `chat-ui`, `chat-infra`, `chat-types`, `chat-ci`
+- Primary target repositories: `chat-backend`, `chat-frontend`, `chat-ui`,
+  `chat-infra`, `chat-types`, `chat-ci`
+- `chat-client` (monorepo) is LEGACY — see Principle VII
 - Each spec references target repository paths explicitly
 - Cross-repository dependencies MUST be documented in plan.md
 
@@ -54,34 +63,43 @@ for requirements.
 
 Tests MUST align with each repository's established testing culture.
 
-- **Unit tests (backend)**: Vitest in `chat-backend` and `chat-client/server`
+- **Unit tests (backend)**: Vitest in `chat-backend`
 - **Unit tests (frontend)**: Vitest + React Testing Library in `chat-frontend`
-  and `chat-client/src`
 - **E2E tests**: Playwright in `chat-ui` against deployed environments
-- **Coverage thresholds**: Respect existing minimums (25% statements,
-  15% branches)
+- **Coverage thresholds**: Respect existing minimums per repo
 - **Test evidence**: Before/after screenshots stored in `evidence/<task-id>/`
 - Tests are OPTIONAL in task generation unless explicitly requested
 
-**Rationale**: Both the monorepo and split repositories have their own
-testing infrastructure. New features MUST integrate with existing patterns
-in each target rather than introduce competing approaches.
+**Rationale**: Split repositories have their own testing infrastructure.
+New features MUST integrate with existing patterns in each target rather
+than introduce competing approaches.
 
 ### IV. Branch and Integration Discipline
 
 Feature work MUST follow established branch policies.
 
 - Feature branches: `###-feature-name` pattern (auto-numbered)
+- Bugfix branches MAY use repository policy conventions (for example, `bugfix/*`)
 - Target integration branch: `develop` (not `main`)
 - `main` is promotion-only; never commit directly
+- Integration to `develop` MUST happen only via Pull Request from a feature/bugfix
+  branch; direct commits and direct merges to `develop` are prohibited
+- Pull Requests to `develop` MUST have required reviewer approvals before merge
+- Pull Requests to `develop` MUST have all required CI checks passing before merge
 - All tests MUST pass before merge
+- A feature/bugfix branch MAY be merged only after relevant unit and UI/E2E
+  tests pass according to repository gates
 - Squash merge for clean history
-- Feature branches MUST be created in all affected repositories
-  (both monorepo and split repos) using the same branch name
+- Feature branches MUST be created in all affected split repositories
+  using the same branch name
+- After PR merge to `develop` with required tests passed:
+  - the remote feature/bugfix branch MUST be deleted
+  - the local feature/bugfix branch MUST be deleted
+  - local `develop` MUST be synced to `origin/develop`
 
 **Rationale**: All repositories enforce strict branch protection. Using
-consistent branch names across the monorepo and split repos ensures
-traceability and simplifies cross-repo coordination.
+consistent branch names across split repos ensures traceability and
+simplifies cross-repo coordination.
 
 ### V. Privacy and Security First
 
@@ -110,33 +128,32 @@ User-facing features MUST maintain WCAG AA compliance and i18n support.
 support. Accessibility and language support are core product requirements,
 not optional enhancements.
 
-### VII. Dual-Target Implementation Discipline
+### VII. Split-Repository First (Legacy Monorepo Archived)
 
-All new features MUST be implemented in both the monorepo (`chat-client`)
-and the corresponding split repositories. Neither side may be treated as
-secondary or deferred.
+All new features MUST be implemented in the split repositories only.
+The `chat-client` monorepo is classified as **LEGACY** and MUST NOT
+receive new feature work.
 
-- Every implementation task MUST produce equivalent changes in both the
-  monorepo and the split repo(s)
-- The split repos are the canonical source for types, CI, and infra
-  (`chat-types`, `chat-ci`, `chat-infra`)
-- For application code, changes MUST land in both `chat-client/server`
-  (backend) and `chat-backend`, and in both `chat-client/src` (frontend)
-  and `chat-frontend`
+- The split repos are the canonical and sole target for all changes:
+  `chat-types`, `chat-backend`, `chat-frontend`, `chat-ui`, `chat-ci`,
+  `chat-infra`
 - Shared type changes MUST go through `chat-types` first, then consumers
-  (`chat-backend`, `chat-frontend`, `chat-client`) MUST update their
-  dependency
+  (`chat-backend`, `chat-frontend`) MUST update their dependency
 - CI workflow changes MUST go through `chat-ci` and be tagged before
   consumers pick them up
 - If a change spans multiple split repos, plan.md MUST document the
   execution order and inter-repo dependencies
-- A task is NOT considered complete until the change exists in both
-  the monorepo and all affected split repos
+- A task is complete when the change exists in all affected split repos
+- `chat-client` (monorepo) is LEGACY:
+  - No new features, no mirroring of split-repo changes
+  - Existing code remains as-is for historical reference
+  - May be archived at the team's discretion
 
-**Rationale**: The project maintains both a monorepo and split repos in
-active use. Implementing in only one side creates drift that is expensive
-to reconcile. Enforcing dual-target delivery keeps both architectures
-consistent and deployable.
+**Rationale**: Maintaining dual-target delivery doubled implementation
+effort, increased context-switching, and created recurring drift. The
+split repositories have independent CI/CD pipelines and are the active
+deployment targets. Retiring dual-target delivery eliminates waste while
+preserving the monorepo as a historical reference.
 
 ### VIII. GCP CLI Infrastructure Management
 
@@ -145,7 +162,7 @@ All cloud infrastructure changes MUST be performed via the `gcloud` CLI
 are prohibited for production and staging environments.
 
 - Infrastructure modifications MUST use `gcloud` commands, scripted and
-  committed to `chat-infra` (and `chat-client/infra/` per Principle VII)
+  committed to `chat-infra`
 - Scripts MUST be idempotent and runnable from a service account with
   appropriate IAM roles
 - Ad-hoc `gcloud` commands used during development MUST be captured as
@@ -169,49 +186,32 @@ of the infrastructure state.
 
 ### Repository Roles
 
-| Repository | Role | Path |
-|------------|------|------|
-| `client-spec` | Specifications, plans, task orchestration | `D:\src\MHG\client-spec` |
-| `chat-types` | Shared TypeScript types (`@mentalhelpglobal/chat-types`) | `D:\src\MHG\chat-types` |
-| `chat-backend` | Express.js backend API (split repo) | `D:\src\MHG\chat-backend` |
-| `chat-frontend` | React frontend application (split repo) | `D:\src\MHG\chat-frontend` |
-| `chat-ui` | Playwright E2E tests | `D:\src\MHG\chat-ui` |
-| `chat-ci` | Reusable GitHub Actions workflows | `D:\src\MHG\chat-ci` |
-| `chat-infra` | GCP infrastructure scripts + Terraform | `D:\src\MHG\chat-infra` |
-| `chat-client` | Monorepo (backend + frontend, dual-target) | `D:\src\MHG\chat-client` |
+| Repository | Role | Status | Path |
+|------------|------|--------|------|
+| `client-spec` | Specifications, plans, task orchestration | Active | `D:\src\MHG\client-spec` |
+| `chat-types` | Shared TypeScript types (`@mentalhelpglobal/chat-types`) | Active | `D:\src\MHG\chat-types` |
+| `chat-backend` | Express.js backend API | Active | `D:\src\MHG\chat-backend` |
+| `chat-frontend` | React frontend application | Active | `D:\src\MHG\chat-frontend` |
+| `chat-ui` | Playwright E2E tests | Active | `D:\src\MHG\chat-ui` |
+| `chat-ci` | Reusable GitHub Actions workflows | Active | `D:\src\MHG\chat-ci` |
+| `chat-infra` | GCP infrastructure scripts + Terraform | Active | `D:\src\MHG\chat-infra` |
+| `chat-client` | Monorepo (historical reference only) | **LEGACY** | `D:\src\MHG\chat-client` |
 
-### Dual-Target Reference Map
+### Split-Repository Implementation Procedure
 
-When implementing a feature, apply changes to **both** columns:
-
-| Split Repository | Monorepo Equivalent | Notes |
-|-----------------|---------------------|-------|
-| `chat-backend/src/` | `chat-client/server/` | All backend code and configs |
-| `chat-frontend/src/` | `chat-client/src/` | All frontend code and configs |
-| `chat-types/src/` | `chat-client/src/types/` (shared) | Publish new version, update all consumers |
-| `chat-ui/tests/e2e/` | `chat-client/tests/e2e/` | E2E tests and fixtures |
-| `chat-ui/playwright.config.ts` | `chat-client/playwright.config.ts` | Playwright configuration |
-| `chat-infra/` | `chat-client/infra/` | Infrastructure scripts |
-| `chat-ci/.github/workflows/` | `chat-client/.github/workflows/` | CI/CD workflow definitions |
-| `chat-backend/package.json` | `chat-client/package.json` (server/) | Backend deps and scripts |
-| `chat-frontend/package.json` | `chat-client/package.json` (root) | Frontend deps and scripts |
-
-### Dual-Target Implementation Procedure
-
-1. **Plan**: Identify all affected split repos using the map above;
-   plan.md MUST list both monorepo and split repo paths for every file
+1. **Plan**: Identify all affected split repos; plan.md MUST list
+   target repository paths for every file change
 2. **Types first**: If shared types changed, bump `chat-types` version,
-   publish, then update `package.json` in `chat-backend`, `chat-frontend`,
-   AND `chat-client`
-3. **Split repos**: Implement the feature in the split repos on feature
-   branches off `develop`
-4. **Monorepo**: Apply equivalent changes to `chat-client` on a matching
-   feature branch, adapting import paths and project structure as needed
-5. **Test both**: Run tests in the split repos AND in the monorepo to
-   verify the change works in both contexts
-6. **Merge both**: Merge to `develop` in all affected repositories
-7. **Verify parity**: Confirm that the monorepo and split repos produce
-   functionally equivalent behavior
+   publish, then update `package.json` in `chat-backend` and `chat-frontend`
+3. **Implement**: Build the feature in split repos on feature branches
+   off `develop`
+4. **Test**: Run tests in all affected split repos
+5. **Merge**: Merge to `develop` in all affected repositories
+   via Pull Request from feature/bugfix branches only, after required approvals
+   and required checks pass
+6. **Deploy**: Verify CI/CD pipelines complete successfully
+7. **Cleanup**: Delete merged remote and local feature/bugfix branches;
+   sync local `develop` with `origin/develop`
 
 ### Artifact Flow
 
@@ -219,15 +219,13 @@ When implementing a feature, apply changes to **both** columns:
 2. **Planning** (`client-spec`): `/speckit.plan` generates technical design artifacts
 3. **Task Breakdown** (`client-spec`): `/speckit.tasks` creates actionable task list
 4. **Implementation** (target repos): Execute tasks against split repos
-   (`chat-backend`, `chat-frontend`, etc.) AND monorepo (`chat-client`)
+   (`chat-backend`, `chat-frontend`, `chat-ui`, etc.)
 5. **Verification** (`client-spec`): Update task status, capture evidence
 
 ### Cross-Repository References
 
-- Plan.md MUST specify target repository and paths explicitly for both
-  split repos and monorepo equivalents
-- Use repository name prefixes for clarity (e.g., `chat-backend/src/routes/`,
-  `chat-client/server/src/routes/`)
+- Plan.md MUST specify target repository and paths explicitly
+- Use repository name prefixes for clarity (e.g., `chat-backend/src/routes/`)
 - Shared types are published via `@mentalhelpglobal/chat-types` npm package
 - CI workflows are centralized in `chat-ci` and consumed via `uses:` references
 - Document any cross-repository dependencies in plan.md
@@ -241,14 +239,14 @@ When implementing a feature, apply changes to **both** columns:
 | Specification | No unresolved [NEEDS CLARIFICATION]; checklist passes | `spec.md`, `checklists/requirements.md` |
 | Planning | Constitution check passes; technical context complete | `plan.md`, `research.md`, `data-model.md`, `contracts/` |
 | Tasks | All user stories mapped; dependencies documented | `tasks.md` |
-| Implementation | Tests pass in both monorepo and split repos; code review complete; evidence captured | Updated source in split repos AND monorepo |
+| Implementation | Tests pass in all affected split repos; PRs to `develop` originate from feature/bugfix branches; required approvals granted; required checks pass; merged remote and local feature/bugfix branches deleted; local `develop` synced to `origin/develop`; evidence captured | Updated source in split repos |
 
 ### Quality Checkpoints
 
 - **Spec Quality**: Technology-agnostic, measurable success criteria, bounded scope
 - **Plan Quality**: Explicit tech stack, structure decisions documented, constitution compliance
 - **Task Quality**: Checklist format (`- [ ] T### [P?] [US#] description with file path`)
-- **Implementation Quality**: Tests green in both repo targets, CLAUDE.md workflow followed, evidence in `evidence/`
+- **Implementation Quality**: Tests green in all affected split repos, PR-only integration policy to `develop` followed, merged branch cleanup completed (remote+local), local `develop` synced to remote, CLAUDE.md workflow followed, evidence in `evidence/`
 
 ## Governance
 
@@ -268,6 +266,11 @@ orchestrated through `client-spec`.
 ### Compliance Verification
 
 - All PRs/reviews MUST verify constitution compliance
+- Direct pushes or direct merges to `develop` are non-compliant unless explicitly
+  approved as an emergency exception by repository owners
+- Keeping merged feature/bugfix branches (remote or local) without explicit
+  retention rationale is non-compliant
+- Leaving local `develop` unsynced after successful merge is non-compliant
 - Checklist validation runs automatically via `/speckit.specify`
 - Plan.md includes explicit Constitution Check section
 - Non-compliance MUST be justified in Complexity Tracking section
@@ -280,6 +283,6 @@ orchestrated through `client-spec`.
 - E2E tests: `D:\src\MHG\chat-ui\CLAUDE.md`
 - Infrastructure: `D:\src\MHG\chat-infra\CLAUDE.md`
 - Shared types: `D:\src\MHG\chat-types\package.json`
-- Monorepo: `D:\src\MHG\chat-client\AGENTS.md`
+- Monorepo (LEGACY): `D:\src\MHG\chat-client\AGENTS.md`
 
-**Version**: 2.3.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-02-08
+**Version**: 3.2.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-02-10

@@ -156,6 +156,10 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
+- [ ] TXXX Open PR(s) from feature/bugfix branch(es) to `develop`, obtain required reviews, and merge only after all required checks pass
+- [ ] TXXX Verify unit and UI/E2E test gates passed for merged PR(s)
+- [ ] TXXX Delete merged remote feature/bugfix branches and purge local feature/bugfix branches
+- [ ] TXXX Sync local `develop` to `origin/develop` in each affected repository
 
 ---
 
@@ -249,3 +253,5 @@ With multiple developers:
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
+- Never merge directly into `develop`; use reviewed PRs from feature/bugfix branches only
+- After merge, delete remote/local feature branches and sync local `develop`

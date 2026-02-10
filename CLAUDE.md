@@ -1,4 +1,4 @@
-﻿# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -84,6 +84,17 @@ specs/{NNN-feature-name}/      # Generated per-feature (auto-created)
 ### Branch Naming Convention
 
 Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The number auto-increments across local branches, remote branches, and `specs/` directories.
+
+### Integration Policy
+
+- `develop` is the integration branch for feature and bugfix work
+- Changes MUST reach `develop` only through Pull Requests from feature/bugfix branches
+- Pull Requests MUST have required reviews and all required checks passing before merge
+- Direct commits or direct merges to `develop` are not allowed under normal workflow
+- After successful merge with unit and UI/E2E checks passed:
+  - delete the remote feature/bugfix branch
+  - delete the local feature/bugfix branch
+  - sync local `develop` with `origin/develop`
 
 ## Key Patterns
 
