@@ -96,6 +96,26 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
   - delete the local feature/bugfix branch
   - sync local `develop` with `origin/develop`
 
+### PR Cycle Requirements
+
+- Start from a dedicated `feature/*` or `bugfix/*` branch created from `develop`.
+- Validate relevant unit and UI/E2E tests before opening a PR.
+- Open PR to `develop` with scope, risk notes, and concrete test evidence.
+- Resolve review feedback in follow-up commits on the same branch.
+- Merge only after all required checks are green and required approvals are present.
+- Prefer squash merge for clean history unless repository policy explicitly differs.
+- Post-merge housekeeping is mandatory: delete remote branch, delete local branch, and hard-sync local `develop` to `origin/develop`.
+
+### Dev UI Testing Prerequisites
+
+- Use the currently deployed dev frontend URL from the latest CI/CD deploy output.
+- Use an approved account with the required workbench/review permissions.
+- For OTP login in dev, retrieve the OTP from browser console output.
+- Validate that frontend and backend are from the same deployment cycle before debugging API errors.
+- Confirm active group/space selection is valid for the authenticated account.
+- During review validation, test at least one session with reviewable assistant messages.
+- Always capture browser console and network errors (endpoint + HTTP status) as evidence.
+
 ## Key Patterns
 
 ### Task Format in tasks.md
