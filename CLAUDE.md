@@ -106,6 +106,16 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
 - Prefer squash merge for clean history unless repository policy explicitly differs.
 - Post-merge housekeeping is mandatory: delete remote branch, delete local branch, and hard-sync local `develop` to `origin/develop`.
 
+### Release Promotion To Main And Production
+
+- Cut a short-lived `release/*` branch from `develop` at an agreed release cut-off.
+- Run full release verification on `release/*` (unit/integration/UI and migration safety checks).
+- Open PR from `release/*` to `main` with scope, risks, rollback notes, and test evidence.
+- Merge into `main` only after required reviews and all required checks are green.
+- Create an immutable release tag on the merged `main` commit.
+- Deploy production from that exact tagged `main` commit (never directly from `develop`).
+- Run post-deploy smoke checks on critical flows; rollback by redeploying the previous known-good tag when needed.
+
 ### Dev UI Testing Prerequisites
 
 - Use the currently deployed dev frontend URL from the latest CI/CD deploy output.
