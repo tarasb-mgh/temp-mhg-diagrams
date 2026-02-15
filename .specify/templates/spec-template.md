@@ -74,6 +74,10 @@
 
 - What happens when [boundary condition]?
 - How does system handle [error scenario]?
+- For user-facing UI: how does the flow behave across mobile/tablet/desktop
+  breakpoints and orientation changes?
+- For installable web clients: what happens when PWA install is unavailable on
+  the current browser/platform?
 
 ## Requirements *(mandatory)*
 
@@ -89,6 +93,10 @@
 - **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
+- **FR-00X**: For user-facing UI, system MUST provide responsive behavior
+  across modern mobile/tablet/desktop viewports.
+- **FR-00Y**: For installable web clients, system MUST provide PWA
+  installability and define fallback behavior where installation is unsupported.
 
 *Example of marking unclear requirements:*
 

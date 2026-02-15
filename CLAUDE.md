@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -146,6 +146,8 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
 - No implementation details (languages, frameworks, APIs)
 - Maximum 3 `[NEEDS CLARIFICATION]` markers per spec
 - Success criteria must be measurable and technology-agnostic
+- For user-facing work, include explicit responsive behavior requirements
+  and PWA installability expectations for modern mobile compatibility
 
 ### Non-Git Fallback
 

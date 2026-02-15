@@ -1,30 +1,30 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 3.1.0 → 3.2.0
+  Version change: 3.2.0 → 3.3.0
 
   Modified principles:
-  - IV. Branch and Integration Discipline: materially expanded with PR-only
-    integration to `develop`, mandatory reviews/checks, and mandatory
-    post-merge branch cleanup + local develop synchronization
+  - III. Test-Aligned Development: expanded to require regression evidence
+    with console/network verification for UI and API changes
+  - VIII. GCP CLI Infrastructure Management: expanded with environment-safe
+    deploy wiring and API-subdomain compatibility smoke checks
 
   Added sections:
-  - None
+  - IX. Responsive UX and PWA Compatibility
 
   Removed sections:
   - None
 
   Templates requiring updates:
   - ✅ .specify/templates/plan-template.md
+  - ✅ .specify/templates/spec-template.md
   - ✅ .specify/templates/tasks-template.md
+  - ✅ .claude/commands/speckit.constitution.md
   - ✅ CLAUDE.md
-  - ⚠️ .specify/templates/commands/*.md (directory not present in this repo;
-    equivalent review performed in .claude/commands/*.md)
+  - ⚠️ .specify/templates/commands/*.md (directory not present in this repo)
 
   Follow-up TODOs:
-  - TODO(COMMAND_TEMPLATE_PATH): Decide whether to add
-    .specify/templates/commands/ or update command docs to reference
-    .claude/commands/ as canonical.
+  - None
 -->
 
 # Mental Health Global Client-Spec Constitution
@@ -68,6 +68,8 @@ Tests MUST align with each repository's established testing culture.
 - **E2E tests**: Playwright in `chat-ui` against deployed environments
 - **Coverage thresholds**: Respect existing minimums per repo
 - **Test evidence**: Before/after screenshots stored in `evidence/<task-id>/`
+- **Regression evidence**: For UI/API regressions, capture browser console and
+  non-static network status evidence (endpoint + status codes)
 - Tests are OPTIONAL in task generation unless explicitly requested
 
 **Rationale**: Split repositories have their own testing infrastructure.
@@ -163,6 +165,8 @@ are prohibited for production and staging environments.
 
 - Infrastructure modifications MUST use `gcloud` commands, scripted and
   committed to `chat-infra`
+- Deploy wiring MUST be environment-safe: dev/prod Cloud SQL connections and
+  DB secrets MUST remain isolated and must not share mutable prod/dev values
 - Scripts MUST be idempotent and runnable from a service account with
   appropriate IAM roles
 - Ad-hoc `gcloud` commands used during development MUST be captured as
@@ -175,12 +179,35 @@ are prohibited for production and staging environments.
   pre-configured `gcloud config`
 - Infrastructure changes MUST be documented in plan.md with the exact
   `gcloud` commands or script references
+- API subdomain routing MUST keep `/api/*` canonical paths available. If root
+  aliases (for example, `/settings`) are exposed, compatibility MUST be
+  validated by smoke checks on both dev and prod.
+- Post-deploy smoke checks MUST verify critical routes, deep links, and key
+  API endpoints before release completion.
 
 **Rationale**: CLI-driven infrastructure ensures reproducibility,
 auditability, and version control. Manual Console changes are
 untraceable, error-prone, and impossible to replicate across
 environments. Scripted `gcloud` commands serve as living documentation
 of the infrastructure state.
+
+### IX. Responsive UX and PWA Compatibility
+
+All user-facing UI MUST be responsive and MUST support installable PWA
+behavior on modern mobile devices with maximum practical compatibility.
+
+- Responsive behavior MUST be specified for common mobile/tablet/desktop
+  breakpoints with no critical workflow loss on modern devices
+- The client MUST remain installable as a PWA where platform/browser supports
+  installation
+- PWA essentials (manifest integrity, service worker strategy, icons, and
+  start URL behavior) MUST be validated during feature and release testing
+- Mobile compatibility testing MUST include at least one Android Chromium-based
+  browser and one iOS Safari/PWA-capable path where feasible
+
+**Rationale**: A significant share of users access support workflows from
+mobile devices. Responsive, installable, and resilient client behavior is a
+core product quality requirement.
 
 ## Multi-Repository Orchestration
 
@@ -239,14 +266,18 @@ of the infrastructure state.
 | Specification | No unresolved [NEEDS CLARIFICATION]; checklist passes | `spec.md`, `checklists/requirements.md` |
 | Planning | Constitution check passes; technical context complete | `plan.md`, `research.md`, `data-model.md`, `contracts/` |
 | Tasks | All user stories mapped; dependencies documented | `tasks.md` |
-| Implementation | Tests pass in all affected split repos; PRs to `develop` originate from feature/bugfix branches; required approvals granted; required checks pass; merged remote and local feature/bugfix branches deleted; local `develop` synced to `origin/develop`; evidence captured | Updated source in split repos |
+| Implementation | Tests pass in all affected split repos; PRs to `develop` originate from feature/bugfix branches; required approvals granted; required checks pass; merged remote and local feature/bugfix branches deleted; local `develop` synced to `origin/develop`; evidence captured; responsive/PWA acceptance checks completed for user-facing changes | Updated source in split repos |
 
 ### Quality Checkpoints
 
 - **Spec Quality**: Technology-agnostic, measurable success criteria, bounded scope
 - **Plan Quality**: Explicit tech stack, structure decisions documented, constitution compliance
 - **Task Quality**: Checklist format (`- [ ] T### [P?] [US#] description with file path`)
-- **Implementation Quality**: Tests green in all affected split repos, PR-only integration policy to `develop` followed, merged branch cleanup completed (remote+local), local `develop` synced to remote, CLAUDE.md workflow followed, evidence in `evidence/`
+- **Implementation Quality**: Tests green in all affected split repos, PR-only
+  integration policy to `develop` followed, merged branch cleanup completed
+  (remote+local), local `develop` synced to remote, CLAUDE.md workflow
+  followed, evidence in `evidence/`, and responsive/PWA checks completed for
+  user-facing features
 
 ## Governance
 
@@ -271,6 +302,10 @@ orchestrated through `client-spec`.
 - Keeping merged feature/bugfix branches (remote or local) without explicit
   retention rationale is non-compliant
 - Leaving local `develop` unsynced after successful merge is non-compliant
+- Shipping user-facing UI changes without responsive/PWA verification evidence
+  is non-compliant
+- Promoting a release without post-deploy smoke evidence for critical routes
+  and APIs is non-compliant
 - Checklist validation runs automatically via `/speckit.specify`
 - Plan.md includes explicit Constitution Check section
 - Non-compliance MUST be justified in Complexity Tracking section
@@ -285,4 +320,4 @@ orchestrated through `client-spec`.
 - Shared types: `D:\src\MHG\chat-types\package.json`
 - Monorepo (LEGACY): `D:\src\MHG\chat-client\AGENTS.md`
 
-**Version**: 3.2.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-02-10
+**Version**: 3.3.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-02-14

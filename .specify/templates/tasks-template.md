@@ -155,9 +155,15 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
+- [ ] TXXX For user-facing UI, validate responsive behavior across target
+      breakpoints and device classes
+- [ ] TXXX For installable web clients, validate PWA manifest/service-worker
+      behavior and installation path on supported browsers
 - [ ] TXXX Run quickstart.md validation
 - [ ] TXXX Open PR(s) from feature/bugfix branch(es) to `develop`, obtain required reviews, and merge only after all required checks pass
 - [ ] TXXX Verify unit and UI/E2E test gates passed for merged PR(s)
+- [ ] TXXX Capture post-deploy smoke evidence for critical routes, deep links,
+      and key API endpoints
 - [ ] TXXX Delete merged remote feature/bugfix branches and purge local feature/bugfix branches
 - [ ] TXXX Sync local `develop` to `origin/develop` in each affected repository
 

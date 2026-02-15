@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command. See `.claude/commands/speckit.plan.md` for the execution workflow.
 
 ## Summary
 
@@ -39,6 +39,10 @@
 - [ ] Required approvals and required CI checks are identified for each target repo
 - [ ] Post-merge hygiene is defined: delete merged remote/local feature branches
       and sync local `develop` to `origin/develop`
+- [ ] For user-facing changes, responsive and PWA compatibility checks are
+      defined (breakpoints, installability, and mobile-browser coverage)
+- [ ] Post-deploy smoke checks are defined for critical routes, deep links,
+      and API endpoints
 
 ## Project Structure
 
