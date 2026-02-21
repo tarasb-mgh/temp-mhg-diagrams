@@ -34,6 +34,9 @@ nul
 # Evidence screenshots (may be large/sensitive)
 evidence/
 
+# Downloaded chat sessions from GCS
+chats/
+
 # Temporary cloned repos from extraction
 chat-frontend-temp/
 chat-backend-temp/
