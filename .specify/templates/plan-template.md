@@ -43,6 +43,11 @@
       defined (breakpoints, installability, and mobile-browser coverage)
 - [ ] Post-deploy smoke checks are defined for critical routes, deep links,
       and API endpoints
+- [ ] Jira Epic exists for this feature with spec content in description;
+      Jira issue key is recorded in spec.md header
+- [ ] Documentation impact is identified: which Confluence doc types
+      (User Manual, Technical Onboarding, Release Notes, Non-Technical
+      Onboarding) require updates upon production deployment
 
 ## Project Structure
 

@@ -3,6 +3,7 @@
 **Feature Branch**: `001-monorepo-split`
 **Created**: 2026-02-04
 **Status**: Draft
+**Jira Epic**: MTB-31
 **Input**: Split chat-client monorepo into separate repositories for backend, frontend, infrastructure, and UI tests with centralized CI
 
 ## User Scenarios & Testing *(mandatory)*

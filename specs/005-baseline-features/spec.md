@@ -3,6 +3,7 @@
 **Feature Branch**: `005-baseline-features`
 **Created**: 2026-02-08
 **Status**: Draft
+**Jira Epic**: MTB-198
 **Input**: Retroactive baseline spec documenting all existing implemented capabilities as a reference point for future change tracking.
 
 ## User Scenarios & Testing *(mandatory)*

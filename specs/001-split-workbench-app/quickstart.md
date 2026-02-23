@@ -1,104 +1,195 @@
-# Quickstart: Validate Frontend + Backend Split
+# Quickstart: Split Frontend Into Client and Workbench Applications
 
-## Scope
-
-Validate feature `001-split-workbench-app` across dev and release candidate
-stages with both frontend and backend split boundaries.
+**Feature**: 001-split-workbench-app
+**Date**: 2026-02-21
 
 ## Prerequisites
 
-- Feature branches in affected repos: `chat-frontend`, `chat-backend`,
-  `chat-ui`, `chat-infra`, and if needed `chat-ci`.
-- Test users:
-  - one without workbench permissions,
-  - one with workbench permissions.
-- Latest deployment URLs and backend service revisions from the same deploy cycle.
+- Node.js 18+ and npm 9+
+- Access to `MentalHelpGlobal` GitHub organization
+- GitHub Packages registry configured for `@mentalhelpglobal` scope
+- All sibling repositories cloned at `D:\src\MHG\`
 
-## 1) Domain topology validation (dev + prod-like stage)
+## Repository Layout (After Split)
 
-1. Confirm chat hosts remain unchanged for FE/API.
-2. Confirm workbench FE/API hosts are dedicated and canonical:
-   - prod: `workbench.mentalhelp.chat`, `api.workbench.mentalhelp.chat`
-   - dev: same naming pattern for workbench FE/API hosts.
-3. Confirm DNS and LB rules resolve each host to the intended surface/service.
+```
+D:\src\MHG\
+├── client-spec/              # This repo — specifications and plans
+├── chat-frontend/            # Chat application (trimmed — chat-only)
+├── workbench-frontend/       # Workbench application (NEW)
+├── chat-frontend-common/     # Shared UI package (NEW)
+├── chat-types/               # Shared TypeScript types
+├── chat-backend/             # Backend API (no changes)
+├── chat-infra/               # Infrastructure scripts
+├── chat-ci/                  # CI/CD workflows
+├── chat-ui/                  # Playwright E2E tests
+└── chat-client/              # LEGACY — do not modify
+```
 
-## 2) Backend service split and scaling validation
+## Step 1 — Set Up chat-frontend-common
 
-1. Confirm chat-api and workbench-api deploy independently.
-2. Trigger controlled scaling/load on one backend service.
-3. Verify the other backend service remains stable and unaffected.
-4. Capture service revision IDs and scaling evidence.
+```bash
+cd D:\src\MHG\chat-frontend-common
 
-## 3) Entry-point and deep-link validation
+# Install dependencies
+npm install
 
-1. Sign in and open chat entry point; verify chat-only controls and chat API host usage.
-2. Sign in and open workbench entry point; verify workbench-only controls and workbench API host usage.
-3. Validate deep links for both surfaces resolve correctly.
+# Build the package
+npm run build
 
-## 4) Access-policy and contract isolation validation
+# For local development (consumed by chat-frontend and workbench-frontend):
+# No publish needed — consumer apps use resolve.alias in development
+```
 
-1. With chat-only user, attempt workbench routes and workbench API calls.
-2. Verify denial behavior and fallback guidance.
-3. With workbench-authorized user, verify allowed access and context retention.
-4. Verify workbench-only capabilities are not exposed via chat API paths.
+### Package Contents
 
-## 5) Legacy-route continuity validation
+The shared package exports:
+- **Auth components**: `WelcomeScreen`, `LoginPage`, `PendingApprovalPage`, `OtpLoginForm`
+- **Auth store**: `useAuthStore` (Zustand with persist)
+- **API client**: `apiClient` (Axios instance with auth interceptors), `authApi`
+- **Shared components**: `LanguageSelector`, `GroupScopeRoute`, `RegisterPopup`, route error pages
+- **Utils**: `permissions.ts`, `piiMasking.ts`
+- **i18n**: `initI18n()` setup function, `common` namespace translations (uk, en, ru)
+- **Types**: Re-exports from `@mentalhelpglobal/chat-types`
+- **Tailwind preset**: `tailwind-preset.js` (colors, fonts, spacing, breakpoints)
 
-1. Test known legacy bookmarks/routes in scope.
-2. Verify deterministic mapping to canonical split hosts/routes.
-3. Complete critical journeys after redirect/mapping.
+## Step 2 — Set Up chat-frontend (Trimmed)
 
-## 6) Responsive breakpoint verification checklist
+```bash
+cd D:\src\MHG\chat-frontend
 
-| Viewport | Width | Chat Surface | Workbench Surface |
-|---|---|---|---|
-| Mobile (portrait) | 375px | [ ] No horizontal overflow, controls touch-friendly | [ ] Sidebar collapsed, nav accessible |
-| Mobile (landscape) | 812px | [ ] Layout adjusts, no clipped content | [ ] Layout adjusts, no clipped content |
-| Tablet (portrait) | 768px | [ ] Comfortable reading width | [ ] Sidebar + content both visible |
-| Tablet (landscape) | 1024px | [ ] Full layout, no wasted space | [ ] Full layout with sidebar |
-| Desktop | 1440px | [ ] Centered content, max-width respected | [ ] Full workbench dashboard |
+# Install dependencies (includes chat-frontend-common)
+npm install
 
-### Responsive verification steps
+# Run development server
+npm run dev
+# → Opens at http://localhost:5173
 
-1. Open chat surface at each viewport; confirm no horizontal scrollbar.
-2. Open workbench surface at each viewport; confirm sidebar is usable.
-3. Verify touch targets are at least 44x44px on mobile/tablet.
-4. Verify text is readable without zooming on all viewports.
+# For local development with chat-frontend-common source:
+LOCAL_COMMON=1 npm run dev
+```
 
-## 7) PWA installability and fallback verification
+### Environment Variables
 
-- [ ] `manifest.json` is present and valid at both surface roots
-- [ ] Service worker registers on both surfaces
-- [ ] "Add to Home Screen" prompt appears on supported mobile browsers
-- [ ] Offline fallback page is shown when network is unavailable
-- [ ] If PWA install is unsupported (desktop Firefox, older browsers), app functions normally as web app
+| Variable | Dev Value | Description |
+|----------|-----------|-------------|
+| `VITE_API_URL` | `https://api.dev.mentalhelp.chat` | Chat backend API |
+| `VITE_WORKBENCH_URL` | `https://workbench.dev.mentalhelp.chat` | Workbench app URL (for cross-surface links) |
+| `VITE_ALLOW_GUEST_ACCESS` | `true` | Enable guest chat mode |
 
-## 8) Accessibility and localization continuity
+### Key Changes From Pre-Split
 
-### Accessibility checks
-- [ ] All pages have `lang` attribute on `<html>`
-- [ ] All interactive elements are keyboard-focusable (Tab/Shift+Tab)
-- [ ] Focus order follows visual reading order on both surfaces
-- [ ] Screen reader announces page headings and navigation items
-- [ ] Color contrast meets WCAG 2.1 AA (4.5:1 for body text)
-- [ ] All form inputs have associated labels
-- [ ] Error messages are announced to screen readers
+- No workbench routes, stores, or components
+- No surface detection (`getSurface()` removed — always chat)
+- Cross-surface link to workbench uses full external URL from `VITE_WORKBENCH_URL`
+- Auth, i18n, and shared components imported from `@mentalhelpglobal/chat-frontend-common`
+- New `public/manifest.json` for PWA installability
 
-### Localization checks
-- [ ] Language selector works on both surfaces
-- [ ] All visible text renders correctly in each supported locale (en, ru, uk)
-- [ ] No untranslated keys visible (no `workbench.nav.*` raw keys)
-- [ ] RTL layout not required for current locales (LTR only)
+## Step 3 — Set Up workbench-frontend (New)
 
-## 9) Regression evidence and smoke checks
+```bash
+cd D:\src\MHG\workbench-frontend
 
-1. Capture console errors and non-static network anomalies (endpoint + status).
-2. Capture route, deep-link, and key API smoke outcomes for both surfaces.
-3. Record CORS behavior for cross-host FE/API combinations.
-4. Store evidence under feature evidence paths per repository policy.
+# Install dependencies (includes chat-frontend-common)
+npm install
 
-## 10) Integration policy reminders
+# Run development server
+npm run dev
+# → Opens at http://localhost:5174
 
-1. Merge only via PRs into `develop` with required approvals/checks.
-2. Verify gates in all affected repositories before promotion.
-3. Delete merged remote/local feature branches and sync local `develop`.
+# For local development with chat-frontend-common source:
+LOCAL_COMMON=1 npm run dev
+```
+
+### Environment Variables
+
+| Variable | Dev Value | Description |
+|----------|-----------|-------------|
+| `VITE_API_URL` | `https://api.workbench.dev.mentalhelp.chat` | Workbench backend API |
+| `VITE_CHAT_URL` | `https://dev.mentalhelp.chat` | Chat app URL (for cross-surface links) |
+
+### Key Differences From chat-frontend
+
+- Workbench routes only (`/workbench/*` with ~25 sub-routes)
+- Requires `WORKBENCH_ACCESS` permission at root level
+- Contains `workbenchStore`, `reviewStore`, `reviewApi`, `tagApi`
+- Admin API functions (users, sessions, groups, approvals, audit)
+- No PWA manifest (workbench is desktop-oriented)
+- "Back to Chat" link uses full external URL from `VITE_CHAT_URL`
+
+## Step 4 — Run Tests
+
+```bash
+# Unit tests (each repo independently)
+cd D:\src\MHG\chat-frontend && npm test
+cd D:\src\MHG\workbench-frontend && npm test
+cd D:\src\MHG\chat-frontend-common && npm test
+
+# E2E tests (against deployed dev environment)
+cd D:\src\MHG\chat-ui && npx playwright test
+```
+
+## Step 5 — Deploy (CI/CD)
+
+Deployment is triggered automatically by pushes to `develop` (dev) or `main` (prod) via GitHub Actions.
+
+| Repository | Workflow | Deploys To |
+|------------|----------|------------|
+| `chat-frontend` | `deploy-chat-frontend.yml` | GCS bucket for chat surface |
+| `workbench-frontend` | `deploy-workbench-frontend.yml` | GCS bucket for workbench surface |
+| `chat-frontend-common` | `publish-chat-frontend-common.yml` | GitHub Packages |
+
+### Manual Deployment
+
+```bash
+# Build chat frontend
+cd D:\src\MHG\chat-frontend
+npm run build
+gsutil -m rsync -r -d dist/ gs://mental-help-global-25-dev-frontend/
+
+# Build workbench frontend
+cd D:\src\MHG\workbench-frontend
+npm run build
+gsutil -m rsync -r -d dist/ gs://mental-help-global-25-dev-workbench-frontend/
+```
+
+## Verification Checklist
+
+After deployment, verify:
+
+- [ ] `dev.mentalhelp.chat` loads chat app with chat-only navigation
+- [ ] `workbench.dev.mentalhelp.chat` loads workbench app with workbench-only navigation
+- [ ] Sign in on chat → navigate to workbench → authenticated without re-login
+- [ ] Sign out on workbench → chat tab shows signed-out state on next interaction
+- [ ] Visit `dev.mentalhelp.chat/workbench/users` → redirected to workbench domain
+- [ ] Visit `workbench.dev.mentalhelp.chat/chat` → redirected to chat domain
+- [ ] Unauthorized user accessing workbench → access denied with link back to chat
+- [ ] Chat PWA install prompt appears on supported browsers
+- [ ] Chat app is responsive on mobile viewport
+- [ ] Both apps display correct language (uk/en/ru) based on browser settings
+
+## Local Development Tips
+
+### Running Both Apps Simultaneously
+
+```bash
+# Terminal 1 — Chat frontend (port 5173)
+cd D:\src\MHG\chat-frontend && LOCAL_COMMON=1 npm run dev
+
+# Terminal 2 — Workbench frontend (port 5174)
+cd D:\src\MHG\workbench-frontend && LOCAL_COMMON=1 npm run dev
+
+# Terminal 3 — Backend (port 8080, all surfaces)
+cd D:\src\MHG\chat-backend && npm run dev
+```
+
+### Testing Cross-Surface Navigation Locally
+
+Cross-surface links in local dev point to `localhost:5174` (workbench) and `localhost:5173` (chat). Auth sharing via cookies requires both apps to run on `localhost` (same origin for cookie purposes). For full cross-domain testing, use the deployed dev environment.
+
+### Modifying the Shared Package
+
+When editing `chat-frontend-common` with `LOCAL_COMMON=1`:
+- Changes to shared source files trigger HMR in the consumer app immediately
+- No rebuild or republish needed during local development
+- Remember to build and publish the package before merging to `develop`

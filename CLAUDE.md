@@ -29,11 +29,11 @@ This is a meta-framework containing workflow tools and templates—not applicati
 ### Supporting Commands
 
 ```bash
-/speckit.clarify      # Ask targeted questions to resolve [NEEDS CLARIFICATION] markers
-/speckit.analyze      # Cross-artifact consistency check (spec, plan, tasks)
-/speckit.checklist    # Generate domain-specific quality checklist
-/speckit.constitution # Create/update project principles
-/speckit.taskstoissues # Convert tasks.md to GitHub issues
+/speckit.clarify       # Ask targeted questions to resolve [NEEDS CLARIFICATION] markers
+/speckit.analyze       # Cross-artifact consistency check (spec, plan, tasks)
+/speckit.checklist     # Generate domain-specific quality checklist
+/speckit.constitution  # Create/update project principles
+/speckit.taskstoissues # Convert tasks.md to GitHub and/or Jira issues
 ```
 
 ### PowerShell Scripts
@@ -80,6 +80,21 @@ specs/{NNN-feature-name}/      # Generated per-feature (auto-created)
 1. **Phase 0 (Research)**: Extract unknowns, resolve clarifications → `research.md`
 2. **Phase 1 (Design)**: Generate entities, contracts, quickstart → `data-model.md`, `contracts/`, `quickstart.md`
 3. **Phase 2 (Implementation)**: Execute tasks from `tasks.md`
+
+### Jira Integration (Atlassian MCP)
+
+Each speckit workflow phase synchronizes with Jira via the Atlassian MCP:
+
+- `/speckit.specify` → Creates Jira **Epic** with spec as description
+- `/speckit.plan` → Adds **comment** on Epic with plan summary
+- `/speckit.tasks` → Creates Jira **Stories** and **Tasks** under Epic
+- `/speckit.implement` → **Transitions** tasks on completion, adds result **comments**
+- `/speckit.analyze` → Adds analysis summary **comment** on Epic
+
+Jira keys are recorded in speckit artifacts (`spec.md` header, `tasks.md`
+task lines) for bidirectional traceability. If the Atlassian MCP is
+unavailable, speckit continues with file-based tracking and records
+`PENDING` markers for retroactive Jira sync.
 
 ### Branch Naming Convention
 

@@ -2,7 +2,8 @@
 
 **Feature Branch**: `009-pipeline-decommission`  
 **Created**: 2026-02-10  
-**Status**: Complete  
+**Status**: Complete
+**Jira Epic**: MTB-227
 **Input**: User description: "Add any new requirements that appeared in this chat and let's decommission the deployment pipelines in chat-client"
 
 ## User Scenarios & Testing *(mandatory)*

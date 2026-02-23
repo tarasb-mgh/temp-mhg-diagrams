@@ -33,7 +33,27 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design
 
-4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+4. **Jira Epic Comment** (Constitution Principle X — Jira Traceability):
+
+   After completing planning phases, add a summary comment to the Jira Epic:
+
+   a. **Extract the Jira Epic key** from the `**Jira Epic**:` line in
+      FEATURE_SPEC. If the key is `PENDING` or missing, warn and skip this
+      step.
+
+   b. **Compose a plan summary comment** containing:
+      - Technical stack and key decisions from research.md
+      - List of entities from data-model.md (if generated)
+      - List of API contracts from contracts/ (if generated)
+      - Constitution Check pass/fail status
+      - Link or reference to the plan.md file path
+
+   c. **Post the comment** using `addCommentToJiraIssue` with the Epic key
+      and the composed Markdown summary.
+
+   d. **Error handling**: If MCP is unavailable, warn and continue.
+
+5. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, generated artifacts, and Jira comment status.
 
 ## Phases
 

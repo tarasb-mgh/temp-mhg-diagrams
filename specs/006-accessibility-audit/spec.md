@@ -3,6 +3,7 @@
 **Feature Branch**: `006-accessibility-audit`
 **Created**: 2026-02-08
 **Status**: Draft
+**Jira Epic**: MTB-199
 **Input**: Verify and remediate WCAG 2.1 AA compliance across the entire application — chat interface, workbench, and all interactive flows.
 
 ## User Scenarios & Testing *(mandatory)*

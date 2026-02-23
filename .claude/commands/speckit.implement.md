@@ -125,7 +125,70 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Suggest next steps if implementation cannot proceed
    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
-9. Completion validation:
+9. **Jira Synchronization** (Constitution Principle X — Jira Traceability):
+
+   Jira issues MUST be transitioned **individually and immediately** as
+   work progresses — batch transitions at the end are prohibited.
+
+   a. **On each task completion**: Immediately after marking a task `[X]`
+      in tasks.md, if the task line has an appended Jira key (e.g.,
+      `— MHG-456`):
+      1. Use `addCommentToJiraIssue` to post a brief completion comment.
+      2. Use `getTransitionsForJiraIssue` to discover available transitions.
+      3. Use `transitionJiraIssue` to move the task to Done.
+      Do this for every single task, not in a batch at the end.
+
+   b. **On story phase completion**: When all tasks in a user story phase
+      are complete, immediately transition the parent Jira Story to Done
+      and add a comment summarizing the story outcome.
+
+   c. **On full implementation completion**: Add a final summary comment to
+      the Jira Epic with:
+      - Overall implementation outcome
+      - List of completed stories and their Jira keys
+      - Links to PRs opened (if applicable)
+      - Evidence references
+
+   d. **Error handling**: If Atlassian MCP is unavailable during
+      implementation, continue with speckit-only tracking and warn the user.
+      Jira can be synchronized retroactively after implementation.
+
+10. **Confluence Documentation Update** (Constitution Principle XI —
+    Documentation Standards):
+
+    After implementation tasks are complete and before final validation,
+    identify which Confluence documentation types require updates:
+
+    a. **Release Notes**: Required ONLY when changes are promoted to
+       production (tagged `main` commit). When merging to `develop`,
+       do NOT create a Release Notes entry — record `RELEASE NOTES:
+       DEFERRED UNTIL PRODUCTION` in the completion summary. When the
+       production release occurs, draft an entry with: release
+       version/tag, date, user-visible changes, known issues (if any),
+       and a link to the Jira Epic.
+
+    b. **User Manual**: Required if UI flows or screens changed. Update
+       affected pages with new screenshots and step-by-step guidance
+       for both chat and workbench interfaces. Screenshots MUST be
+       captured using the Playwright MCP (`plugin-playwright-playwright`)
+       against the deployed dev environment — navigate to the relevant
+       page, interact to reach the desired state, take a screenshot,
+       and upload to Confluence as an attachment.
+
+    c. **Non-Technical Onboarding**: Required if product workflows,
+       navigation, or terminology changed. Update affected pages using
+       non-technical language.
+
+    d. **Technical Onboarding**: Required if repository structure,
+       CI/CD pipelines, tooling, or development workflows changed.
+       Update setup guides and architecture overviews.
+
+    e. **Report**: List which Confluence sections were updated (or
+       flagged for manual update) in the completion summary. If
+       Confluence is not accessible, warn the user and record
+       `DOC UPDATE: PENDING` for follow-up.
+
+11. Completion validation:
    - Verify all required tasks are completed
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements

@@ -33,6 +33,7 @@ nul
 
 # Evidence screenshots (may be large/sensitive)
 evidence/
+screenshots/
 
 # Downloaded chat sessions from GCS
 chats/
@@ -41,3 +42,17 @@ chats/
 chat-frontend-temp/
 chat-backend-temp/
 chat-ui-temp/
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Transient screenshots and traces
+*.png
+trace_*.json
+
+# Working drafts (YAML maps, transactions)
+mhg-domain-https-map*.yaml
+transaction.yaml
+
+# Chat export working files
+chats/

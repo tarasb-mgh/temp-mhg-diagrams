@@ -3,6 +3,7 @@
 **Feature Branch**: `004-env-otp-config`
 **Created**: 2026-02-08
 **Status**: Draft
+**Jira Epic**: MTB-197
 **Input**: User description: "let's make sure that in dev environment the console otp is being used and in production - email"
 
 ## User Scenarios & Testing *(mandatory)*

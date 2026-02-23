@@ -158,7 +158,25 @@ At end of report, output a concise Next Actions block:
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
 - Provide explicit command suggestions: e.g., "Run /speckit.specify with refinement", "Run /speckit.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
-### 8. Offer Remediation
+### 8. Jira Epic Comment (Constitution Principle X — Jira Traceability)
+
+After producing the analysis report, post a summary comment to the Jira Epic:
+
+a. **Extract the Jira Epic key** from the `**Jira Epic**:` line in spec.md.
+   If the key is `PENDING` or missing, skip this step.
+
+b. **Compose an analysis summary comment** containing:
+   - Total findings count by severity (CRITICAL / HIGH / MEDIUM / LOW)
+   - Coverage percentage (requirements with >= 1 task)
+   - Constitution alignment status (pass/fail with issue count)
+   - Top 3 critical/high findings as bullet points
+   - Recommendation (proceed / resolve issues first)
+
+c. **Post the comment** using `addCommentToJiraIssue` with the Epic key.
+
+d. **Error handling**: If MCP is unavailable, warn and continue.
+
+### 9. Offer Remediation
 
 Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
 

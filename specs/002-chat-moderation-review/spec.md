@@ -3,6 +3,7 @@
 **Feature Branch**: `002-chat-moderation-review`
 **Created**: 2026-02-08
 **Status**: Draft
+**Jira Epic**: MTB-133
 **Input**: Technical specification for a Chat Moderation & Review System enabling qualified therapists to evaluate AI chatbot responses for quality, safety, and therapeutic appropriateness.
 
 ## User Scenarios & Testing *(mandatory)*

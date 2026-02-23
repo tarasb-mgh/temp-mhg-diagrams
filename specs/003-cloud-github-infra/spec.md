@@ -3,6 +3,7 @@
 **Feature Branch**: `003-cloud-github-infra`
 **Created**: 2026-02-08
 **Status**: Draft
+**Jira Epic**: MTB-191
 **Input**: User description: "Define the cloud objects and GitHub infrastructure. Store all the secrets in Google Secret Manager. Use GitHub CLI and Cloud CLI for infra setup."
 
 ## User Scenarios & Testing *(mandatory)*

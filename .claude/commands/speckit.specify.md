@@ -190,7 +190,37 @@ Given that feature description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/speckit.clarify` or `/speckit.plan`).
+7. **Jira Epic Creation** (Constitution Principle X — Jira Traceability):
+
+   After writing the spec and passing validation, create a Jira Epic to track
+   this feature:
+
+   a. **Discover project context**: Use the Atlassian MCP tool
+      `getVisibleJiraProjects` to list available projects. If only one project
+      exists, use it automatically. If multiple exist, ask the user which
+      project to use.
+
+   b. **Check for existing Epic**: Use `searchJiraIssuesUsingJql` with a JQL
+      query like `project = "<KEY>" AND issuetype = Epic AND summary ~ "<feature short name>"`
+      to check if an Epic already exists for this feature. If found, reuse it
+      and update its description instead of creating a duplicate.
+
+   c. **Create or update the Epic**: Use `createJiraIssue` (or `editJiraIssue`
+      if updating) with:
+      - `issueTypeName`: `"Epic"`
+      - `summary`: Feature name from spec (e.g., `"###-feature-name: Feature Title"`)
+      - `description`: The full spec.md content formatted as Markdown
+
+   d. **Record the Jira key**: After creation, append the Jira Epic key to the
+      spec.md header metadata. Add a line: `**Jira Epic**: [KEY-123](https://...)`
+      immediately after the `**Status**:` line. If reusing an existing Epic,
+      record the existing key.
+
+   e. **Error handling**: If the Atlassian MCP is unavailable or authentication
+      fails, warn the user and continue — the Epic can be created manually
+      later. Record `**Jira Epic**: PENDING` in the spec header.
+
+8. Report completion with branch name, spec file path, Jira Epic key (or PENDING), checklist results, and readiness for the next phase (`/speckit.clarify` or `/speckit.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

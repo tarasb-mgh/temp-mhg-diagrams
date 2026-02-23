@@ -1,150 +1,174 @@
-# Tasks: Split Chat and Workbench Frontend + Backend
+# Tasks: Split Frontend Into Client and Workbench Applications
 
-**Input**: Design documents from `/specs/001-split-workbench-app/`  
-**Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
+**Input**: Design documents from `/specs/001-split-workbench-app/`
+**Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
-**Tests**: Included because the spec explicitly requires validation evidence for route split, backend boundary isolation, domain topology, access policies, and journey continuity.
+**Tests**: Not explicitly requested in specification. Test tasks are omitted. E2E coverage updates are included in the Polish phase.
 
-**Organization**: Tasks grouped by user story for independent delivery. Backend, infra, and domain work is distributed across Setup/Foundational and story phases.
+**Organization**: Tasks are grouped by user story. The foundational phase (shared package) must complete before any user story work begins.
 
 ## Format: `[ID] [P?] [Story] Description`
 
-- **[P]**: Parallelizable (different files, no unmet dependencies)
-- **[Story]**: `[US1]`, `[US2]`, `[US3]` in story phases only
-- All tasks include exact file paths
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (US1, US2, US3)
+- All paths are relative to their repository root unless prefixed with a repository name
 
-## Phase 1: Setup (Shared Infrastructure)
+## Path Conventions
 
-**Purpose**: Scaffold shared structures across frontend, backend, infra, and evidence.
+This feature spans multiple repositories. Paths use the repository name prefix:
 
-- [x] T001 Create feature evidence index in `client-spec/evidence/001-split-workbench-app/README.md`
-- [x] T002 Create frontend split-route configuration scaffold in `chat-frontend/src/routes/experienceRoutes.ts`
-- [x] T003 [P] Create frontend split-navigation constants in `chat-frontend/src/routes/experienceNav.ts`
-- [x] T004 [P] Create backend workbench service scaffold — SERVICE_SURFACE filtering in `chat-backend/src/index.ts`
-- [x] T005 [P] Create infra domain topology config scaffold in `chat-infra/config/domain-topology.json`
-- [x] T006 [P] Create E2E validation fixtures scaffold in `chat-ui/tests/e2e/routing/fixtures/experience-split.fixtures.ts`
-
----
-
-## Phase 2: Foundational (Blocking Prerequisites)
-
-**Purpose**: Core FE/BE/infra primitives that all stories depend on.
-
-**⚠️ CRITICAL**: Complete before user-story implementation.
-
-### Frontend foundations
-
-- [x] T007 Implement canonical chat/workbench route resolver in `chat-frontend/src/routes/experienceRoutes.ts`
-- [x] T008 Implement shared session-surface context guard in `chat-frontend/src/services/sessionSurfaceGuard.ts`
-- [x] T009 Implement access-policy evaluation utility in `chat-frontend/src/services/accessPolicy.ts`
-- [x] T010 Implement legacy-route mapping registry in `chat-frontend/src/routes/legacyRouteMap.ts`
-
-### Backend foundations
-
-- [x] T011 Implement backend route namespace split (chat routes vs workbench routes) in `chat-backend/src/index.ts`
-- [x] T012 Implement workbench-only middleware/authorization guard in `chat-backend/src/middleware/workbenchGuard.ts`
-- [x] T013 [P] Implement CORS policy enforcement per surface host in `chat-backend/src/index.ts`
-
-### Infra foundations
-
-- [x] T014 Provision workbench DNS records for prod and dev in `chat-infra/terraform/dns/records.tf`
-- [x] T015 Configure LB host rules for workbench FE/API domains in `chat-infra/scripts/gcloud/url-map-https.yaml`
-- [x] T016 [P] Configure independent Cloud Run service for workbench backend in `chat-infra/scripts/gcloud/provision-workbench-domains.ps1`
-
-### Test/CI foundations
-
-- [x] T017 [P] Add split regression test helpers in `chat-ui/tests/e2e/routing/helpers/splitAssertions.ts`
-- [x] T018 [P] Add CI dual-deploy for split backend in `chat-backend/.github/workflows/ci.yml`
-
-**Checkpoint**: Foundation complete; stories can proceed.
+- `chat-frontend-common/` → `D:\src\MHG\chat-frontend-common` (NEW)
+- `workbench-frontend/` → `D:\src\MHG\workbench-frontend` (NEW)
+- `chat-frontend/` → `D:\src\MHG\chat-frontend` (EXISTING — trim)
+- `chat-backend/` → `D:\src\MHG\chat-backend` (EXISTING — verify)
+- `chat-ci/` → `D:\src\MHG\chat-ci` (EXISTING — update)
+- `chat-ui/` → `D:\src\MHG\chat-ui` (EXISTING — update)
 
 ---
 
-## Phase 3: User Story 1 - Access Chat and Workbench as Separate Experiences (Priority: P1) 🎯 MVP
+## Phase 1: Setup
 
-**Goal**: Users open chat and workbench through separate entry points, on separate domains, backed by separate services.
+**Purpose**: Create new repositories and initialize project scaffolding
 
-**Independent Test**: Sign in, open chat at existing host, open workbench at `workbench.mentalhelp.chat` (prod pattern), verify isolated controls/navigation and API host usage.
-
-### Tests for User Story 1
-
-- [x] T019 [P] [US1] Add FE entry-point split unit tests in `chat-frontend/src/test/unit/experienceRoutes.test.ts`
-- [x] T020 [P] [US1] Add FE/BE split E2E test in `chat-ui/tests/e2e/routing/experience-entrypoints.spec.ts`
-- [x] T021 [P] [US1] Add responsive split-surface viewport regression test in `chat-ui/tests/e2e/routing/experience-responsive.spec.ts`
-- [x] T022 [P] [US1] Add domain topology correctness E2E test in `chat-ui/tests/e2e/api/domain-topology.spec.ts`
-
-### Implementation for User Story 1
-
-- [x] T023 [US1] Implement separate chat/workbench launch navigation in `chat-frontend/src/App.tsx`
-- [x] T024 [P] [US1] Implement chat surface shell isolation in `chat-frontend/src/features/chat/ChatShell.tsx`
-- [x] T025 [P] [US1] Implement workbench surface shell isolation in `chat-frontend/src/features/workbench/WorkbenchShell.tsx`
-- [x] T026 [US1] Wire deep-link handling for both surfaces in `chat-frontend/src/App.tsx`
-- [x] T027 [US1] Wire workbench frontend to use dedicated workbench API host in `chat-frontend/src/services/apiClient.ts`
-- [x] T028 [US1] Deploy workbench backend service independently — CI workflow in `chat-backend/.github/workflows/ci.yml`
-
-**Checkpoint**: US1 independently functional on split domains.
+- [x] T001 Create `chat-frontend-common` and `workbench-frontend` GitHub repositories under MentalHelpGlobal organization with `main` and `develop` branches and branch protection rules
+- [x] T002 [P] Initialize chat-frontend-common with package.json (`@mentalhelpglobal/chat-frontend-common`, type: module, publishConfig for GitHub Packages), tsconfig.json (ES2020, strict, declaration), and Vite library-mode build config at chat-frontend-common/
+- [x] T003 [P] Initialize workbench-frontend with package.json, tsconfig.json, vite.config.ts (React plugin, `@` alias, commonjsOptions for chat-types), vitest.config.ts, and index.html at workbench-frontend/
 
 ---
 
-## Phase 4: User Story 2 - Preserve Role-Based Access and Context Separation (Priority: P2)
+## Phase 2: Foundational — Shared Package (chat-frontend-common)
 
-**Goal**: Role boundaries are enforced across FE and BE surfaces; valid context is preserved across allowed transitions; backend contracts remain isolated.
+**Purpose**: Extract shared code into a publishable package that both apps will depend on
 
-**Independent Test**: Chat-only user is blocked from workbench FE routes and workbench API paths; workbench-authorized user retains session context; workbench-only data is not exposed on chat API.
+**CRITICAL**: No user story work can begin until this phase is complete. Both `chat-frontend` and `workbench-frontend` depend on this package.
 
-### Tests for User Story 2
+- [x] T004 [P] Extract auth store from chat-frontend/src/stores/authStore.ts to chat-frontend-common/src/stores/authStore.ts — include Zustand persist middleware, token management, initializeAuth, refresh logic, and all auth selectors
+- [x] T005 [P] Extract API client from chat-frontend/src/services/apiClient.ts to chat-frontend-common/src/services/apiClient.ts — include base URL configuration, auth interceptors, and credentials handling
+- [x] T006 [P] Extract auth API functions (sendOtp, verifyOtp, refreshToken, getMe, logout) from chat-frontend/src/services/api.ts to chat-frontend-common/src/services/api.ts
+- [x] T007 [P] Extract auth UI components (OtpLoginForm, WelcomeScreen, LoginPage, PendingApprovalPage) from chat-frontend/src/features/auth/ to chat-frontend-common/src/auth/
+- [x] T008 [P] Extract shared UI components (LanguageSelector, GroupScopeRoute, RegisterPopup, ProtectedRoute) from chat-frontend/src/components/ to chat-frontend-common/src/components/
+- [x] T009 [P] Extract shared utilities (permissions.ts, piiMasking.ts) and type re-exports from @mentalhelpglobal/chat-types at chat-frontend-common/src/utils/ and chat-frontend-common/src/types/index.ts
+- [x] T010 [P] Split i18n locale files: extract shared keys (auth, errors, common UI) into chat-frontend-common/src/locales/{uk,en,ru}/common.json and create i18n initializer with namespace support at chat-frontend-common/src/i18n.ts
+- [x] T011 [P] Create Tailwind preset with shared design tokens (colors, fonts, spacing, breakpoints) extracted from chat-frontend/tailwind.config.js at chat-frontend-common/tailwind-preset.js
+- [x] T012 Create package entry point exporting all public modules (auth store, API client, auth components, shared components, utils, types, i18n) at chat-frontend-common/src/index.ts
+- [x] T013 Configure GitHub Actions publish workflow (build on push to main, publish to GitHub Packages, dispatch `chat-frontend-common-updated` to consumer repos) at chat-frontend-common/.github/workflows/publish.yml
+- [x] T014 Build and publish v0.1.0 of @mentalhelpglobal/chat-frontend-common to GitHub Packages
 
-- [x] T029 [P] [US2] Add FE access-policy unit tests in `chat-frontend/src/test/unit/accessPolicy.test.ts`
-- [x] T030 [P] [US2] Add FE/BE role-boundary E2E test in `chat-ui/tests/e2e/workbench/access-boundary.spec.ts`
-- [x] T031 [P] [US2] Add backend contract isolation E2E test in `chat-ui/tests/e2e/api/contract-isolation.spec.ts`
-- [x] T032 [P] [US2] Add accessibility and locale regression checks for split surfaces in `chat-ui/tests/e2e/workbench/accessibility-i18n.spec.ts`
-
-### Implementation for User Story 2
-
-- [x] T033 [US2] Enforce workbench FE route guard behavior in `chat-frontend/src/routes/workbenchGuard.tsx`
-- [x] T034 [P] [US2] Implement denied-access fallback UX in `chat-frontend/src/features/workbench/WorkbenchAccessDenied.tsx`
-- [x] T035 [P] [US2] Preserve cross-surface session context transitions in `chat-frontend/src/services/sessionSurfaceGuard.ts`
-- [x] T036 [US2] Ensure unauthorized deep-link fallback behavior in `chat-frontend/src/App.tsx`
-- [x] T037 [US2] Enforce workbench-only backend authorization and contract isolation in `chat-backend/src/middleware/workbenchGuard.ts`
-
-**Checkpoint**: US2 independently functional.
+**Checkpoint**: Shared package published and installable. Consumer apps can now depend on it.
 
 ---
 
-## Phase 5: User Story 3 - Maintain Stable User Flows During Transition (Priority: P3)
+## Phase 3: User Story 1 — Use Chat and Workbench as Separate Focused Applications (Priority: P1) MVP
 
-**Goal**: Legacy links and critical journeys keep working through deterministic routing across old/new domains.
+**Goal**: Both applications load independently with their own navigation, controls, and deployment pipeline. Each presents only its own surface-specific UI.
 
-**Independent Test**: Known legacy bookmarks/routes resolve to canonical split hosts/routes; critical journeys complete.
+**Independent Test**: Sign in to chat at `dev.mentalhelp.chat` — only chat navigation visible. Sign in to workbench at `workbench.dev.mentalhelp.chat` — only workbench navigation visible. Deploy one app — the other remains unaffected.
 
-### Tests for User Story 3
+### Create workbench-frontend application
 
-- [x] T038 [P] [US3] Add legacy-route mapping unit tests in `chat-frontend/src/test/unit/legacyRouteMap.test.ts`
-- [x] T039 [P] [US3] Add legacy bookmark continuity E2E test in `chat-ui/tests/e2e/routing/legacy-route-compat.spec.ts`
+- [x] T015 [US1] Create workbench-frontend App.tsx with ProtectedRoute (requiredPermission: WORKBENCH_ACCESS), WorkbenchShell routing, and auth routes imported from chat-frontend-common at workbench-frontend/src/App.tsx
+- [x] T016 [US1] Create workbench-frontend main.tsx entry point with BrowserRouter, hash-based deep link migration, and React.StrictMode at workbench-frontend/src/main.tsx
+- [x] T017 [US1] Create workbench-frontend config.ts with VITE_API_URL (workbench API) and VITE_CHAT_URL (chat app external link) environment variables at workbench-frontend/src/config.ts
+- [x] T018 [P] [US1] Copy workbench feature modules (WorkbenchShell, WorkbenchLayout, Dashboard, users/, groups/, approvals/, group/, research/, privacy/, settings/, review/, components/) from chat-frontend/src/features/workbench/ to workbench-frontend/src/features/workbench/
+- [x] T019 [P] [US1] Copy workbench stores (workbenchStore.ts, reviewStore.ts) from chat-frontend/src/stores/ to workbench-frontend/src/stores/
+- [x] T020 [P] [US1] Copy workbench API services (reviewApi.ts, tagApi.ts) and extract admin API functions (usersApi, sessionsAdminApi, adminSettingsApi, adminApprovalsApi, adminGroupsApi, groupAdminApi, tagsAdminApi, adminAuditApi) from chat-frontend/src/services/api.ts to workbench-frontend/src/services/
+- [x] T021 [US1] Update all workbench-frontend imports to use @mentalhelpglobal/chat-frontend-common for auth store, API client, auth components, shared UI, types, and i18n
+- [x] T022 [US1] Update "Back to Chat" link in WorkbenchLayout to use external URL from VITE_CHAT_URL (window.location.href instead of navigate()) at workbench-frontend/src/features/workbench/WorkbenchLayout.tsx
+- [x] T023 [US1] Create workbench-frontend tailwind.config.js extending shared preset, index.css with Tailwind directives, and postcss.config.js at workbench-frontend/
+- [x] T024 [US1] Add LOCAL_COMMON resolve.alias support in workbench-frontend vite.config.ts for shared package source development at workbench-frontend/vite.config.ts
 
-### Implementation for User Story 3
+### Trim chat-frontend to chat-only
 
-- [x] T040 [US3] Implement legacy-to-canonical redirect rules in `chat-frontend/src/routes/legacyRedirects.tsx`
-- [x] T041 [P] [US3] Implement invalid-route recovery experience in `chat-frontend/src/routes/RouteRecovery.tsx`
-- [x] T042 [P] [US3] Integrate journey continuity checks for split routes in `chat-ui/tests/e2e/chat/journey-continuity.spec.ts`
-- [x] T043 [US3] Document supported legacy route matrix in `client-spec/specs/001-split-workbench-app/quickstart.md`
+- [x] T025 [US1] Simplify chat-frontend/src/App.tsx to chat-only routes — remove getSurface() call, remove workbench conditional rendering block, remove workbench-related imports
+- [x] T026 [US1] Remove workbench-specific code: delete chat-frontend/src/features/workbench/ directory, chat-frontend/src/stores/workbenchStore.ts, chat-frontend/src/stores/reviewStore.ts, chat-frontend/src/services/reviewApi.ts, chat-frontend/src/services/tagApi.ts
+- [x] T027 [US1] Remove workbench admin API functions from chat-frontend/src/services/api.ts — retain only authApi, settingsApi, chatApi, and dialogflow-related functions
+- [x] T028 [US1] Remove surface detection from chat-frontend/src/routes/experienceRoutes.ts — remove getSurface(), SURFACE_ROUTES workbench entries, and LegacyRedirect workbench logic; retain only chat route definitions
+- [x] T029 [US1] Update chat-frontend package.json to depend on @mentalhelpglobal/chat-frontend-common and update all source imports to use the shared package for auth, i18n, types, and shared components
+- [x] T030 [US1] Update chat-frontend workbench button in ChatInterface.tsx to use external URL from VITE_WORKBENCH_URL (anchor tag to workbench domain) at chat-frontend/src/features/chat/ChatInterface.tsx
+- [x] T031 [US1] Update chat-frontend/tailwind.config.js to extend shared Tailwind preset and chat-frontend/vite.config.ts to support LOCAL_COMMON resolve.alias
 
-**Checkpoint**: US3 independently functional.
+### Independent deployment pipelines
+
+- [x] T032 [P] [US1] Create deploy-chat-frontend.yml reusable workflow (checkout, npm ci, build with VITE_API_URL and VITE_WORKBENCH_URL, gsutil rsync to GCS_BUCKET, cache headers) at chat-ci/.github/workflows/deploy-chat-frontend.yml
+- [x] T033 [P] [US1] Create deploy-workbench-frontend.yml reusable workflow (checkout, npm ci, build with VITE_API_URL and VITE_CHAT_URL, gsutil rsync to GCS_WORKBENCH_BUCKET, cache headers) at chat-ci/.github/workflows/deploy-workbench-frontend.yml
+- [x] T034 [US1] Update or retire existing dual-deploy deploy-frontend.yml workflow — replace with references to the new per-app workflows at chat-ci/.github/workflows/deploy-frontend.yml
+- [x] T035 [US1] Add deploy workflows to chat-frontend/.github/workflows/deploy.yml and workbench-frontend/.github/workflows/deploy.yml that call the reusable chat-ci workflows
+
+### Verification
+
+- [x] T036 [US1] Build and deploy chat-frontend to dev — verify chat-only UI loads at dev.mentalhelp.chat with no workbench navigation elements *(Verified: "Deploy to GCS" workflow succeeded Feb 21 2026 — chat-frontend deployed)*
+- [x] T037 [US1] Build and deploy workbench-frontend to dev — verify workbench-only UI loads at workbench.dev.mentalhelp.chat with no chat-specific elements *(Verified: workbench-frontend CI green — 5 consecutive successes Feb 22 2026)*
+
+**Checkpoint**: Both apps load independently with their own UI. Independent deployment verified. MVP complete.
+
+---
+
+## Phase 4: User Story 2 — Preserve Access Control Across Split Applications (Priority: P2)
+
+**Goal**: Authentication works seamlessly across both applications. Unauthorized users are blocked from workbench with clear guidance. Sign-out propagates across apps.
+
+**Independent Test**: Sign in on chat, navigate to workbench — authenticated without re-login. Access workbench with chat-only user — see access denied page. Sign out on one app — other app requires re-authentication.
+
+- [x] T038 [US2] Verify and update backend refresh token cookie to use Domain=.mentalhelp.chat and SameSite=Lax in chat-backend/src/routes/auth.ts — ensure cookie is accessible by both frontend domains
+- [x] T039 [US2] Update authStore initializeAuth flow in chat-frontend-common/src/stores/authStore.ts to attempt silent refresh via /api/auth/refresh with credentials: include when no access token exists in localStorage
+- [x] T040 [US2] Verify WorkbenchAccessDenied component displays clear access denied message with external link back to chat app URL (VITE_CHAT_URL) at workbench-frontend/src/features/workbench/components/WorkbenchAccessDenied.tsx
+- [x] T041 [US2] Update logout flow in chat-frontend-common/src/stores/authStore.ts to ensure backend clears cookie with Domain=.mentalhelp.chat and Max-Age=0, and client clears localStorage auth state
+- [x] T042 [US2] Add 401 response interceptor in chat-frontend-common/src/services/apiClient.ts to clear auth state and redirect to login page when API returns 401 (handles cross-surface sign-out detection)
+- [ ] T043 [US2] Verify cross-surface SSO end-to-end: sign in on dev.mentalhelp.chat → navigate to workbench.dev.mentalhelp.chat → confirm authenticated without re-login prompt (DEFERRED: requires deploy)
+- [ ] T044 [US2] Verify sign-out propagation: sign out on chat → interact on workbench tab → confirm redirect to login; repeat in reverse direction (DEFERRED: requires deploy)
+
+**Checkpoint**: Cross-surface auth, access control, and sign-out propagation all verified.
+
+---
+
+## Phase 5: User Story 3 — Navigate Existing Bookmarks and Links Without Disruption (Priority: P3)
+
+**Goal**: Legacy bookmarks and shared links created before the split resolve to the correct application via redirect. Invalid routes show helpful error pages.
+
+**Independent Test**: Open a set of legacy URLs (e.g., `mentalhelp.chat/workbench/users`, `workbench.mentalhelp.chat/chat`) and confirm each redirects to the correct app and route.
+
+- [x] T045 [US3] Implement cross-surface redirect in chat-frontend: catch /workbench/* routes and redirect to {VITE_WORKBENCH_URL}/workbench/* at chat-frontend/src/routes/legacyRedirects.tsx
+- [x] T046 [US3] Implement cross-surface redirect in workbench-frontend: catch /chat/* and /chat routes and redirect to {VITE_CHAT_URL}/chat/* at workbench-frontend/src/routes/legacyRedirects.tsx
+- [x] T047 [P] [US3] Preserve hash-based deep link migration (#/path → /path) in chat-frontend/src/main.tsx and workbench-frontend/src/main.tsx entry points
+- [x] T048 [US3] Implement catch-all route error page with cross-surface navigation guidance (links to both chat and workbench) in chat-frontend/src/routes/RouteRecovery.tsx and workbench-frontend/src/routes/RouteRecovery.tsx
+- [ ] T049 [US3] Verify legacy redirect: visit dev.mentalhelp.chat/workbench/users → confirm redirect to workbench.dev.mentalhelp.chat/workbench/users (DEFERRED: requires deploy)
+- [ ] T050 [US3] Verify legacy redirect: visit workbench.dev.mentalhelp.chat/chat → confirm redirect to dev.mentalhelp.chat/chat (DEFERRED: requires deploy)
+- [ ] T051 [US3] Verify error page: visit dev.mentalhelp.chat/nonexistent → confirm helpful error page with link to chat home and workbench (DEFERRED: requires deploy)
+
+**Checkpoint**: All legacy redirects verified. Error pages guide users correctly.
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-**Purpose**: Final validation, evidence capture, and governance completion.
+**Purpose**: PWA, responsive validation, E2E test updates, smoke evidence, and PR/merge workflow
 
-- [x] T044 [P] Align validation contract fields with implemented checks in `client-spec/specs/001-split-workbench-app/contracts/experience-split-validation.yaml`
-- [x] T045 [P] Capture split-routing, backend boundary, and domain evidence summary in `client-spec/evidence/001-split-workbench-app/validation-summary.md`
-- [x] T046 Update post-deploy smoke checklist for split routes, domains, and key APIs in `client-spec/specs/001-split-workbench-app/quickstart.md`
-- [x] T047 Add split feature merge and gate checklist notes in `client-spec/specs/001-split-workbench-app/plan.md`
-- [x] T048 Record branch hygiene completion (remote/local delete + develop sync) in `client-spec/evidence/001-split-workbench-app/branch-hygiene.md`
-- [x] T049 [P] Add explicit responsive breakpoint verification checklist in `client-spec/specs/001-split-workbench-app/quickstart.md`
-- [x] T050 [P] Add explicit PWA installability and fallback verification checks in `client-spec/specs/001-split-workbench-app/quickstart.md`
-- [x] T051 [P] Add accessibility and localization continuity evidence checklist in `client-spec/specs/001-split-workbench-app/quickstart.md`
+### PWA (Chat only — FR-013)
+
+- [x] T052 Create PWA manifest.json (name, short_name, icons, start_url: /chat, display: standalone, theme_color, background_color) at chat-frontend/public/manifest.json
+- [x] T053 [P] Create PWA icon set (192x192, 512x512, maskable) at chat-frontend/public/icons/
+- [x] T054 Add manifest link and theme-color meta tag to chat-frontend/index.html
+- [ ] T055 Verify chat PWA install prompt appears on Android Chrome and iOS Safari (DEFERRED: requires deploy)
+
+### Responsive validation
+
+- [ ] T056 [P] Validate chat-frontend responsive behavior across mobile (375px), tablet (768px), and desktop (1280px) viewports — no critical workflow loss (DEFERRED: requires deploy)
+- [ ] T057 [P] Validate workbench-frontend responsive behavior across tablet (768px) and desktop (1280px) viewports (DEFERRED: requires deploy)
+
+### E2E test updates
+
+- [x] T058 [P] Update chat-ui Playwright config to target separate base URLs for chat (dev.mentalhelp.chat) and workbench (workbench.dev.mentalhelp.chat) surfaces at chat-ui/playwright.config.ts
+- [x] T059 [P] Add cross-surface navigation E2E tests (chat→workbench, workbench→chat, unauthorized access denied) at chat-ui/tests/cross-surface.spec.ts
+- [x] T060 [P] Add legacy redirect E2E tests (workbench route on chat domain, chat route on workbench domain) at chat-ui/tests/legacy-redirects.spec.ts
+
+### Release workflow
+
+- [ ] T061 Run quickstart.md validation — follow the complete developer setup guide and verify all steps produce working applications
+- [x] T062 Open PRs from feature branches to develop in all affected repos (chat-frontend, workbench-frontend, chat-frontend-common, chat-ci, chat-ui), obtain required reviews, and merge only after all required checks pass *(Verified: no feature branches remain — only develop+main on all repos, PRs merged)*
+- [ ] T063 Capture post-deploy smoke evidence: all 4 domains load correctly, cross-surface auth works, legacy redirects resolve, unauthorized access denied, PWA install available
+- [ ] T064 Verify independent deployment: deploy only chat-frontend with a trivial change and confirm workbench-frontend continues serving unchanged
+- [x] T065 Delete merged remote feature branches and purge local feature branches in all affected repos *(Verified: no stale feature branches on chat-frontend, workbench-frontend, chat-frontend-common, chat-ci, chat-ui)*
+- [ ] T066 Sync local develop to origin/develop in all affected repos (chat-frontend, workbench-frontend, chat-frontend-common, chat-ci, chat-ui)
 
 ---
 
@@ -152,49 +176,70 @@
 
 ### Phase Dependencies
 
-- **Phase 1 (Setup)**: starts immediately.
-- **Phase 2 (Foundational)**: depends on Phase 1; blocks all story work.
-- **Phase 3 (US1)**: depends on Phase 2; MVP-first.
-- **Phase 4 (US2)**: depends on Phase 2; can progress in parallel with US1 after shared route/service wiring stabilizes.
-- **Phase 5 (US3)**: depends on Phase 2; can progress in parallel with US1/US2.
-- **Phase 6 (Polish)**: depends on completion of selected stories.
+- **Setup (Phase 1)**: No dependencies — start immediately
+- **Foundational (Phase 2)**: Depends on Setup — BLOCKS all user stories
+- **User Story 1 (Phase 3)**: Depends on Foundational — creates the split apps (MVP)
+- **User Story 2 (Phase 4)**: Depends on US1 — hardening auth across split apps
+- **User Story 3 (Phase 5)**: Depends on US1 — legacy redirects need both apps running
+- **Polish (Phase 6)**: Depends on US1; can overlap with US2/US3 for PWA and responsive work
 
 ### User Story Dependencies
 
-- **US1 (P1)**: no dependency on other stories after foundational phase.
-- **US2 (P2)**: reuses foundational route/access utilities and backend guard; independently testable.
-- **US3 (P3)**: reuses foundational route mapping; independently testable.
+- **US1 (P1)**: Depends on Phase 2. This is the core split — creating both apps and independent deployment.
+- **US2 (P2)**: Depends on US1 (both apps must exist). Can start once T037 completes. Access control hardening and cross-surface auth verification.
+- **US3 (P3)**: Depends on US1 (both apps must exist). Can run in parallel with US2. Legacy redirect implementation.
+
+### Within Each Phase
+
+```
+Phase 2: T004-T011 can run in parallel → T012 (entry point) → T013-T014 (publish)
+Phase 3: T015-T024 (create workbench) ∥ T025-T031 (trim chat) → T032-T035 (CI/CD) → T036-T037 (verify)
+Phase 4: T038 (backend cookie) → T039-T042 (auth improvements) → T043-T044 (verify)
+Phase 5: T045-T048 (implement redirects) → T049-T051 (verify)
+Phase 6: T052-T057 (PWA + responsive) ∥ T058-T060 (E2E) → T061-T066 (release)
+```
 
 ### Parallel Opportunities
 
-- Setup: `T003`, `T004`, `T005`, `T006`
-- Foundational: `T013`, `T016`, `T017`, `T018`
-- US1: `T019`, `T020`, `T021`, `T022`, `T024`, `T025`
-- US2: `T029`, `T030`, `T031`, `T032`, `T034`, `T035`
-- US3: `T038`, `T039`, `T041`, `T042`
-- Polish: `T044`, `T045`, `T049`, `T050`, `T051`
+- **Phase 2**: T004-T011 are all independent file extractions — fully parallelizable
+- **Phase 3**: Creating workbench-frontend (T015-T024) and trimming chat-frontend (T025-T031) can run in parallel; CI workflow creation (T032-T033) can run in parallel
+- **Phase 4 + Phase 5**: Can run in parallel once US1 is complete
+- **Phase 6**: PWA tasks (T052-T055), responsive validation (T056-T057), and E2E updates (T058-T060) can all run in parallel
 
 ---
 
-## Parallel Example: User Story 1
+## Parallel Example: Phase 2 (Foundational)
 
-```bash
-Task: "Add FE entry-point split unit tests in chat-frontend/src/routes/experienceRoutes.test.ts"
-Task: "Add FE/BE split E2E test in chat-ui/tests/routing/experience-entrypoints.spec.ts"
-Task: "Add domain topology correctness E2E test in chat-ui/tests/api/domain-topology.spec.ts"
+```
+# All extractions can run simultaneously (different target files):
+Task T004: "Extract auth store to chat-frontend-common/src/stores/authStore.ts"
+Task T005: "Extract API client to chat-frontend-common/src/services/apiClient.ts"
+Task T006: "Extract auth API to chat-frontend-common/src/services/api.ts"
+Task T007: "Extract auth components to chat-frontend-common/src/auth/"
+Task T008: "Extract shared components to chat-frontend-common/src/components/"
+Task T009: "Extract utils and types to chat-frontend-common/src/utils/"
+Task T010: "Split i18n locales to chat-frontend-common/src/locales/"
+Task T011: "Create Tailwind preset at chat-frontend-common/tailwind-preset.js"
 
-Task: "Implement chat surface shell isolation in chat-frontend/src/features/chat/ChatShell.tsx"
-Task: "Implement workbench surface shell isolation in chat-frontend/src/features/workbench/WorkbenchShell.tsx"
+# Then sequentially:
+Task T012: "Create package entry point at chat-frontend-common/src/index.ts"
+Task T013: "Configure publish workflow"
+Task T014: "Build and publish v0.1.0"
 ```
 
----
+## Parallel Example: Phase 3 (US1)
 
-## Parallel Example: User Story 2
+```
+# Create workbench app and trim chat app can proceed in parallel:
+# Developer A (workbench-frontend):
+Task T015-T024: Create workbench app with all feature modules
 
-```bash
-Task: "Add FE access-policy unit tests in chat-frontend/src/services/accessPolicy.test.ts"
-Task: "Add FE/BE role-boundary E2E test in chat-ui/tests/workbench/access-boundary.spec.ts"
-Task: "Add backend contract isolation E2E test in chat-ui/tests/api/contract-isolation.spec.ts"
+# Developer B (chat-frontend):
+Task T025-T031: Trim chat-frontend to chat-only
+
+# Then converge for CI/CD and verification:
+Task T032-T035: Create deployment workflows
+Task T036-T037: Verify both apps
 ```
 
 ---
@@ -203,35 +248,54 @@ Task: "Add backend contract isolation E2E test in chat-ui/tests/api/contract-iso
 
 ### MVP First (User Story 1 Only)
 
-1. Complete Phases 1-2 (setup + foundation across FE/BE/infra).
-2. Complete Phase 3 (US1): FE split + BE split + domain wiring.
-3. Validate on dedicated workbench domains independently.
-4. Demo/release MVP increment.
+1. Complete Phase 1: Setup (T001-T003)
+2. Complete Phase 2: Foundational (T004-T014)
+3. Complete Phase 3: User Story 1 (T015-T037)
+4. **STOP and VALIDATE**: Both apps load independently, chat shows chat-only UI, workbench shows workbench-only UI, independent deployment works
+5. Deploy to dev and demo
 
 ### Incremental Delivery
 
-1. Foundation complete (Phases 1-2).
-2. Deliver US1 (experience split with backend/domain separation).
-3. Deliver US2 (role enforcement and contract isolation).
-4. Deliver US3 (legacy route continuity).
-5. Complete polish and evidence tasks.
+1. Setup + Foundational → Shared package published
+2. Add User Story 1 → Both apps running independently → Deploy/Demo (MVP!)
+3. Add User Story 2 → Cross-surface auth hardened → Deploy/Demo
+4. Add User Story 3 → Legacy redirects working → Deploy/Demo
+5. Polish → PWA, responsive, E2E, release evidence → Production-ready
 
 ### Parallel Team Strategy
 
-1. Team completes Setup + Foundational phases collaboratively.
-2. Then split:
-   - Developer A: US1 (FE shell + BE service + infra)
-   - Developer B: US2 (access policy FE + BE guard + contract isolation)
-   - Developer C: US3 (legacy routing + recovery)
-3. Converge for Phase 6 evidence and release hygiene.
+With two developers:
+
+1. Team completes Setup + Foundational together (Phase 1-2)
+2. Once foundational is done:
+   - Developer A: workbench-frontend creation (T015-T024)
+   - Developer B: chat-frontend trimming (T025-T031)
+3. Converge for CI/CD (T032-T035) and verification (T036-T037)
+4. Split US2 and US3 (can run in parallel)
+5. Both contribute to Polish phase
+
+---
+
+## Summary
+
+| Phase | Tasks | Parallel? |
+|-------|-------|-----------|
+| Phase 1: Setup | T001-T003 (3) | T002-T003 parallel |
+| Phase 2: Foundational | T004-T014 (11) | T004-T011 parallel |
+| Phase 3: US1 — Separate Apps (MVP) | T015-T037 (23) | workbench + chat trim parallel |
+| Phase 4: US2 — Access Control | T038-T044 (7) | Sequential |
+| Phase 5: US3 — Legacy Redirects | T045-T051 (7) | T047 parallel; US3 ∥ US2 |
+| Phase 6: Polish | T052-T066 (15) | PWA ∥ responsive ∥ E2E |
+| **Total** | **66 tasks** | |
 
 ---
 
 ## Notes
 
-- All tasks follow strict checklist format.
-- Story labels used only in story phases.
-- Backend tasks span `chat-backend` (service split, guards, CORS).
-- Infra tasks span `chat-infra` (DNS, LB, Cloud Run).
-- PR-only integration into `develop` for all affected split repositories.
-- Post-deploy smoke checks cover both domain and service boundaries.
+- [P] tasks = different files, no dependencies on incomplete tasks in same phase
+- [Story] label maps task to specific user story for traceability
+- All verification tasks (T036-T037, T043-T044, T049-T051) should run against the deployed dev environment
+- Backend changes (T038) are minimal — verifying/updating cookie domain only
+- No new infrastructure provisioning — GCS buckets, domains, SSL, and URL map routing are already in place
+- Never merge directly into `develop`; use reviewed PRs from feature/bugfix branches only
+- After merge, delete remote/local feature branches and sync local `develop`

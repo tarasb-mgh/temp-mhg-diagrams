@@ -3,6 +3,7 @@
 **Feature Branch**: `007-e2e-coverage`
 **Created**: 2026-02-08
 **Status**: Draft
+**Jira Epic**: MTB-225
 **Input**: Expand Playwright E2E test coverage to all major features and critical user flows, closing gaps between documented functionality and automated test coverage.
 
 ## User Scenarios & Testing *(mandatory)*
