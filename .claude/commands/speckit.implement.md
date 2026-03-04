@@ -159,29 +159,32 @@ You **MUST** consider the user input before proceeding (if not empty).
     After implementation tasks are complete and before final validation,
     identify which Confluence documentation types require updates:
 
-    a. **Release Notes**: Required ONLY when changes are promoted to
-       production (tagged `main` commit). When merging to `develop`,
-       do NOT create a Release Notes entry — record `RELEASE NOTES:
-       DEFERRED UNTIL PRODUCTION` in the completion summary. When the
-       production release occurs, draft an entry with: release
-       version/tag, date, user-visible changes, known issues (if any),
-       and a link to the Jira Epic.
+    a. **Release Notes** ([Confluence page](https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8781825/Release+Notes)):
+       Required ONLY when changes are promoted to production (tagged
+       `main` commit). When merging to `develop`, do NOT create a
+       Release Notes entry — record `RELEASE NOTES: DEFERRED UNTIL
+       PRODUCTION` in the completion summary. When the production
+       release occurs, draft an entry with: release version/tag, date,
+       user-visible changes, known issues (if any), and a link to the
+       Jira Epic.
 
-    b. **User Manual**: Required if UI flows or screens changed. Update
-       affected pages with new screenshots and step-by-step guidance
-       for both chat and workbench interfaces. Screenshots MUST be
-       captured using the Playwright MCP (`plugin-playwright-playwright`)
-       against the deployed dev environment — navigate to the relevant
-       page, interact to reach the desired state, take a screenshot,
-       and upload to Confluence as an attachment.
+    b. **User Manual** ([Confluence page](https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8749070/User+Manual)):
+       Required if UI flows or screens changed. Update affected pages
+       with new screenshots and step-by-step guidance for both chat
+       and workbench interfaces. Screenshots MUST be captured using
+       the Playwright MCP (`plugin-playwright-playwright`) against the
+       deployed dev environment — navigate to the relevant page,
+       interact to reach the desired state, take a screenshot, and
+       upload to Confluence as an attachment.
 
-    c. **Non-Technical Onboarding**: Required if product workflows,
-       navigation, or terminology changed. Update affected pages using
-       non-technical language.
+    c. **Non-Technical Onboarding** ([Confluence page](https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding)):
+       Required if product workflows, navigation, or terminology
+       changed. Update affected pages using non-technical language.
 
-    d. **Technical Onboarding**: Required if repository structure,
-       CI/CD pipelines, tooling, or development workflows changed.
-       Update setup guides and architecture overviews.
+    d. **Technical Onboarding** ([Confluence page](https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding)):
+       Required if repository structure, CI/CD pipelines, tooling, or
+       development workflows changed. Update setup guides and
+       architecture overviews.
 
     e. **Report**: List which Confluence sections were updated (or
        flagged for manual update) in the completion summary. If

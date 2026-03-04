@@ -2,7 +2,7 @@
 
 **Feature Branch**: `012-confluence-documentation`
 **Created**: 2026-02-22
-**Status**: Draft
+**Status**: In Progress — 1 task remaining (production screenshot capture)
 **Jira Epic**: [MTB-1](https://mentalhelpglobal.atlassian.net/browse/MTB-1)
 **Input**: User description: "Define four documentation types (User Manual, Technical Onboarding, Release Notes, Non-Technical Onboarding) hosted in Confluence, updated on every production change."
 

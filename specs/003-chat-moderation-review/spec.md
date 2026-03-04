@@ -2,7 +2,7 @@
 
 **Feature Branch**: `003-chat-moderation-review`  
 **Created**: 2026-02-10  
-**Status**: Draft
+**Status**: Complete
 **Jira Epic**: MTB-196
 **Input**: User description: "make sure that Research interface follows the following spec:"
 

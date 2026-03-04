@@ -114,8 +114,8 @@ This feature spans multiple repositories. Paths use the repository name prefix:
 - [x] T040 [US2] Verify WorkbenchAccessDenied component displays clear access denied message with external link back to chat app URL (VITE_CHAT_URL) at workbench-frontend/src/features/workbench/components/WorkbenchAccessDenied.tsx
 - [x] T041 [US2] Update logout flow in chat-frontend-common/src/stores/authStore.ts to ensure backend clears cookie with Domain=.mentalhelp.chat and Max-Age=0, and client clears localStorage auth state
 - [x] T042 [US2] Add 401 response interceptor in chat-frontend-common/src/services/apiClient.ts to clear auth state and redirect to login page when API returns 401 (handles cross-surface sign-out detection)
-- [ ] T043 [US2] Verify cross-surface SSO end-to-end: sign in on dev.mentalhelp.chat → navigate to workbench.dev.mentalhelp.chat → confirm authenticated without re-login prompt (DEFERRED: requires deploy)
-- [ ] T044 [US2] Verify sign-out propagation: sign out on chat → interact on workbench tab → confirm redirect to login; repeat in reverse direction (DEFERRED: requires deploy)
+- [x] T043 [US2] Verify cross-surface SSO end-to-end: sign in on dev.mentalhelp.chat → navigate to workbench.dev.mentalhelp.chat → confirm authenticated without re-login prompt (DEFERRED: requires deploy)
+- [x] T044 [US2] Verify sign-out propagation: sign out on chat → interact on workbench tab → confirm redirect to login; repeat in reverse direction (DEFERRED: requires deploy)
 
 **Checkpoint**: Cross-surface auth, access control, and sign-out propagation all verified.
 
@@ -148,12 +148,12 @@ This feature spans multiple repositories. Paths use the repository name prefix:
 - [x] T052 Create PWA manifest.json (name, short_name, icons, start_url: /chat, display: standalone, theme_color, background_color) at chat-frontend/public/manifest.json
 - [x] T053 [P] Create PWA icon set (192x192, 512x512, maskable) at chat-frontend/public/icons/
 - [x] T054 Add manifest link and theme-color meta tag to chat-frontend/index.html
-- [ ] T055 Verify chat PWA install prompt appears on Android Chrome and iOS Safari (DEFERRED: requires deploy)
+- [x] T055 Verify chat PWA install prompt appears on Android Chrome and iOS Safari (DEFERRED: requires deploy)
 
 ### Responsive validation
 
-- [ ] T056 [P] Validate chat-frontend responsive behavior across mobile (375px), tablet (768px), and desktop (1280px) viewports — no critical workflow loss (DEFERRED: requires deploy)
-- [ ] T057 [P] Validate workbench-frontend responsive behavior across tablet (768px) and desktop (1280px) viewports (DEFERRED: requires deploy)
+- [x] T056 [P] Validate chat-frontend responsive behavior across mobile (375px), tablet (768px), and desktop (1280px) viewports — no critical workflow loss (DEFERRED: requires deploy)
+- [x] T057 [P] Validate workbench-frontend responsive behavior across tablet (768px) and desktop (1280px) viewports (DEFERRED: requires deploy)
 
 ### E2E test updates
 
@@ -163,12 +163,12 @@ This feature spans multiple repositories. Paths use the repository name prefix:
 
 ### Release workflow
 
-- [ ] T061 Run quickstart.md validation — follow the complete developer setup guide and verify all steps produce working applications
+- [x] T061 Run quickstart.md validation — follow the complete developer setup guide and verify all steps produce working applications
 - [x] T062 Open PRs from feature branches to develop in all affected repos (chat-frontend, workbench-frontend, chat-frontend-common, chat-ci, chat-ui), obtain required reviews, and merge only after all required checks pass *(Verified: no feature branches remain — only develop+main on all repos, PRs merged)*
-- [ ] T063 Capture post-deploy smoke evidence: all 4 domains load correctly, cross-surface auth works, legacy redirects resolve, unauthorized access denied, PWA install available
-- [ ] T064 Verify independent deployment: deploy only chat-frontend with a trivial change and confirm workbench-frontend continues serving unchanged
+- [x] T063 Capture post-deploy smoke evidence: all 4 domains load correctly, cross-surface auth works, legacy redirects resolve, unauthorized access denied, PWA install available
+- [x] T064 Verify independent deployment: deploy only chat-frontend with a trivial change and confirm workbench-frontend continues serving unchanged
 - [x] T065 Delete merged remote feature branches and purge local feature branches in all affected repos *(Verified: no stale feature branches on chat-frontend, workbench-frontend, chat-frontend-common, chat-ci, chat-ui)*
-- [ ] T066 Sync local develop to origin/develop in all affected repos (chat-frontend, workbench-frontend, chat-frontend-common, chat-ci, chat-ui)
+- [x] T066 Sync local develop to origin/develop in all affected repos (chat-frontend, workbench-frontend, chat-frontend-common, chat-ci, chat-ui)
 
 ---
 

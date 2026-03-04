@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-configure-domain-environments`  
 **Created**: 2026-02-11  
-**Status**: Draft
+**Status**: Complete
 **Jira Epic**: MTB-232
 **Input**: User description: "GCP infra has a mentalhelp.chat domain registered. I want the prod environment to be available under this domain, dev environment to be available under dev.mentalhelp.global subdomain, both using https only with verified certificates."
 

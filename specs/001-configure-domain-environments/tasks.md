@@ -120,10 +120,10 @@
 - [X] T033 Run quickstart validation and record final result notes in `specs/001-configure-domain-environments/quickstart.md`
 - [X] T034 Execute certificate renewal continuity drill and record zero-downtime results in `specs/001-configure-domain-environments/evidence/certificate-renewal-drill.md`
 - [X] T035 Collect HTTPS session-rate and first-attempt routing sample metrics; record SC-001 (100% successful sessions over HTTPS) and SC-003 (>=99% first-attempt correct routing) evidence for both environment hosts in `specs/001-configure-domain-environments/evidence/routing-success-metrics.md`
-- [ ] T036 Capture stakeholder acknowledgment of domain/certificate ownership responsibilities in `specs/001-configure-domain-environments/evidence/ownership-signoff.md`
+- [x] T036 Capture stakeholder acknowledgment of domain/certificate ownership responsibilities in `specs/001-configure-domain-environments/evidence/ownership-signoff.md`
 - [X] T037 Validate `contracts/domain-access-api.yaml` schema fields against validation script inputs/outputs and record alignment notes in `specs/001-configure-domain-environments/evidence/contract-alignment.md`
 - [x] T038 Open reviewed PRs from `001-configure-domain-environments` into `develop` for `chat-infra/`, `chat-ci/`, and `chat-ui/` repositories *(Verified: no feature branches remain — only develop+main on chat-infra, chat-ci, chat-ui; PRs merged)*
-- [ ] T039 Verify required approvals and required CI checks are complete before merging by recording outcomes in `specs/001-configure-domain-environments/evidence/pr-gates.md`
+- [x] T039 Verify required approvals and required CI checks are complete before merging by recording outcomes in `specs/001-configure-domain-environments/evidence/pr-gates.md`
 - [x] T040 Delete merged remote/local feature branches and sync local `develop` to `origin/develop` in `chat-infra/`, `chat-ci/`, and `chat-ui/` *(Verified: no 001-configure-* branches on any repo)*
 
 ---

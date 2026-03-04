@@ -48,6 +48,10 @@
 - [ ] Documentation impact is identified: which Confluence doc types
       (User Manual, Technical Onboarding, Release Notes, Non-Technical
       Onboarding) require updates upon production deployment
+- [ ] Release readiness verified: deploy workflows exist in all target
+      repos, prod GitHub environments are provisioned, health endpoints
+      are available, infrastructure and feature changes are scoped to
+      appropriate release cycles (Principle XII)
 
 ## Project Structure
 

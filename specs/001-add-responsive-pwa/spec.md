@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-add-responsive-pwa`  
 **Created**: 2026-02-14  
-**Status**: Draft
+**Status**: Superseded — replaced by `001-responsive-pwa-e2e` (MTB-311)
 **Jira Epic**: MTB-231
 **Input**: User description: "review the constitution changes and add the following items to the spec: frontend needs to be responsive to run on phones and tablets, UI needs to be comfotable for touch-based users, application needs to be set up as PWA"
 

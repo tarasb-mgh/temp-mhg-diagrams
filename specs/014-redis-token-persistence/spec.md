@@ -2,7 +2,7 @@
 
 **Feature Branch**: `014-redis-token-persistence`  
 **Created**: 2026-02-22  
-**Status**: Draft  
+**Status**: Complete  
 **Jira Epic**: [MTB-352](https://mentalhelpglobal.atlassian.net/browse/MTB-352)  
 **Input**: User description: "let's make sure that auth refresh token is persisted across backend instances in a shared redis storage"
 

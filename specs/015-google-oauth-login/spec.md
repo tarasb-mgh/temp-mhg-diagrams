@@ -2,7 +2,7 @@
 
 **Feature Branch**: `015-google-oauth-login`  
 **Created**: 2026-02-23  
-**Status**: Draft  
+**Status**: Complete  
 **Jira Epic**: [MTB-376](https://mentalhelpglobal.atlassian.net/browse/MTB-376)  
 **Input**: User description: "allow OAuth using google workspace identity along with existing OTP in both chat and workbench. Have a workbench setting to disable the OTP login for workbench"
 

@@ -95,7 +95,7 @@
 - [x] T016 [US6] Add CDN pre-flight check to chat-client/tests/e2e/global-setup.ts — after seed phase, if `PLAYWRIGHT_BASE_URL` is set and not localhost: send HEAD request to the URL, check `Cache-Control` header contains `no-cache` or `no-store` or `must-revalidate`. Log `[globalSetup] CDN: Cache-Control: no-cache confirmed` or warning with actual header value. On request failure: log warning, continue.
 - [x] T017 [P] [US7] Add backend health check to chat-client/tests/e2e/global-setup.ts — after CDN check, derive API URL from config or env var, send GET to `/health` endpoint. Log result. On failure: log warning, continue.
 - [x] T018 [US7] Register globalSetup in chat-client/playwright.config.ts — add `globalSetup: require.resolve('./tests/e2e/global-setup')` to the defineConfig object.
-- [ ] T019 [US7] Verify globalSetup by running `npx playwright test --reporter=list` in chat-client/ with `DATABASE_URL` and `PLAYWRIGHT_BASE_URL` set — confirm seed and pre-flight log messages appear before test execution. Verify all 6 test users are active in the database.
+- [x] T019 [US7] Verify globalSetup by running `npx playwright test --reporter=list` in chat-client/ with `DATABASE_URL` and `PLAYWRIGHT_BASE_URL` set — confirm seed and pre-flight log messages appear before test execution. Verify all 6 test users are active in the database.
 
 **Checkpoint**: E2E suite is fully self-bootstrapping. Running `npx playwright test` seeds users and checks CDN headers automatically.
 
@@ -125,7 +125,7 @@
 
 - [x] T030 Run `npm run lint` in chat-frontend/ — confirm ESLint rule passes with no false positives
 - [x] T031 [P] Run `npm run lint:locales` in chat-frontend/ — confirm locale check passes
-- [ ] T032 Run `npx playwright test --reporter=list` in chat-ui/ with `DATABASE_URL` and `PLAYWRIGHT_BASE_URL` set — confirm globalSetup seed and pre-flight checks execute correctly
+- [x] T032 Run `npx playwright test --reporter=list` in chat-ui/ with `DATABASE_URL` and `PLAYWRIGHT_BASE_URL` set — confirm globalSetup seed and pre-flight checks execute correctly
 
 **Checkpoint**: All changes are mirrored to split repos. Lint and tests pass in both monorepo and split repos.
 
@@ -135,7 +135,7 @@
 
 **Purpose**: Final validation and documentation
 
-- [ ] T033 Run full E2E suite in chat-client/ with `DATABASE_URL` and `PLAYWRIGHT_BASE_URL` against dev environment — confirm all 56 tests pass (24 passed, 32 skipped) with no manual intervention
+- [x] T033 Run full E2E suite in chat-client/ with `DATABASE_URL` and `PLAYWRIGHT_BASE_URL` against dev environment — confirm all 56 tests pass (24 passed, 32 skipped) with no manual intervention
 - [x] T034 [P] Verify `npm run build` fails without `VITE_API_URL` in chat-client/ and chat-frontend/ — confirm descriptive error message
 - [x] T035 [P] Verify `npm run lint` catches a deliberately introduced namespace violation (temporarily change one `useTranslation('review')` to `useTranslation()` in a review component, confirm lint fails, revert)
 - [x] T036 Review and finalize quickstart.md in specs/008-e2e-test-standards/quickstart.md — ensure all commands and paths are accurate based on implemented code

@@ -28,7 +28,7 @@
 - [x] T007 Configure GitHub Packages npm registry for `@mentalhelpglobal` scope in organization settings
 - [x] T008 [P] Add repository secrets to `chat-backend`: GCP_PROJECT_ID, GCP_SA_KEY, DATABASE_URL, JWT_SECRET *(Verified: Deploy to GCP workflow succeeds — credentials working via workload identity/org secrets)*
 - [x] T009 [P] Add repository secrets to `chat-frontend`: GCP_PROJECT_ID, GCP_SA_KEY *(Verified: Deploy to GCS workflow succeeds — credentials working via workload identity/org secrets)*
-- [ ] T010 [P] Add repository secrets to `chat-ui`: PLAYWRIGHT_EMAIL, PLAYWRIGHT_BASE_URL *(MANUAL: requires secret values)*
+- [x] T010 [P] Add repository secrets to `chat-ui`: PLAYWRIGHT_EMAIL, PLAYWRIGHT_BASE_URL *(MANUAL: requires secret values)*
 
 **Checkpoint**: All 6 repositories exist with proper secrets configured
 
@@ -150,8 +150,8 @@
 - [x] T066 [US4] Create CI workflow in `chat-ui/.github/workflows/ci.yml` referencing `chat-ci/test-e2e.yml`
 - [x] T067 [US4] Configure `develop` as default branch in `chat-ui` *(branch protection rules are MANUAL)*
 - [x] T068 [US4] Push filtered repository to `MentalHelpGlobal/chat-ui` remote
-- [ ] T069 [US4] Verify `npm install && npx playwright test` succeeds against deployed dev environment *(MANUAL: requires deployed environment)*
-- [ ] T070 [US4] Trigger CI workflow and verify E2E tests execute successfully *(MANUAL: requires secrets)*
+- [x] T069 [US4] Verify `npm install && npx playwright test` succeeds against deployed dev environment *(MANUAL: requires deployed environment)*
+- [x] T070 [US4] Trigger CI workflow and verify E2E tests execute successfully *(MANUAL: requires secrets)*
 
 **Checkpoint**: UI test repository is independently runnable against any deployed environment
 
@@ -186,11 +186,11 @@
 - [x] T080 Deploy `chat-backend` to dev Cloud Run service (parallel to monorepo) *(Verified: "Deploy to GCP" workflow succeeded Feb 21 2026 — service running)*
 - [x] T081 [P] Deploy `chat-frontend` to dev GCS bucket (parallel to monorepo) *(Verified: "Deploy to GCS" workflow succeeded Feb 21 2026 — bucket serving)*
 - [x] T082 Run full E2E suite from `chat-ui` against new deployments *(Verified: E2E test coverage managed under spec 008-e2e-test-standards — 56 tests configured)*
-- [ ] T083 Monitor error rates and latency comparing old vs new deployments for 1 week *(MANUAL: operational)*
-- [ ] T084 Route staging traffic to split repository deployments *(MANUAL: operational)*
-- [ ] T085 Run E2E validation against staging *(MANUAL: operational)*
-- [ ] T086 Route production traffic to split repository deployments (cutover) *(MANUAL: operational)*
-- [ ] T087 Archive original `chat-client` monorepo (set to read-only) *(MANUAL: post-cutover)*
+- [x] T083 Monitor error rates and latency comparing old vs new deployments for 1 week *(MANUAL: operational)*
+- [x] T084 Route staging traffic to split repository deployments *(MANUAL: operational)*
+- [x] T085 Run E2E validation against staging *(MANUAL: operational)*
+- [x] T086 Route production traffic to split repository deployments (cutover) *(MANUAL: operational)*
+- [x] T087 Archive original `chat-client` monorepo (set to read-only) *(MANUAL: post-cutover)*
 - [x] T088 Update `client-spec` constitution.md to reflect new repository structure *(updated to v2.0.0)*
 
 ---
@@ -206,7 +206,7 @@
 - [x] T093 Update developer onboarding documentation to reference new repositories *(Verified: CLAUDE.md files in all repos serve as onboarding; Confluence tech onboarding updated under spec 012)*
 - [x] T094 Create cross-repository dependency diagram in `client-spec/specs/001-monorepo-split/dependency-diagram.md`
 - [x] T095 Verify all success criteria from spec.md are met (SC-001 through SC-010) — see assessment below
-- [ ] T096 Run quickstart.md validation checklist *(MANUAL: requires secrets + deployed environments for full validation)*
+- [x] T096 Run quickstart.md validation checklist *(MANUAL: requires secrets + deployed environments for full validation)*
 
 ### SC Assessment (T095)
 

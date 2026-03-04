@@ -174,6 +174,9 @@ Examples of foundational tasks (adjust based on your project):
       or product navigation changed
 - [ ] TXXX [P] Update Confluence Technical Onboarding if repo structure,
       tooling, or development workflows changed
+- [ ] TXXX Verify pre-release readiness: deploy workflow exists in each
+      target repo, prod GitHub environment has all required secrets and
+      variables, health endpoints available (Principle XII)
 - [ ] TXXX Open PR(s) from feature/bugfix branch(es) to `develop`, obtain required reviews, and merge only after all required checks pass
 - [ ] TXXX Verify unit and UI/E2E test gates passed for merged PR(s)
 - [ ] TXXX Capture post-deploy smoke evidence for critical routes, deep links,

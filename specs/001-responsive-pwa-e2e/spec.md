@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-responsive-pwa-e2e`  
 **Created**: 2026-02-22  
-**Status**: Draft  
+**Status**: Complete  
 **Jira Epic**: [MTB-311](https://mentalhelpglobal.atlassian.net/browse/MTB-311)  
 **Input**: User description: "make sure that both chat and workbench app are responsive and can be installed as PWA on mobile. e2e tests should include testing of responsiveness on mobile/tablet/desktop applications"
 

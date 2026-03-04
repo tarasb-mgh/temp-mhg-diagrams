@@ -1,13 +1,13 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 3.6.0 → 3.6.1
+  Version change: 3.7.0 → 3.7.1
 
   Modified principles:
-  - XI. Documentation Standards — Release Notes subsection: clarified
-    that entries MUST only be created for production releases (tagged
-    main commits). Non-production deployments (dev, staging) MUST NOT
-    have Release Notes entries.
+  - XI. Documentation Standards — added canonical Confluence page URLs
+    for all four documentation types. Added Confluence space and page
+    registry subsection with concrete URLs. Strengthened production
+    deployment trigger to reference specific page URLs.
 
   Added sections:
   - None
@@ -17,12 +17,12 @@
 
   Templates requiring updates:
   - ✅ .specify/templates/plan-template.md (no change needed)
-  - ✅ .specify/templates/tasks-template.md (updated: Release Notes
-    task clarified as production-release-only)
+  - ✅ .specify/templates/tasks-template.md (no change needed — tasks
+    already reference Confluence sections by name; URLs are resolved
+    via constitution lookup)
   - ✅ .specify/templates/spec-template.md (no change needed)
-  - ✅ .claude/commands/speckit.implement.md (updated: Release Notes
-    step clarified as production-release-only, deferred when merging
-    to develop)
+  - ✅ .claude/commands/speckit.implement.md (updated: step 10 gains
+    canonical Confluence page URLs for each documentation type)
   - ✅ .claude/commands/speckit.plan.md (no change needed)
   - ✅ .claude/commands/speckit.specify.md (no change needed)
   - ✅ .claude/commands/speckit.tasks.md (no change needed)
@@ -31,9 +31,12 @@
   - ✅ CLAUDE.md (no change needed)
 
   Follow-up TODOs:
-  - Remove the non-production release entry "Release — Responsive
-    PWA Support — 2026-02-22" from Confluence Release Notes (created
-    for a dev deployment in error)
+  - Add workbench-frontend and chat-frontend-common to
+    chat-infra/config/github-repos.json and re-run setup-github.sh
+  - Delete or document deprecated VPC connector (chat-vpc-connector)
+    and associated firewall rule (allow-vpc-connector-to-redis)
+  - Delete or mark deprecated redis-host / redis-port secrets in
+    Secret Manager (replaced by GitHub environment variables)
 -->
 
 # Mental Health Global Client-Spec Constitution
@@ -58,8 +61,9 @@ This repository (`client-spec`) serves as the central orchestration point
 for feature development across multiple codebases.
 
 - Specifications and plans live here; implementation happens in target repos
-- Primary target repositories: `chat-backend`, `chat-frontend`, `chat-ui`,
-  `chat-infra`, `chat-types`, `chat-ci`
+- Primary target repositories: `chat-backend`, `chat-frontend`,
+  `workbench-frontend`, `chat-frontend-common`, `chat-ui`, `chat-infra`,
+  `chat-types`, `chat-ci`
 - `chat-client` (monorepo) is LEGACY — see Principle VII
 - Each spec references target repository paths explicitly
 - Cross-repository dependencies MUST be documented in plan.md
@@ -107,10 +111,15 @@ Feature work MUST follow established branch policies.
   - the remote feature/bugfix branch MUST be deleted
   - the local feature/bugfix branch MUST be deleted
   - local `develop` MUST be synced to `origin/develop`
+- After every release merge to `main`, a backmerge PR from `main` to
+  `develop` MUST be created and merged in each affected repository to
+  prevent divergence accumulation between the two branches
 
 **Rationale**: All repositories enforce strict branch protection. Using
 consistent branch names across split repos ensures traceability and
-simplifies cross-repo coordination.
+simplifies cross-repo coordination. Mandatory post-release backmerge
+prevents the main/develop divergence that caused merge conflicts during
+the v2026.02.23 release.
 
 ### V. Privacy and Security First
 
@@ -146,8 +155,8 @@ The `chat-client` monorepo is classified as **LEGACY** and MUST NOT
 receive new feature work.
 
 - The split repos are the canonical and sole target for all changes:
-  `chat-types`, `chat-backend`, `chat-frontend`, `chat-ui`, `chat-ci`,
-  `chat-infra`
+  `chat-types`, `chat-backend`, `chat-frontend`, `workbench-frontend`,
+  `chat-frontend-common`, `chat-ui`, `chat-ci`, `chat-infra`
 - Shared type changes MUST go through `chat-types` first, then consumers
   (`chat-backend`, `chat-frontend`) MUST update their dependency
 - CI workflow changes MUST go through `chat-ci` and be tagged before
@@ -193,12 +202,27 @@ are prohibited for production and staging environments.
   validated by smoke checks on both dev and prod.
 - Post-deploy smoke checks MUST verify critical routes, deep links, and key
   API endpoints before release completion.
+- Non-sensitive infrastructure configuration (hostnames, IP addresses,
+  ports, feature flags, resource names) MUST be stored as GitHub
+  environment variables and injected via `--set-env-vars` in deploy
+  workflows. GCP Secret Manager (`--set-secrets`) MUST be reserved
+  exclusively for credentials, keys, tokens, and connection strings
+  containing passwords. Mixing sensitive and non-sensitive values in
+  Secret Manager introduces unnecessary failure modes.
+- All deployable repositories MUST be registered in
+  `chat-infra/config/github-repos.json` with `has_deployments: true`
+  and their target environments listed. The `setup-github.sh`
+  provisioning script MUST be re-run whenever a new deployable
+  repository is added to ensure GitHub environments, secrets, and
+  variables are fully configured for both dev and prod.
 
 **Rationale**: CLI-driven infrastructure ensures reproducibility,
 auditability, and version control. Manual Console changes are
 untraceable, error-prone, and impossible to replicate across
 environments. Scripted `gcloud` commands serve as living documentation
-of the infrastructure state.
+of the infrastructure state. Strict separation of secrets from
+non-sensitive config prevents the class of runtime injection failures
+encountered during the v2026.02.23 Redis rollout.
 
 ### IX. Responsive UX and PWA Compatibility
 
@@ -286,7 +310,8 @@ purpose.
   - Each guide page MUST cover: purpose of the screen, how to reach
     it, every interactive element and its effect, common workflows
     with numbered steps, and tips or warnings for frequent mistakes
-  - Confluence space section: `User Manual`
+  - Confluence page:
+    [User Manual](https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8749070/User+Manual)
 
 - **Technical Onboarding**
   - Audience: new developers joining the project
@@ -299,7 +324,8 @@ purpose.
     follow without asking existing team members for clarification
   - MUST include concrete commands, expected outputs, and
     troubleshooting steps for every setup procedure
-  - Confluence space section: `Technical Onboarding`
+  - Confluence page:
+    [Technical Onboarding](https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding)
 
 - **Release Notes**
   - Audience: end users and stakeholders
@@ -315,7 +341,8 @@ purpose.
     user-visible changes with enough detail for users to understand
     the impact, known issues (if any), and a link to the
     corresponding Jira Epic(s)
-  - Confluence space section: `Release Notes`
+  - Confluence page:
+    [Release Notes](https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8781825/Release+Notes)
 
 - **Non-Technical Onboarding**
   - Audience: non-technical team members (project managers, support
@@ -326,7 +353,8 @@ purpose.
     details
   - Each page MUST provide sufficient detail for a new non-technical
     team member to understand the topic without live walkthrough
-  - Confluence space section: `Non-Technical Onboarding`
+  - Confluence page:
+    [Non-Technical Onboarding](https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding)
 
 Screenshot capture process:
 
@@ -369,6 +397,55 @@ Automated Playwright-based screenshot capture eliminates the manual
 bottleneck and ensures screenshots are always reproducible and
 up-to-date with the latest dev deployment.
 
+### XII. Release Engineering and Production Readiness
+
+Production releases MUST follow a structured verification process that
+prevents the class of deployment failures encountered historically.
+Infrastructure changes and feature work MUST be released through
+separate release cycles when they affect deployment topology, networking,
+or data storage.
+
+- **Release scope separation**: Changes to deployment workflows,
+  VPC/networking configuration, database infrastructure, or new service
+  provisioning MUST be released and verified in a standalone release
+  cycle before bundling with feature work. Feature releases MAY be
+  combined when they share the same deployment topology.
+- **Deploy workflow completeness**: Every deployable repository MUST
+  have a production deploy workflow (`deploy.yml` or equivalent)
+  committed and tested before its first production release. The deploy
+  workflow MUST be verified as part of the pre-release checklist, not
+  discovered missing post-deploy.
+- **Pre-release verification checklist**: Before cutting a release
+  branch, the following MUST be verified for each target repository:
+  1. A production deploy workflow exists and is triggered on push to
+     `main` (or manual dispatch)
+  2. The `prod` GitHub environment has all required secrets and
+     variables configured (compare against the `dev` environment as
+     baseline)
+  3. A structured health endpoint exists for backend services and
+     returns per-dependency status (database, cache, external services)
+  4. `main` and `develop` are not diverged (if diverged, reconcile
+     before cutting the release branch)
+- **Post-release backmerge**: After every release merge to `main`, a
+  PR from `main` → `develop` MUST be created and merged in each
+  affected repository (see Principle IV)
+- **Post-deploy health verification**: After production deployment,
+  every backend service health endpoint MUST return `ok` status for
+  all dependencies before the release is considered complete. Degraded
+  status MUST trigger immediate investigation and hotfix.
+- **Fallback documentation**: Critical infrastructure dependencies
+  (caches, message queues, external APIs) MUST have documented
+  fallback behavior so degraded-mode operation is understood before
+  deployment, not discovered during incidents.
+
+**Rationale**: The v2026.02.23 release required 3 hotfix iterations
+over 1 hour to reach full production health. Every incident — missing
+deploy workflow, unconfigured environment secrets, Redis connectivity
+failure — was preventable with pre-release verification. Separating
+infrastructure releases from feature releases reduces blast radius and
+ensures deployment topology changes are validated independently.
+Mandatory health verification catches issues before users do.
+
 ## Multi-Repository Orchestration
 
 ### Repository Roles
@@ -378,7 +455,9 @@ up-to-date with the latest dev deployment.
 | `client-spec` | Specifications, plans, task orchestration | Active | `D:\src\MHG\client-spec` |
 | `chat-types` | Shared TypeScript types (`@mentalhelpglobal/chat-types`) | Active | `D:\src\MHG\chat-types` |
 | `chat-backend` | Express.js backend API | Active | `D:\src\MHG\chat-backend` |
-| `chat-frontend` | React frontend application | Active | `D:\src\MHG\chat-frontend` |
+| `chat-frontend` | React frontend application (chat) | Active | `D:\src\MHG\chat-frontend` |
+| `workbench-frontend` | React frontend application (workbench) | Active | `D:\src\MHG\workbench-frontend` |
+| `chat-frontend-common` | Shared frontend library (auth, API, permissions) | Active | `D:\src\MHG\chat-frontend-common` |
 | `chat-ui` | Playwright E2E tests | Active | `D:\src\MHG\chat-ui` |
 | `chat-ci` | Reusable GitHub Actions workflows | Active | `D:\src\MHG\chat-ci` |
 | `chat-infra` | GCP infrastructure scripts + Terraform | Active | `D:\src\MHG\chat-infra` |
@@ -406,7 +485,7 @@ up-to-date with the latest dev deployment.
 2. **Planning** (`client-spec`): `/speckit.plan` generates technical design artifacts
 3. **Task Breakdown** (`client-spec`): `/speckit.tasks` creates actionable task list
 4. **Implementation** (target repos): Execute tasks against split repos
-   (`chat-backend`, `chat-frontend`, `chat-ui`, etc.)
+   (`chat-backend`, `chat-frontend`, `workbench-frontend`, `chat-ui`, etc.)
 5. **Verification** (`client-spec`): Update task status, capture evidence
 
 ### Cross-Repository References
@@ -414,6 +493,7 @@ up-to-date with the latest dev deployment.
 - Plan.md MUST specify target repository and paths explicitly
 - Use repository name prefixes for clarity (e.g., `chat-backend/src/routes/`)
 - Shared types are published via `@mentalhelpglobal/chat-types` npm package
+- Shared frontend code is published via `@mentalhelpglobal/chat-frontend-common`
 - CI workflows are centralized in `chat-ci` and consumed via `uses:` references
 - Document any cross-repository dependencies in plan.md
 
@@ -443,6 +523,10 @@ up-to-date with the latest dev deployment.
   documentation types with Playwright-captured screenshots where
   applicable (User Manual, Release Notes, Technical/Non-Technical
   Onboarding)
+- **Release Quality**: Pre-release verification checklist passed
+  (Principle XII), deploy workflows verified, GitHub environments
+  provisioned, health endpoints operational, post-release backmerge
+  completed
 
 ## Governance
 
@@ -480,6 +564,14 @@ orchestrated through `client-spec`.
   documentation (Release Notes always; User Manual and Non-Technical
   Onboarding when workflows or UI changed; Technical Onboarding when
   dev tooling or repo structure changed) is non-compliant
+- Releasing a deployable repository to production without a verified
+  deploy workflow and fully provisioned prod GitHub environment is
+  non-compliant (Principle XII)
+- Skipping the post-release backmerge from `main` to `develop` is
+  non-compliant (Principle IV / XII)
+- Using `--set-secrets` for non-sensitive configuration values
+  (hostnames, ports, feature flags) in deploy workflows is
+  non-compliant (Principle VIII)
 - Checklist validation runs automatically via `/speckit.specify`
 - Plan.md includes explicit Constitution Check section
 - Non-compliance MUST be justified in Complexity Tracking section
@@ -488,10 +580,22 @@ orchestrated through `client-spec`.
 
 - Backend conventions: `D:\src\MHG\chat-backend\CLAUDE.md`
 - Frontend conventions: `D:\src\MHG\chat-frontend\CLAUDE.md`
+- Workbench conventions: `D:\src\MHG\workbench-frontend\CLAUDE.md`
+- Shared frontend library: `D:\src\MHG\chat-frontend-common\CLAUDE.md`
 - CI workflows: `D:\src\MHG\chat-ci\README.md`
 - E2E tests: `D:\src\MHG\chat-ui\CLAUDE.md`
 - Infrastructure: `D:\src\MHG\chat-infra\CLAUDE.md`
 - Shared types: `D:\src\MHG\chat-types\package.json`
 - Monorepo (LEGACY): `D:\src\MHG\chat-client\AGENTS.md`
+- Release retrospective: `D:\src\MHG\client-spec\releases\v2026.02.23-retrospective.md`
 
-**Version**: 3.6.1 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-02-22
+### Confluence Documentation Pages
+
+| Section | URL |
+|---------|-----|
+| User Manual | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8749070/User+Manual |
+| Release Notes | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8781825/Release+Notes |
+| Non-Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding |
+| Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding |
+
+**Version**: 3.7.1 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-02-23

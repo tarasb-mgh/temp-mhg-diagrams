@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-split-workbench-app`  
 **Created**: 2026-02-21  
-**Status**: Draft
+**Status**: Complete — 3 legacy cross-domain redirect tasks (T049–T051) unverified
 **Jira Epic**: MTB-230
 **Input**: User description: "the frontend repositories need to be split into client frontend and workbench frontend"
 

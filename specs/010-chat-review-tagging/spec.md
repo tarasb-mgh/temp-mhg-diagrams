@@ -2,7 +2,7 @@
 
 **Feature Branch**: `010-chat-review-tagging`  
 **Created**: 2026-02-10  
-**Status**: Draft
+**Status**: Complete
 **Jira Epic**: MTB-228
 **Input**: User description: "have an ability to tag users. tag test users with 'functional QA' tag. Don't include chats from those users into chat reviews. don't include chats shorter than 4 messages into chat reviews. tag those chats as 'short' and allow filtering by the tag in chat review interface. update the chat review interface according to the previously defined spec"
 

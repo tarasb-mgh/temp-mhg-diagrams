@@ -2,7 +2,7 @@
 
 **Feature Branch**: `013-automate-doc-screenshots`
 **Created**: 2026-02-22
-**Status**: Draft
+**Status**: Complete
 **Jira Epic**: [MTB-251](https://mentalhelpglobal.atlassian.net/browse/MTB-251)
 **Input**: User description: "Always use Playwright MCP on dev to generate screenshots in dev for documentation. Make all documentation more detailed. Transition Jira tasks along the implementation."
 

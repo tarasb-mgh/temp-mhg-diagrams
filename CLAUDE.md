@@ -1,4 +1,4 @@
-﻿# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -130,6 +130,7 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
 - Create an immutable release tag on the merged `main` commit.
 - Deploy production from that exact tagged `main` commit (never directly from `develop`).
 - Run post-deploy smoke checks on critical flows; rollback by redeploying the previous known-good tag when needed.
+- After every release merge to `main`, create and merge a backmerge PR from `main` to `develop` in each affected repository to prevent divergence.
 
 ### Dev UI Testing Prerequisites
 
