@@ -270,18 +270,18 @@
 - [x] T089 [P] Validate survey gate responsive behavior in `chat-frontend/` — full-width on mobile, single question per screen, bottom navigation; test on Chrome (Android) and Safari (iOS) breakpoints
 - [x] T090 [P] Validate workbench survey pages responsive behavior in `workbench-frontend/` — schema list and instance list collapse to card layout on tablet; editor usable on tablet with touch drag
 - [x] T091 [P] Verify PWA behavior unchanged in both `chat-frontend/` and `workbench-frontend/` — install flow, offline manifest, service worker cache
-- [ ] T092 Run quickstart.md validation — follow all setup steps end-to-end in a clean environment; verify migration, routes, gate flow
-- [ ] T093 [P] Capture screenshots via Playwright MCP against dev environment for: schema list, schema editor (draft + published), instance list, instance create form, survey gate (question rendering), gate completion
-- [ ] T094 [P] Update Confluence User Manual with survey module pages — schema authoring (workbench), instance deployment (workbench), survey gate (user-facing), using Playwright-captured screenshots
-- [ ] T095 [P] Update Confluence Release Notes with survey module entry (version, date, capabilities, known limitations: conditional logic deferred, scoring deferred)
-- [ ] T096 [P] Update Confluence Non-Technical Onboarding with survey workflow overview — how researchers create/deploy surveys, how officers experience the gate
-- [ ] T097 Add completion summary comment to Jira Epic with evidence references and outcome (when Epic is created)
-- [ ] T098 Verify pre-release readiness: deploy workflows exist in `chat-backend`, `workbench-frontend`, `chat-frontend`; prod GitHub environments have all required secrets/variables; health endpoints available
-- [ ] T099 Open PR(s) from `018-workbench-survey` branch to `develop` in all affected repos (`chat-types`, `chat-backend`, `workbench-frontend`, `chat-frontend`, `chat-ui`), obtain required reviews, and merge only after all required checks pass
-- [ ] T100 Verify unit and UI/E2E test gates passed for merged PR(s)
-- [ ] T101 Capture post-deploy smoke evidence: `GET /api/workbench/survey-schemas` → 200, `GET /api/workbench/survey-instances` → 200, `GET /api/chat/gate-check` → 200 (empty), `/chat` route loads normally
+- [x] T092 Run quickstart.md validation — follow all setup steps end-to-end in a clean environment; verify migration, routes, gate flow
+- [x] T093 [P] Capture screenshots via Playwright MCP against dev environment for: schema list, schema editor (draft + published), instance list, instance create form, survey gate (question rendering), gate completion
+- [x] T094 [P] Update Confluence User Manual with survey module pages — schema authoring (workbench), instance deployment (workbench), survey gate (user-facing), using Playwright-captured screenshots
+- [x] T095 [P] Update Confluence Release Notes with survey module entry (version, date, capabilities, known limitations: conditional logic deferred, scoring deferred)
+- [x] T096 [P] Update Confluence Non-Technical Onboarding with survey workflow overview — how researchers create/deploy surveys, how officers experience the gate
+- [x] T097 Add completion summary comment to Jira Epic with evidence references and outcome (when Epic is created)
+- [x] T098 Verify pre-release readiness: deploy workflows exist in `chat-backend`, `workbench-frontend`, `chat-frontend`; prod GitHub environments have all required secrets/variables; health endpoints available
+- [x] T099 Open PR(s) from `018-workbench-survey` branch to `develop` in all affected repos (`chat-types`, `chat-backend`, `workbench-frontend`, `chat-frontend`, `chat-ui`), obtain required reviews, and merge only after all required checks pass
+- [x] T100 Verify unit and UI/E2E test gates passed for merged PR(s)
+- [x] T101 Capture post-deploy smoke evidence: `GET /api/workbench/survey-schemas` → 200, `GET /api/workbench/survey-instances` → 200, `GET /api/chat/gate-check` → 200 (empty), `/chat` route loads normally
 
-- [ ] T124 Validate invalidation flows in dev: instance-wide, group-scope, and individual invalidation re-open gate and exclude counts; verify memory removal/upsert behavior when `add_to_memory` enabled — MTB-445
+- [x] T124 Validate invalidation flows in dev: instance-wide, group-scope, and individual invalidation re-open gate and exclude counts; verify memory removal/upsert behavior when `add_to_memory` enabled — MTB-445
 - [ ] T102 Delete merged remote `018-workbench-survey` branches and purge local branches in all affected repos
 - [ ] T103 Sync local `develop` to `origin/develop` in each affected repository
 
