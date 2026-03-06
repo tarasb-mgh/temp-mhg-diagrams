@@ -25,14 +25,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 2. **Load design documents**: Read from FEATURE_DIR:
    - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
-   - **Optional**: data-model.md (entities), contracts/ (API endpoints), research.md (decisions), quickstart.md (test scenarios)
+   - **Optional**: data-model.md (entities), contracts/ (interface contracts), research.md (decisions), quickstart.md (test scenarios)
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
 3. **Execute task generation workflow**:
    - Load plan.md and extract tech stack, libraries, project structure
    - Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)
    - If data-model.md exists: Extract entities and map to user stories
-   - If contracts/ exists: Map endpoints to user stories
+   - If contracts/ exists: Map interface contracts to user stories
    - If research.md exists: Extract decisions for setup tasks
    - Generate tasks organized by user story (see Task Generation Rules below)
    - Generate dependency graph showing user story completion order
@@ -52,44 +52,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Parallel execution examples per story
    - Implementation strategy section (MVP first, incremental delivery)
 
-5. **Jira Story and Task Creation** (Constitution Principle X — Jira Traceability):
-
-   After generating tasks.md, create corresponding Jira issues:
-
-   a. **Extract the Jira Epic key** from the `**Jira Epic**:` line in
-      spec.md. If the key is `PENDING` or missing, warn the user and skip
-      Jira creation (tasks.md is still valid without Jira).
-
-   b. **Discover project context**: Extract `cloudId` and `projectKey` from
-      the Epic key prefix (e.g., `MHG-123` → project key `MHG`). Use
-      `getJiraProjectIssueTypesMetadata` to confirm available issue types
-      (Story, Task, Sub-task).
-
-   c. **Create Jira Stories**: For each user story phase in tasks.md
-      (Phase 3+), create a Jira Story:
-      - `issueTypeName`: `"Story"`
-      - `summary`: User story title (e.g., `"US1: User Story Title"`)
-      - `description`: Story goal, independent test criteria, and task
-        summary in Markdown
-      - `parent`: The Epic issue key
-
-   d. **Create Jira Tasks**: For each implementation task within a story
-      phase, create a Jira Task:
-      - `issueTypeName`: `"Task"` (or `"Sub-task"` if project requires)
-      - `summary`: Task description (e.g., `"T012 Create User model"`)
-      - `parent`: The corresponding Story issue key
-
-   e. **Record Jira keys in tasks.md**: After creation, annotate each task
-      line in tasks.md with its Jira key. Append the key after the task
-      description: `- [ ] T012 [P] [US1] Create User model — MHG-456`
-
-   f. **Post summary comment on Epic**: Add a comment to the Epic listing
-      all created Stories and Tasks with their Jira keys.
-
-   g. **Error handling**: If MCP is unavailable, warn and continue. Record
-      `JIRA: PENDING` next to unsynced tasks.
-
-6. **Report**: Output path to generated tasks.md and summary:
+5. **Report**: Output path to generated tasks.md and summary:
    - Total task count
    - Task count per user story
    - Parallel opportunities identified
@@ -146,13 +109,13 @@ Every task MUST strictly follow this format:
    - Map all related components to their story:
      - Models needed for that story
      - Services needed for that story
-     - Endpoints/UI needed for that story
+     - Interfaces/UI needed for that story
      - If tests requested: Tests specific to that story
    - Mark story dependencies (most stories should be independent)
 
 2. **From Contracts**:
-   - Map each contract/endpoint → to the user story it serves
-   - If tests requested: Each contract → contract test task [P] before implementation in that story's phase
+   - Map each interface contract → to the user story it serves
+   - If tests requested: Each interface contract → contract test task [P] before implementation in that story's phase
 
 3. **From Data Model**:
    - Map each entity to the user story(ies) that need it

@@ -33,27 +33,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design
 
-4. **Jira Epic Comment** (Constitution Principle X — Jira Traceability):
-
-   After completing planning phases, add a summary comment to the Jira Epic:
-
-   a. **Extract the Jira Epic key** from the `**Jira Epic**:` line in
-      FEATURE_SPEC. If the key is `PENDING` or missing, warn and skip this
-      step.
-
-   b. **Compose a plan summary comment** containing:
-      - Technical stack and key decisions from research.md
-      - List of entities from data-model.md (if generated)
-      - List of API contracts from contracts/ (if generated)
-      - Constitution Check pass/fail status
-      - Link or reference to the plan.md file path
-
-   c. **Post the comment** using `addCommentToJiraIssue` with the Epic key
-      and the composed Markdown summary.
-
-   d. **Error handling**: If MCP is unavailable, warn and continue.
-
-5. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, generated artifacts, and Jira comment status.
+4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
 
 ## Phases
 
@@ -89,10 +69,11 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Validation rules from requirements
    - State transitions if applicable
 
-2. **Generate API contracts** from functional requirements:
-   - For each user action → endpoint
-   - Use standard REST/GraphQL patterns
-   - Output OpenAPI/GraphQL schema to `/contracts/`
+2. **Define interface contracts** (if project has external interfaces) → `/contracts/`:
+   - Identify what interfaces the project exposes to users or other systems
+   - Document the contract format appropriate for the project type
+   - Examples: public APIs for libraries, command schemas for CLI tools, endpoints for web services, grammars for parsers, UI contracts for applications
+   - Skip if project is purely internal (build scripts, one-off tools, etc.)
 
 3. **Agent context update**:
    - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType claude`

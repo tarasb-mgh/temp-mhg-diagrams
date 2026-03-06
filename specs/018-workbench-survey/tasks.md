@@ -282,8 +282,8 @@
 - [x] T101 Capture post-deploy smoke evidence: `GET /api/workbench/survey-schemas` → 200, `GET /api/workbench/survey-instances` → 200, `GET /api/chat/gate-check` → 200 (empty), `/chat` route loads normally
 
 - [x] T124 Validate invalidation flows in dev: instance-wide, group-scope, and individual invalidation re-open gate and exclude counts; verify memory removal/upsert behavior when `add_to_memory` enabled — MTB-445
-- [ ] T102 Delete merged remote `018-workbench-survey` branches and purge local branches in all affected repos
-- [ ] T103 Sync local `develop` to `origin/develop` in each affected repository
+- [x] T102 Delete merged remote `018-workbench-survey` branches and purge local branches in all affected repos
+- [x] T103 Sync local `develop` to `origin/develop` in each affected repository
 
 ---
 

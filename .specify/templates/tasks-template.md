@@ -155,34 +155,7 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
-- [ ] TXXX For user-facing UI, validate responsive behavior across target
-      breakpoints and device classes
-- [ ] TXXX For installable web clients, validate PWA manifest/service-worker
-      behavior and installation path on supported browsers
 - [ ] TXXX Run quickstart.md validation
-- [ ] TXXX Add completion summary comment to Jira Epic with evidence
-      references and outcome
-- [ ] TXXX [P] Capture screenshots via Playwright MCP against dev
-      environment for any new/changed UI flows (if user-facing changes)
-- [ ] TXXX [P] Update Confluence User Manual with new/changed UI flows
-      and Playwright-captured screenshots (if user-facing changes)
-- [ ] TXXX [P] Update Confluence Release Notes with production release
-      entry (version, date, user-visible changes, known issues) —
-      ONLY when promoting to production via tagged `main` commit;
-      skip this task when merging to `develop`
-- [ ] TXXX [P] Update Confluence Non-Technical Onboarding if workflows
-      or product navigation changed
-- [ ] TXXX [P] Update Confluence Technical Onboarding if repo structure,
-      tooling, or development workflows changed
-- [ ] TXXX Verify pre-release readiness: deploy workflow exists in each
-      target repo, prod GitHub environment has all required secrets and
-      variables, health endpoints available (Principle XII)
-- [ ] TXXX Open PR(s) from feature/bugfix branch(es) to `develop`, obtain required reviews, and merge only after all required checks pass
-- [ ] TXXX Verify unit and UI/E2E test gates passed for merged PR(s)
-- [ ] TXXX Capture post-deploy smoke evidence for critical routes, deep links,
-      and key API endpoints
-- [ ] TXXX Delete merged remote feature/bugfix branches and purge local feature/bugfix branches
-- [ ] TXXX Sync local `develop` to `origin/develop` in each affected repository
 
 ---
 
@@ -269,10 +242,6 @@ With multiple developers:
 
 ## Notes
 
-- **Jira transitions**: Each Jira Task MUST be transitioned to Done
-  immediately when the corresponding task is marked `[X]` — do NOT
-  batch transitions at the end. Stories are transitioned when all
-  their tasks are complete.
 - [P] tasks = different files, no dependencies
 - [Story] label maps task to specific user story for traceability
 - Each user story should be independently completable and testable
@@ -280,5 +249,3 @@ With multiple developers:
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
-- Never merge directly into `develop`; use reviewed PRs from feature/bugfix branches only
-- After merge, delete remote/local feature branches and sync local `develop`

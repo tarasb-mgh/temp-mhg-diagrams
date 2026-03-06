@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command. See `.claude/commands/speckit.plan.md` for the execution workflow.
 
 ## Summary
 
@@ -22,7 +22,7 @@
 **Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
 **Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
 **Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Project Type**: [single/web/mobile - determines source structure]  
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
 **Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
@@ -31,7 +31,27 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] Spec-first workflow is preserved (`spec.md` → `plan.md` → `tasks.md` → implementation)
+- [ ] Affected split repositories are explicitly listed with per-repo file paths
+- [ ] Test strategy aligns with each target repository conventions
+- [ ] Integration strategy enforces PR-only merges into `develop` from
+      feature/bugfix branches
+- [ ] Required approvals and required CI checks are identified for each target repo
+- [ ] Post-merge hygiene is defined: delete merged remote/local feature branches
+      and sync local `develop` to `origin/develop`
+- [ ] For user-facing changes, responsive and PWA compatibility checks are
+      defined (breakpoints, installability, and mobile-browser coverage)
+- [ ] Post-deploy smoke checks are defined for critical routes, deep links,
+      and API endpoints
+- [ ] Jira Epic exists for this feature with spec content in description;
+      Jira issue key is recorded in spec.md header
+- [ ] Documentation impact is identified: which Confluence doc types
+      (User Manual, Technical Onboarding, Release Notes, Non-Technical
+      Onboarding) require updates upon production deployment
+- [ ] Release readiness verified: deploy workflows exist in all target
+      repos, prod GitHub environments are provisioned, health endpoints
+      are available, infrastructure and feature changes are scoped to
+      appropriate release cycles (Principle XII)
 
 ## Project Structure
 
