@@ -53,9 +53,9 @@
 
 > **Note**: No new feature code is needed. The invariant is already implemented. These tasks add explicit test coverage.
 
-- [ ] T010 [P] [US1] Add Vitest unit test to `chat-types/src/survey.test.ts` asserting `evaluateVisibility` returns `false` for a question with an unmet `visibilityCondition` and that a required flag on that question does not affect the returned visibility
-- [ ] T011 [P] [US1] Add Vitest unit test to `chat-backend/src/services/surveyResponse.service.test.ts` asserting that submitting a complete survey response where a question marked `required: true` has its visibility condition unmet results in HTTP 200 (not 422)
-- [ ] T012 [P] [US1] Add Vitest unit test to `chat-frontend/src/stores/surveyGateStore.test.ts` (or equivalent test file) asserting that `visibleQuestions` excludes a question whose visibility condition is not met, and that the survey can advance past it without a required-field error
+- [x] T010 [P] [US1] Add Vitest unit test to `chat-types/src/survey.test.ts` asserting `evaluateVisibility` returns `false` for a question with an unmet `visibilityCondition` and that a required flag on that question does not affect the returned visibility
+- [x] T011 [P] [US1] Add Vitest unit test to `chat-backend/src/services/surveyResponse.service.test.ts` asserting that submitting a complete survey response where a question marked `required: true` has its visibility condition unmet results in HTTP 200 (not 422)
+- [x] T012 [P] [US1] Add Vitest unit test to `chat-frontend/src/stores/surveyGateStore.test.ts` (or equivalent test file) asserting that `visibleQuestions` excludes a question whose visibility condition is not met, and that the survey can advance past it without a required-field error
 
 **Checkpoint**: US1 complete. Three tests pass in three repos. Regression guard in place.
 
@@ -68,8 +68,8 @@
 
 **Independent Test**: Log in to dev workbench as a researcher. Open Review Queue. Confirm the space filter dropdown lists all spaces returned by `GET /api/admin/groups`, not just the researcher's own memberships.
 
-- [ ] T013 [P] [US2] In `workbench-frontend/src/features/workbench/review/ReviewQueueView.tsx`, add `allGroups` state (`GroupDto[]`), `groupsLoading` boolean, and `useEffect` on mount to call `adminApi.groups.list()` and populate `allGroups`
-- [ ] T014 [P] [US2] In `workbench-frontend/src/features/workbench/review/ReviewQueueView.tsx`, replace `activeMemberships.map(...)` options with `allGroups.map(m => <option key={m.id} value={m.id}>{m.name}</option>)` in the scope `<select>`; show a disabled placeholder option while `groupsLoading` is true; add i18n key `review.queue.scope.loadingSpaces` to `workbench-frontend/src/locales/en.json`, `uk.json`, and `ru.json`
+- [x] T013 [P] [US2] In `workbench-frontend/src/features/workbench/review/ReviewQueueView.tsx`, add `allGroups` state (`GroupDto[]`), `groupsLoading` boolean, and `useEffect` on mount to call `adminApi.groups.list()` and populate `allGroups`
+- [x] T014 [P] [US2] In `workbench-frontend/src/features/workbench/review/ReviewQueueView.tsx`, replace `activeMemberships.map(...)` options with `allGroups.map(m => <option key={m.id} value={m.id}>{m.name}</option>)` in the scope `<select>`; show a disabled placeholder option while `groupsLoading` is true; add i18n key `review.queue.scope.loadingSpaces` to `workbench-frontend/src/locales/en.json`, `uk.json`, and `ru.json`
 
 **Checkpoint**: US2 complete. Spaces filter lists all groups. Researcher sees full review coverage.
 
@@ -84,17 +84,17 @@
 
 ### Backend (chat-backend) — can start after T009
 
-- [ ] T015 [US3] Update `buildQuestion` in `chat-backend/src/services/surveySchema.service.ts` to copy `visibilityConditions` and `visibilityConditionCombinator` from the `SurveyQuestionInput` into the built `SurveyQuestion` (alongside the existing `visibilityCondition` copy for backward compat)
-- [ ] T016 [US3] Update `validateQuestionInput` in `chat-backend/src/services/surveySchema.service.ts` to validate `visibilityConditions[]`: each entry must be a valid `VisibilityCondition` with a recognized operator; each `questionId` must reference a question with a lower `order` (no forward references); `visibilityConditionCombinator` must be `'and'` or `'or'` when `visibilityConditions` is non-empty
+- [x] T015 [US3] Update `buildQuestion` in `chat-backend/src/services/surveySchema.service.ts` to copy `visibilityConditions` and `visibilityConditionCombinator` from the `SurveyQuestionInput` into the built `SurveyQuestion` (alongside the existing `visibilityCondition` copy for backward compat)
+- [x] T016 [US3] Update `validateQuestionInput` in `chat-backend/src/services/surveySchema.service.ts` to validate `visibilityConditions[]`: each entry must be a valid `VisibilityCondition` with a recognized operator; each `questionId` must reference a question with a lower `order` (no forward references); `visibilityConditionCombinator` must be `'and'` or `'or'` when `visibilityConditions` is non-empty
 
 ### Workbench Frontend (workbench-frontend) — can start after T009, parallel with T015-T016
 
-- [ ] T017 [US3] Redesign `workbench-frontend/src/features/workbench/surveys/components/VisibilityConditionEditor.tsx` to manage a list of conditions: render one condition row per entry (question select + operator select + value input + remove button); show an AND/OR combinator toggle when ≥2 conditions exist; provide an "+ Add condition" button; preserve single-condition backward compat when `visibilityConditions` is absent (fall back to displaying the legacy `visibilityCondition`)
-- [ ] T018 [US3] Update `workbench-frontend/src/features/workbench/surveys/components/QuestionEditor.tsx` to pass `visibilityConditions` and `visibilityConditionCombinator` to and from `VisibilityConditionEditor` instead of the single `visibilityCondition` field
-- [ ] T019 [US3] Update `toEditorQuestions` in `workbench-frontend/src/features/workbench/surveys/components/QuestionList.tsx` to include `visibilityConditions` and `visibilityConditionCombinator` in the mapped editor question shape
-- [ ] T020 [US3] Update the `currentSchema` → local state mapping in `workbench-frontend/src/features/workbench/surveys/SurveySchemaEditorView.tsx` to include `visibilityConditions` and `visibilityConditionCombinator` in the `questions` state entries
-- [ ] T021 [P] [US3] Add i18n keys for multi-condition editor to `workbench-frontend/src/locales/en.json`, `uk.json`, and `ru.json`: `survey.condition.addCondition`, `survey.condition.combinator.and`, `survey.condition.combinator.or`, `survey.condition.removeCondition`
-- [ ] T040 [US3] In `workbench-frontend/src/features/workbench/surveys/components/VisibilityConditionEditor.tsx`, when loading or rendering conditions, filter out any condition entries whose `questionId` is not found in the current question list; show an inline warning ("Condition references a deleted question — removed") when a stale entry is detected and auto-remove it from the list
+- [x] T017 [US3] Redesign `workbench-frontend/src/features/workbench/surveys/components/VisibilityConditionEditor.tsx` to manage a list of conditions: render one condition row per entry (question select + operator select + value input + remove button); show an AND/OR combinator toggle when ≥2 conditions exist; provide an "+ Add condition" button; preserve single-condition backward compat when `visibilityConditions` is absent (fall back to displaying the legacy `visibilityCondition`)
+- [x] T018 [US3] Update `workbench-frontend/src/features/workbench/surveys/components/QuestionEditor.tsx` to pass `visibilityConditions` and `visibilityConditionCombinator` to and from `VisibilityConditionEditor` instead of the single `visibilityCondition` field
+- [x] T019 [US3] Update `toEditorQuestions` in `workbench-frontend/src/features/workbench/surveys/components/QuestionList.tsx` to include `visibilityConditions` and `visibilityConditionCombinator` in the mapped editor question shape
+- [x] T020 [US3] Update the `currentSchema` → local state mapping in `workbench-frontend/src/features/workbench/surveys/SurveySchemaEditorView.tsx` to include `visibilityConditions` and `visibilityConditionCombinator` in the `questions` state entries
+- [x] T021 [P] [US3] Add i18n keys for multi-condition editor to `workbench-frontend/src/locales/en.json`, `uk.json`, and `ru.json`: `survey.condition.addCondition`, `survey.condition.combinator.and`, `survey.condition.combinator.or`, `survey.condition.removeCondition`
+- [x] T040 [US3] In `workbench-frontend/src/features/workbench/surveys/components/VisibilityConditionEditor.tsx`, when loading or rendering conditions, filter out any condition entries whose `questionId` is not found in the current question list; show an inline warning ("Condition references a deleted question — removed") when a stale entry is detected and auto-remove it from the list
 
 **Checkpoint**: US3 complete. Multi-condition visibility works end-to-end from editor to gate flow. Stale condition references are gracefully handled.
 
@@ -111,12 +111,12 @@
 
 ### Backend (chat-backend) — can start after T009
 
-- [ ] T022 [US4] Update `validateQuestionInput` in `chat-backend/src/services/surveySchema.service.ts` to accept `not_in` as a valid `VisibilityConditionOperator` value (alongside existing `in`, `equals`, `not_equals`, `contains`)
+- [x] T022 [US4] Update `validateQuestionInput` in `chat-backend/src/services/surveySchema.service.ts` to accept `not_in` as a valid `VisibilityConditionOperator` value (alongside existing `in`, `equals`, `not_equals`, `contains`)
 
 ### Workbench Frontend (workbench-frontend) — depends on T017
 
-- [ ] T023 [US4] Update `workbench-frontend/src/features/workbench/surveys/components/VisibilityConditionEditor.tsx`: add `not_in` option to the operator dropdown; for `in` and `not_in` operators replace the single text input with a tag-style multi-value input (chip display with individual remove buttons and an "Add value" text field + Enter/comma to confirm)
-- [ ] T024 [P] [US4] Add i18n keys for multi-value condition editing to `workbench-frontend/src/locales/en.json`, `uk.json`, and `ru.json`: `survey.condition.operator.not_in`, `survey.condition.multiValue.addValue`, `survey.condition.multiValue.placeholder`
+- [x] T023 [US4] Update `workbench-frontend/src/features/workbench/surveys/components/VisibilityConditionEditor.tsx`: add `not_in` option to the operator dropdown; for `in` and `not_in` operators replace the single text input with a tag-style multi-value input (chip display with individual remove buttons and an "Add value" text field + Enter/comma to confirm)
+- [x] T024 [P] [US4] Add i18n keys for multi-value condition editing to `workbench-frontend/src/locales/en.json`, `uk.json`, and `ru.json`: `survey.condition.operator.not_in`, `survey.condition.multiValue.addValue`, `survey.condition.multiValue.placeholder`
 
 **Checkpoint**: US4 complete. `IN`/`NOT_IN` operators work with multi-value input. `evaluateVisibility` (updated in T008) correctly routes respondents.
 
@@ -131,31 +131,31 @@
 
 ### Backend (chat-backend) — can start after T009
 
-- [ ] T025 [US5] Update `buildQuestion` in `chat-backend/src/services/surveySchema.service.ts` to copy `optionConfigs` from `SurveyQuestionInput` into the built `SurveyQuestion`
-- [ ] T026 [US5] Update `validateQuestionInput` in `chat-backend/src/services/surveySchema.service.ts` to validate `optionConfigs`: only permitted on `single_choice` and `multi_choice` types; each `label` must match an entry in `options[]`; `freetextType` must be `'string'` or `'number'`
-- [ ] T027 [US5] Update `chat-backend/src/services/surveyResponse.service.ts` to validate `freetextValues` in submitted answers: each key must be a selected option label (present in `value`); if `freetextType === 'number'`, the value string must be parseable as a finite number; return 422 with descriptive message on violation
+- [x] T025 [US5] Update `buildQuestion` in `chat-backend/src/services/surveySchema.service.ts` to copy `optionConfigs` from `SurveyQuestionInput` into the built `SurveyQuestion`
+- [x] T026 [US5] Update `validateQuestionInput` in `chat-backend/src/services/surveySchema.service.ts` to validate `optionConfigs`: only permitted on `single_choice` and `multi_choice` types; each `label` must match an entry in `options[]`; `freetextType` must be `'string'` or `'number'`
+- [x] T027 [US5] Update `chat-backend/src/services/surveyResponse.service.ts` to validate `freetextValues` in submitted answers: each key must be a selected option label (present in `value`); if `freetextType === 'number'`, the value string must be parseable as a finite number; return 422 with descriptive message on violation
 
 ### Workbench Frontend (workbench-frontend) — can start after T009, parallel with backend
 
-- [ ] T028 [P] [US5] Create new component `workbench-frontend/src/features/workbench/surveys/components/OptionEditor.tsx`: renders a single option row with label input, freetext toggle checkbox, and (when toggled on) a string/number type selector; emits `onChange` with updated `ChoiceOptionConfig`
-- [ ] T029 [US5] Update `workbench-frontend/src/features/workbench/surveys/components/QuestionEditor.tsx` to render `OptionEditor` for each entry in `options[]` when question type is `single_choice` or `multi_choice`; maintain `optionConfigs` state synchronized with option add/remove/reorder
-- [ ] T030 [US5] Update `toEditorQuestions` in `workbench-frontend/src/features/workbench/surveys/components/QuestionList.tsx` to include `optionConfigs` in the mapped editor question shape
-- [ ] T031 [US5] Update the `currentSchema` → local state mapping in `workbench-frontend/src/features/workbench/surveys/SurveySchemaEditorView.tsx` to include `optionConfigs` in the `questions` state entries
+- [x] T028 [P] [US5] Create new component `workbench-frontend/src/features/workbench/surveys/components/OptionEditor.tsx`: renders a single option row with label input, freetext toggle checkbox, and (when toggled on) a string/number type selector; emits `onChange` with updated `ChoiceOptionConfig`
+- [x] T029 [US5] Update `workbench-frontend/src/features/workbench/surveys/components/QuestionEditor.tsx` to render `OptionEditor` for each entry in `options[]` when question type is `single_choice` or `multi_choice`; maintain `optionConfigs` state synchronized with option add/remove/reorder
+- [x] T030 [US5] Update `toEditorQuestions` in `workbench-frontend/src/features/workbench/surveys/components/QuestionList.tsx` to include `optionConfigs` in the mapped editor question shape
+- [x] T031 [US5] Update the `currentSchema` → local state mapping in `workbench-frontend/src/features/workbench/surveys/SurveySchemaEditorView.tsx` to include `optionConfigs` in the `questions` state entries
 
 ### chat-frontend-common — can start after T009, parallel with backend and workbench-frontend
 
-- [ ] T032 [P] [US5] Update `chat-frontend-common/src/survey-ui/SingleChoiceInput.tsx` to accept `optionConfigs?: ChoiceOptionConfig[]` prop; when the selected option has `freetextEnabled: true`, render an inline text (or number) input immediately below the option; emit the freetext value via a new `onFreetext?: (optionLabel: string, value: string) => void` callback
-- [ ] T033 [P] [US5] Update `chat-frontend-common/src/survey-ui/MultiChoiceInput.tsx` to accept `optionConfigs?: ChoiceOptionConfig[]` prop; for each checked option with `freetextEnabled: true`, render an inline freetext input; enforce numeric-only constraint when `freetextType === 'number'`; emit freetext values via `onFreetext` callback
+- [x] T032 [P] [US5] Update `chat-frontend-common/src/survey-ui/SingleChoiceInput.tsx` to accept `optionConfigs?: ChoiceOptionConfig[]` prop; when the selected option has `freetextEnabled: true`, render an inline text (or number) input immediately below the option; emit the freetext value via a new `onFreetext?: (optionLabel: string, value: string) => void` callback
+- [x] T033 [P] [US5] Update `chat-frontend-common/src/survey-ui/MultiChoiceInput.tsx` to accept `optionConfigs?: ChoiceOptionConfig[]` prop; for each checked option with `freetextEnabled: true`, render an inline freetext input; enforce numeric-only constraint when `freetextType === 'number'`; emit freetext values via `onFreetext` callback
 
 ### chat-frontend — depends on T032/T033
 
-- [ ] T034 [US5] Update `chat-frontend/src/stores/surveyGateStore.ts` to store `freetextValues: Record<string, string>` per question answer in state; extend `setAnswer` to accept optional `freetextValues` parameter; include `freetextValues` in the survey response submission payload
-- [ ] T035 [US5] Update `chat-frontend/src/features/survey/SurveyForm.tsx` and `QuestionRenderer` to pass `optionConfigs` from the schema question to `SingleChoiceInput` / `MultiChoiceInput` and wire up the `onFreetext` handler to `surveyGateStore`
+- [x] T034 [US5] Update `chat-frontend/src/stores/surveyGateStore.ts` to store `freetextValues: Record<string, string>` per question answer in state; extend `setAnswer` to accept optional `freetextValues` parameter; include `freetextValues` in the survey response submission payload
+- [x] T035 [US5] Update `chat-frontend/src/features/survey/SurveyForm.tsx` and `QuestionRenderer` to pass `optionConfigs` from the schema question to `SingleChoiceInput` / `MultiChoiceInput` and wire up the `onFreetext` handler to `surveyGateStore`
 
 ### i18n for US5
 
-- [ ] T036 [P] [US5] Add i18n keys for freetext option editor to `workbench-frontend/src/locales/en.json`, `uk.json`, `ru.json`: `survey.option.freetextLabel`, `survey.option.freetextType.string`, `survey.option.freetextType.number`; add freetext placeholder keys to `chat-frontend-common/src/locales/en.json`, `uk.json`, `ru.json`
-- [ ] T041 [US5] Add `freetextRequired` support: (a) in `workbench-frontend/src/features/workbench/surveys/components/OptionEditor.tsx` add a "Required freetext" checkbox shown when freetext toggle is on; (b) update `chat-backend/src/services/surveyResponse.service.ts` to enforce non-empty `freetextValues[label]` when option is selected and `freetextRequired: true` (422 if blank); (c) update `chat-frontend-common/src/survey-ui/SingleChoiceInput.tsx` and `MultiChoiceInput.tsx` to mark the inline freetext input as required when `freetextRequired` is set
+- [x] T036 [P] [US5] Add i18n keys for freetext option editor to `workbench-frontend/src/locales/en.json`, `uk.json`, `ru.json`: `survey.option.freetextLabel`, `survey.option.freetextType.string`, `survey.option.freetextType.number`; add freetext placeholder keys to `chat-frontend-common/src/locales/en.json`, `uk.json`, `ru.json`
+- [x] T041 [US5] Add `freetextRequired` support: (a) in `workbench-frontend/src/features/workbench/surveys/components/OptionEditor.tsx` add a "Required freetext" checkbox shown when freetext toggle is on; (b) update `chat-backend/src/services/surveyResponse.service.ts` to enforce non-empty `freetextValues[label]` when option is selected and `freetextRequired: true` (422 if blank); (c) update `chat-frontend-common/src/survey-ui/SingleChoiceInput.tsx` and `MultiChoiceInput.tsx` to mark the inline freetext input as required when `freetextRequired` is set
 
 **Checkpoint**: US5 complete. Freetext options work in editor, preview, and gate flow. Answers stored with freetextValues. Required freetext enforced end-to-end.
 
@@ -164,7 +164,7 @@
 ## Phase 8: Polish & Cross-Cutting Concerns
 **Jira**: [MTB-613](https://mentalhelpglobal.atlassian.net/browse/MTB-613)
 
-- [ ] T037 [P] Update `chat-backend` schema export service to serialize `visibilityConditions`, `visibilityConditionCombinator`, and `optionConfigs` in export format version 2; update import to accept both version 1 (legacy `visibilityCondition` only) and version 2 (new fields) in `chat-backend/src/services/surveySchema.service.ts`
+- [x] T037 [P] Update `chat-backend` schema export service to serialize `visibilityConditions`, `visibilityConditionCombinator`, and `optionConfigs` in export format version 2; update import to accept both version 1 (legacy `visibilityCondition` only) and version 2 (new fields) in `chat-backend/src/services/surveySchema.service.ts`
 - [ ] T038 [P] Verify workbench schema export/import round-trip: export a schema with multi-conditions and freetext options, reimport it — all fields must survive the round-trip without loss in `workbench-frontend/src/features/workbench/surveys/components/SchemaExportButton.tsx` (and import handler)
 - [ ] T039 [P] Run Playwright smoke test in `chat-ui` against deployed dev environment: create schema with multi-condition question and freetext option, complete survey gate flow end-to-end, verify no 422 errors and freetextValues are recorded in the response
 - [ ] T042 [P] Verify WCAG AA compliance and keyboard navigation for all new interactive UI components: `workbench-frontend/src/features/workbench/surveys/components/VisibilityConditionEditor.tsx` (multi-condition list, AND/OR toggle, add/remove buttons), `OptionEditor.tsx` (freetext toggle, type selector), tag-style multi-value input — confirm focus order, aria-labels, and screen-reader announcements; test in `workbench-frontend` and `chat-frontend-common`
