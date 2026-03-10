@@ -1,34 +1,36 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 3.7.0 → 3.7.1
+  Version change: 3.7.1 → 3.8.0
 
   Modified principles:
-  - XI. Documentation Standards — added canonical Confluence page URLs
-    for all four documentation types. Added Confluence space and page
-    registry subsection with concrete URLs. Strengthened production
-    deployment trigger to reference specific page URLs.
+  - XI. Documentation Standards — screenshot capture now references canonical
+    dev environment URLs (https://dev.mentalhelp.chat,
+    https://workbench.dev.mentalhelp.chat) instead of vague
+    "deployed dev environment".
+  - XII. Release Engineering — post-deploy health verification now references
+    canonical prod environment URLs (https://mentalhelp.chat,
+    https://workbench.mentalhelp.chat, https://api.mentalhelp.chat).
 
   Added sections:
-  - None
+  - "Environments" subsection under Development Workflow — canonical URLs for
+    dev and prod environments (chat, workbench, and API for each tier).
 
   Removed sections:
   - None
 
   Templates requiring updates:
   - ✅ .specify/templates/plan-template.md (no change needed)
-  - ✅ .specify/templates/tasks-template.md (no change needed — tasks
-    already reference Confluence sections by name; URLs are resolved
-    via constitution lookup)
+  - ✅ .specify/templates/tasks-template.md (no change needed)
   - ✅ .specify/templates/spec-template.md (no change needed)
-  - ✅ .claude/commands/speckit.implement.md (updated: step 10 gains
-    canonical Confluence page URLs for each documentation type)
+  - ✅ .claude/commands/speckit.implement.md (no change needed)
   - ✅ .claude/commands/speckit.plan.md (no change needed)
   - ✅ .claude/commands/speckit.specify.md (no change needed)
   - ✅ .claude/commands/speckit.tasks.md (no change needed)
   - ✅ .claude/commands/speckit.analyze.md (no change needed)
-  - ✅ .claude/commands/speckit.taskstoissues.md (no change needed)
-  - ✅ CLAUDE.md (no change needed)
+  - ✅ CLAUDE.md (updated: Dev UI Testing Prerequisites now uses canonical URLs)
+  - ✅ AGENTS.md (created: mirrors CLAUDE.md for non-Claude AI agents)
+  - ✅ .cursorrules (created: Cursor-compatible rules with environment URLs)
 
   Follow-up TODOs:
   - Add workbench-frontend and chat-frontend-common to
@@ -79,6 +81,7 @@ Tests MUST align with each repository's established testing culture.
 - **Unit tests (backend)**: Vitest in `chat-backend`
 - **Unit tests (frontend)**: Vitest + React Testing Library in `chat-frontend`
 - **E2E tests**: Playwright in `chat-ui` against deployed environments
+  (see Environments section for canonical URLs)
 - **Coverage thresholds**: Respect existing minimums per repo
 - **Test evidence**: Before/after screenshots stored in `evidence/<task-id>/`
 - **Regression evidence**: For UI/API regressions, capture browser console and
@@ -304,7 +307,8 @@ purpose.
   - MUST include system screenshots reflecting the current dev UI,
     captured automatically via the Playwright MCP
     (`plugin-playwright-playwright`) against the deployed dev
-    environment
+    environment (`https://dev.mentalhelp.chat` for chat,
+    `https://workbench.dev.mentalhelp.chat` for workbench)
   - MUST be written in non-technical language accessible to all user
     roles
   - Each guide page MUST cover: purpose of the screen, how to reach
@@ -360,7 +364,8 @@ Screenshot capture process:
 
 - Screenshots for documentation MUST be captured using the Playwright
   MCP (`plugin-playwright-playwright`) against the deployed dev
-  environment
+  environment (`https://dev.mentalhelp.chat` for chat,
+  `https://workbench.dev.mentalhelp.chat` for workbench)
 - The Playwright MCP MUST navigate to the relevant page, interact
   with the UI to reach the desired state, and take a screenshot
 - Screenshots MUST be uploaded to Confluence as page attachments and
@@ -430,9 +435,13 @@ or data storage.
   PR from `main` → `develop` MUST be created and merged in each
   affected repository (see Principle IV)
 - **Post-deploy health verification**: After production deployment,
-  every backend service health endpoint MUST return `ok` status for
-  all dependencies before the release is considered complete. Degraded
-  status MUST trigger immediate investigation and hotfix.
+  smoke checks MUST be run against the canonical production URLs
+  (`https://mentalhelp.chat` for chat,
+  `https://workbench.mentalhelp.chat` for workbench,
+  `https://api.mentalhelp.chat` for the backend API). Every backend
+  service health endpoint MUST return `ok` status for all dependencies
+  before the release is considered complete. Degraded status MUST
+  trigger immediate investigation and hotfix.
 - **Fallback documentation**: Critical infrastructure dependencies
   (caches, message queues, external APIs) MUST have documented
   fallback behavior so degraded-mode operation is understood before
@@ -498,6 +507,23 @@ Mandatory health verification catches issues before users do.
 - Document any cross-repository dependencies in plan.md
 
 ## Development Workflow
+
+### Environments
+
+Canonical environment URLs for all development, testing, and smoke-check
+activities. Do NOT derive or discover these from CI output — use these
+values directly.
+
+| Environment | Chat Frontend | Workbench Frontend | Backend API |
+|-------------|---------------|--------------------|-------------|
+| **Dev** | https://dev.mentalhelp.chat | https://workbench.dev.mentalhelp.chat | https://api.dev.mentalhelp.chat |
+| **Prod** | https://mentalhelp.chat | https://workbench.mentalhelp.chat | https://api.mentalhelp.chat |
+
+- All Playwright E2E tests MUST target the **dev** environment URLs above
+- All documentation screenshots MUST be captured from the **dev** environment
+- Post-deploy smoke checks MUST run against the **prod** environment URLs
+- Do NOT use direct Cloud Run service URLs (`*.run.app`) or GCS bucket URLs
+  for testing — always use the canonical domain names above
 
 ### Phase Gates
 
@@ -572,6 +598,8 @@ orchestrated through `client-spec`.
 - Using `--set-secrets` for non-sensitive configuration values
   (hostnames, ports, feature flags) in deploy workflows is
   non-compliant (Principle VIII)
+- Using direct Cloud Run or GCS bucket URLs for E2E testing or smoke
+  checks instead of canonical environment domain names is non-compliant
 - Checklist validation runs automatically via `/speckit.specify`
 - Plan.md includes explicit Constitution Check section
 - Non-compliance MUST be justified in Complexity Tracking section
@@ -598,4 +626,4 @@ orchestrated through `client-spec`.
 | Non-Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding |
 | Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding |
 
-**Version**: 3.7.1 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-02-23
+**Version**: 3.8.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-10

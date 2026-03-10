@@ -1,0 +1,68 @@
+# Cursor Rules — MHG client-spec
+# Synced with constitution v3.8.0 (2026-03-10)
+
+## Project Overview
+
+This repository is the central orchestration point for the Mental Health Global
+platform. It contains specifications, plans, and task breakdowns — NOT application
+code. Implementation happens in the target repositories.
+
+## Spec-First Rule
+
+NEVER write or suggest implementation code directly. All feature work MUST start
+with a specification in `specs/NNN-feature-name/`. Use the speckit commands:
+
+1. `/speckit.specify` — create spec
+2. `/speckit.plan` — create plan
+3. `/speckit.tasks` — generate tasks
+4. `/speckit.implement` — execute tasks
+
+## Environments
+
+Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs. Always use:
+
+| Environment | Chat Frontend | Workbench Frontend | Backend API |
+|-------------|---------------|--------------------|-------------|
+| Dev | https://dev.mentalhelp.chat | https://workbench.dev.mentalhelp.chat | https://api.dev.mentalhelp.chat |
+| Prod | https://mentalhelp.chat | https://workbench.mentalhelp.chat | https://api.mentalhelp.chat |
+
+## Target Repositories
+
+| Repository | Role |
+|------------|------|
+| `chat-backend` | Express.js backend API |
+| `chat-frontend` | React frontend (chat) |
+| `workbench-frontend` | React frontend (workbench) |
+| `chat-frontend-common` | Shared frontend library |
+| `chat-ui` | Playwright E2E tests |
+| `chat-ci` | Reusable GitHub Actions workflows |
+| `chat-infra` | GCP infrastructure |
+| `chat-types` | Shared TypeScript types |
+| `chat-client` | LEGACY — no new work here |
+
+## Branch Policy
+
+- Feature branches: `NNN-feature-name` (auto-numbered)
+- Integration branch: `develop` (never commit directly)
+- `main` is promotion-only — via `release/*` branch PR only
+- After merge: delete remote branch, delete local branch, sync `develop`
+
+## Key Files
+
+- Constitution: `.specify/memory/constitution.md`
+- Templates: `.specify/templates/`
+- Specs: `specs/NNN-feature-name/`
+- Commands: `.claude/commands/speckit.*.md`
+
+## Jira Integration
+
+- Jira project: `MTB` at `https://mentalhelpglobal.atlassian.net`
+- Each feature → Jira Epic; stories → Stories; tasks → Tasks
+- Use `/speckit.sync push` to transition completed tasks to Done in Jira (explicit, not automatic)
+- Use `/speckit.sync pull` to update `tasks.md` checkboxes from Jira Done status
+- Use `/speckit.sync audit` for a read-only discrepancy report
+
+## Documentation
+
+All docs go to Confluence (https://mentalhelpglobal.atlassian.net/wiki/spaces/UD).
+Screenshots captured via Playwright MCP against dev environment URLs (above).
