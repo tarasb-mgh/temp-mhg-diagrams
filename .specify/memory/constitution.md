@@ -1,23 +1,27 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 3.7.1 → 3.8.0
+  Version change: 3.8.0 → 3.9.0
 
   Modified principles:
-  - XI. Documentation Standards — screenshot capture now references canonical
-    dev environment URLs (https://dev.mentalhelp.chat,
-    https://workbench.dev.mentalhelp.chat) instead of vague
-    "deployed dev environment".
-  - XII. Release Engineering — post-deploy health verification now references
-    canonical prod environment URLs (https://mentalhelp.chat,
-    https://workbench.mentalhelp.chat, https://api.mentalhelp.chat).
+  - IV. Branch and Integration Discipline — added explicit CI/pipeline bypass
+    prohibition (requires written approval); added requirement to verify CI
+    status shows all checks passing (not 0 statuses) before merge.
+  - XII. Release Engineering and Production Readiness — added explicit
+    "approval required for production release" rule; added automatic deployment
+    awareness requirement; added "dev-only validation by default" rule; added
+    E2E test gate and explicit owner approval to pre-release checklist (item 5
+    and 6).
 
-  Added sections:
-  - "Environments" subsection under Development Workflow — canonical URLs for
-    dev and prod environments (chat, workbench, and API for each tier).
+  Added compliance violations:
+  - Creating release branch / merging to main without owner approval
+  - Merging PR when CI has 0 statuses or failing checks without approval
 
-  Removed sections:
-  - None
+  Rationale for change:
+  - In March 2026, an AI agent autonomously cut a release branch and merged to
+    main without owner approval, triggering an unplanned production deployment
+    for the chat-backend. The owner explicitly did not authorize this. These
+    additions codify the gates that would have prevented that incident.
 
   Templates requiring updates:
   - ✅ .specify/templates/plan-template.md (no change needed)
@@ -28,11 +32,11 @@
   - ✅ .claude/commands/speckit.specify.md (no change needed)
   - ✅ .claude/commands/speckit.tasks.md (no change needed)
   - ✅ .claude/commands/speckit.analyze.md (no change needed)
-  - ✅ CLAUDE.md (updated: Dev UI Testing Prerequisites now uses canonical URLs)
-  - ✅ AGENTS.md (created: mirrors CLAUDE.md for non-Claude AI agents)
-  - ✅ .cursorrules (created: Cursor-compatible rules with environment URLs)
+  - ✅ CLAUDE.md (needs update: add prod-approval and CI-gate rules)
+  - ✅ AGENTS.md (needs update: mirrors CLAUDE.md)
+  - ✅ .cursorrules (needs update: mirrors key rules)
 
-  Follow-up TODOs:
+  Follow-up TODOs (carried from 3.8.0):
   - Add workbench-frontend and chat-frontend-common to
     chat-infra/config/github-repos.json and re-run setup-github.sh
   - Delete or document deprecated VPC connector (chat-vpc-connector)
@@ -105,8 +109,16 @@ Feature work MUST follow established branch policies.
 - Pull Requests to `develop` MUST have required reviewer approvals before merge
 - Pull Requests to `develop` MUST have all required CI checks passing before merge
 - All tests MUST pass before merge
+- **CI/pipeline bypass is PROHIBITED** without explicit written approval from the
+  repository owner. If CI checks fail, the issue MUST be fixed — never bypassed
+  via `--no-verify`, skip flags, or force-merging a failing PR. If a bypass is
+  explicitly approved, the approval and reason MUST be documented in the PR
 - A feature/bugfix branch MAY be merged only after relevant unit and UI/E2E
   tests pass according to repository gates
+- **Before merging any PR, the CI status for ALL checks MUST be verified as
+  passing** (not pending, not skipped, not failed). A PR with 0 status checks
+  reported MUST be investigated before merge — it may indicate the CI workflow
+  was not triggered
 - Squash merge for clean history
 - Feature branches MUST be created in all affected split repositories
   using the same branch name
@@ -122,7 +134,9 @@ Feature work MUST follow established branch policies.
 consistent branch names across split repos ensures traceability and
 simplifies cross-repo coordination. Mandatory post-release backmerge
 prevents the main/develop divergence that caused merge conflicts during
-the v2026.02.23 release.
+the v2026.02.23 release. CI bypass without approval has caused broken
+features to reach production and deployed untested code to prod without
+owner knowledge.
 
 ### V. Privacy and Security First
 
@@ -410,6 +424,26 @@ Infrastructure changes and feature work MUST be released through
 separate release cycles when they affect deployment topology, networking,
 or data storage.
 
+- **Explicit approval required for production release**: No release
+  branch (`release/*`) MUST be created, and no PR from a release
+  branch to `main` MUST be opened or merged, without **explicit written
+  instruction or approval** from the repository owner. This applies
+  even when a feature is complete and tested. The act of creating a
+  release branch or merging to `main` triggers automatic production
+  deployment — this is a production event and MUST be owner-controlled.
+  "The feature is ready" is NOT a sufficient reason to cut a release
+  unilaterally.
+- **Automatic deployment awareness**: All team members and AI agents
+  MUST understand that merging any PR to `main` in a deployable
+  repository triggers the production deploy workflow automatically.
+  Creating a release branch, opening a release PR, and merging to
+  `main` are all steps in a production deployment and MUST NOT be
+  performed without explicit approval.
+- **Dev-only validation by default**: All feature validation, smoke
+  testing, Playwright E2E tests, and bug investigation MUST target the
+  `dev` environment (`https://dev.mentalhelp.chat`,
+  `https://api.dev.mentalhelp.chat`). If an issue is not reproducible
+  or fixable on `dev`, escalate to the owner before touching production.
 - **Release scope separation**: Changes to deployment workflows,
   VPC/networking configuration, database infrastructure, or new service
   provisioning MUST be released and verified in a standalone release
@@ -421,7 +455,8 @@ or data storage.
   workflow MUST be verified as part of the pre-release checklist, not
   discovered missing post-deploy.
 - **Pre-release verification checklist**: Before cutting a release
-  branch, the following MUST be verified for each target repository:
+  branch (with owner approval), the following MUST be verified for
+  each target repository:
   1. A production deploy workflow exists and is triggered on push to
      `main` (or manual dispatch)
   2. The `prod` GitHub environment has all required secrets and
@@ -431,6 +466,9 @@ or data storage.
      returns per-dependency status (database, cache, external services)
   4. `main` and `develop` are not diverged (if diverged, reconcile
      before cutting the release branch)
+  5. All Playwright E2E tests pass on the `dev` environment against the
+     feature being released
+  6. Explicit written approval from the owner has been received
 - **Post-release backmerge**: After every release merge to `main`, a
   PR from `main` → `develop` MUST be created and merged in each
   affected repository (see Principle IV)
@@ -453,7 +491,10 @@ deploy workflow, unconfigured environment secrets, Redis connectivity
 failure — was preventable with pre-release verification. Separating
 infrastructure releases from feature releases reduces blast radius and
 ensures deployment topology changes are validated independently.
-Mandatory health verification catches issues before users do.
+Mandatory health verification catches issues before users do. In March
+2026, an AI agent autonomously cut a release branch and merged to `main`
+without owner approval, triggering an unplanned production deployment —
+this principle codifies the gate that would have prevented that.
 
 ## Multi-Repository Orchestration
 
@@ -579,6 +620,12 @@ orchestrated through `client-spec`.
 - Leaving local `develop` unsynced after successful merge is non-compliant
 - Shipping user-facing UI changes without responsive/PWA verification evidence
   is non-compliant
+- Creating a release branch, opening a release PR to `main`, or merging
+  to `main` without explicit written owner approval is non-compliant
+  (Principle XII)
+- Merging any PR (to `develop` or `main`) when CI checks have not
+  passed, are pending, or report 0 statuses is non-compliant unless
+  explicitly approved in writing (Principle IV)
 - Promoting a release without post-deploy smoke evidence for critical routes
   and APIs is non-compliant
 - Completing a speckit workflow phase without the corresponding Jira
@@ -626,4 +673,4 @@ orchestrated through `client-spec`.
 | Non-Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding |
 | Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding |
 
-**Version**: 3.8.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-10
+**Version**: 3.9.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-11
