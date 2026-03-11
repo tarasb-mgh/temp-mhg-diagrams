@@ -2,7 +2,7 @@
 
 **Feature Branch**: `023-user-group-enhancements`
 **Created**: 2026-03-10
-**Status**: Planned
+**Status**: Implemented
 **Jira Epic**: [MTB-657](https://mentalhelpglobal.atlassian.net/browse/MTB-657)
 **Input**: User description: "1. privileged accounts can participate in user groups 2. when a new user group is created, the spaces list on top of the page should be updated 3. if a user is not privileged and is only a participant of a single space - they shouldn't see spaces dropdown 4. user group should have a Group surveys section with the possibility to reorder survey appearence within the group 5. if the user is part of several groups he only finishes the same survey instance once 6. group all response invalidation controls into invalidation menu with confirmation popup 7. in user group interface allow to lookup users for global privileged roles 8. on user management interface only navigate to user card when [View] is clicked. Add copy icon near user email in the list and on the card. do not drop search filter after navigating to the card and back"
 
@@ -162,9 +162,9 @@ On the user management interface (user list and user card), several micro-intera
 - **FR-006**: Administrators MUST be able to reorder surveys within the Group Surveys section, with the order persisting and reflecting to group members on their next page load or navigation to the survey list; real-time push to active sessions is not required.
 - **FR-007**: When a user belongs to multiple groups sharing the same survey instance (same instance ID, assigned to multiple groups via the `group_ids[]` array), the system MUST count one completion as fulfilling the requirement across all groups containing that instance, regardless of group-specific display settings. Survey completions are user-level records and MUST persist even if the user is subsequently removed from a group.
 - **FR-008**: All survey response invalidation controls MUST be consolidated into a single "Invalidation" menu or grouped control area, visible to all administrator roles. Consolidation applies to both the response list view and the response detail view, where invalidation controls currently exist scattered across each.
-- **FR-008a**: Higher-risk invalidation actions within the Invalidation menu (e.g., bulk or permanent invalidation) MUST be restricted to elevated/privileged roles; standard administrators MUST NOT be able to execute them.
+- **FR-008a**: Higher-risk invalidation actions within the Invalidation menu (e.g., bulk or group-level invalidation) MUST be restricted to management roles (OWNER, MODERATOR, SUPERVISOR). QA_SPECIALIST and RESEARCHER roles MUST NOT be able to execute higher-risk invalidation actions, even though they are considered privileged for other purposes (e.g., group participant lookup, spaces dropdown visibility).
 - **FR-009**: Every invalidation action MUST require confirmation via a popup dialog before executing.
-- **FR-010**: The user group interface MUST provide a user lookup capability that can filter by privileged accounts.
+- **FR-010**: The user group interface MUST provide a user lookup capability that can filter by privileged accounts. Privileged accounts for this lookup are users with roles: OWNER, MODERATOR, SUPERVISOR, QA_SPECIALIST, or RESEARCHER.
 - **FR-011**: On the user management interface, navigation to a user card MUST only occur when the explicit [View] button is clicked, not on general row click.
 - **FR-012**: A copy-to-clipboard icon MUST appear adjacent to user email addresses in both the user list and the user card.
 - **FR-013**: The user list search filter MUST be preserved when navigating to a user card and returning to the list.
@@ -174,7 +174,7 @@ On the user management interface (user list and user card), several micro-intera
 - **User Group**: A collection of users (participants) with associated surveys and a defined order for those surveys.
 - **Space**: A top-level organizational unit that groups users; determines visibility of the spaces dropdown.
 - **Survey Instance**: A specific assigned occurrence of a survey; shared across groups when the same survey is assigned to multiple groups.
-- **Privileged Account**: A user account with elevated (global) permissions (e.g., system admin, global supervisor). Privileged accounts can participate in groups as members and are the canonical term for what was previously also referred to as "global privileged roles" in lookup contexts.
+- **Privileged Account**: A user account with elevated (global) permissions. Encompasses roles: OWNER, MODERATOR, SUPERVISOR, QA_SPECIALIST, RESEARCHER. Privileged accounts can participate in groups as members and appear in privileged account lookup filters. Note: for destructive invalidation actions, only the subset of **management roles** (OWNER, MODERATOR, SUPERVISOR) have access — QA_SPECIALIST and RESEARCHER are privileged but not management.
 - **Survey Response**: A completed survey submission by a user; subject to invalidation controls.
 
 ## Success Criteria *(mandatory)*
@@ -213,6 +213,19 @@ On the user management interface (user list and user card), several micro-intera
 - Q: Which views currently have invalidation controls that need consolidating? → A: Both the response list view and the response detail view.
 - Q: When a user is removed from a group, do their prior survey completions still count for cross-group deduplication? → A: Yes — completions persist as user-level records, independent of current group membership.
 - Q: When a user's space membership drops to one, when does the spaces dropdown hide? → A: Next page load only — real-time mid-session hiding is not required.
+
+### Session 2026-03-11 (Bug Fixes Applied During Implementation)
+
+- Q: Which roles can execute higher-risk invalidation actions (FR-008a)? → A: Management roles only: OWNER, MODERATOR, SUPERVISOR. QA_SPECIALIST and RESEARCHER can open the Invalidation menu and execute low-risk actions (e.g., invalidate a single response), but are blocked from higher-risk bulk/permanent invalidation. The implementation uses a distinct `isManagementRole` predicate (subset of `isPrivilegedRole`) for this gate.
+- Q: Which roles are included in "privileged accounts" for user group participant lookup (FR-010)? → A: OWNER, MODERATOR, SUPERVISOR, QA_SPECIALIST, and RESEARCHER. The backend user lookup query explicitly filters to these five roles.
+- Q: How should criteria feedback sentinel values (checkbox-only ratings with no detail text) be stored? → A: The criterion key name (e.g. `'relevance'`) is stored as the `feedback_text` value when a criteria checkbox is checked without accompanying detail text. The DB-level `CHECK (LENGTH(feedback_text) >= 10)` constraint was dropped via migration to allow these short sentinel keys (migration 031).
+- Q: What happens to review sessions that were previously in `in_progress` status when the expiration concept is removed? → A: Migration 030 (remove review expiration) Step 1 now correctly identifies and closes sessions stuck with `in_progress` assignments — the EXISTS predicate was widened to include `in_progress` (not only `pending`) and the NOT EXISTS guard now only exempts `completed` assignments, preventing permanently-stuck sessions.
+- Q: How should the session message archive operation behave under concurrent calls? → A: The archive operation is atomic and idempotent: it runs inside a single DB transaction with a `SELECT ... FOR UPDATE` lock on the session row, checks `messages_archived_at IS NULL` before proceeding, writes both the content wipe and the timestamp stamp in the same transaction, and inserts an audit log entry. A second concurrent call will either block until the first commits (then find `messages_archived_at` already set and no-op) or fail safely on rollback.
+
+### Session 2026-03-11 (Cross-Feature — publicHeader Migration Impact)
+
+- Q: Should the Group Surveys section in GroupSurveyList display a per-survey Instructions (publicHeader) field from the survey instance? → A: No — the `publicHeader` field was removed from `SurveyInstance` and `SurveyInstanceListItem` types as part of spec-022 migration (chat-types v1.12.0). `GroupSurveyList.tsx` had a `publicHeader: string | null` field on its `SurveyItem` interface and a conditional display block that was removed. Instructions are now schema-level only and not surfaced in the group survey list.
+- Q: Should the Instance Create Form (used when launching a survey from a group) include an Instructions field? → A: No — `InstanceCreateForm.tsx` previously had a `publicHeader` state, setter, and textarea. These were removed as part of the spec-022 migration. Instructions are authored once in the schema editor; instance creation inherits them from the schema snapshot automatically.
 
 ## Out of Scope
 

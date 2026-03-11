@@ -3,7 +3,7 @@
 **Feature Branch**: `022-survey-advanced-features`
 **Jira Epic**: [MTB-606](https://mentalhelpglobal.atlassian.net/browse/MTB-606)
 **Created**: 2026-03-06
-**Status**: Ready for Implementation
+**Status**: Implemented
 **Input**: User description: "researcher needs to see the spaces filter with all the spaces listed in chat list for review. surveys with single or multiple options question types should be able to optionally add a freetext field to any selection option with a string/number input types. survey questions can have multiple visibility conditions with AND or OR operations. Inside condition definition, when using comparison operations, have an ability to compare to multiple values. Visibility has higher priority than question requirement: meaning that invisible question is not required even if it is explicitly marked as so"
 
 ## User Scenarios & Testing *(mandatory)*
@@ -159,6 +159,12 @@ A second survey uses a multi-choice question "Which symptoms do you experience?"
 - **SC-005**: Freetext values on selected choice options are captured and retrievable in survey response exports for 100% of submissions.
 - **SC-006**: Survey preview in the workbench correctly reflects visibility, freetext, and required behavior identically to the live gate mode.
 
+**Survey Schema Instructions Field**
+
+- **FR-019**: A survey schema MUST support an optional `Instructions` (public header) text field, authored once at the schema level, that is shown to respondents before the first survey question in the live gate flow. The field MUST support Markdown formatting.
+- **FR-020**: The Instructions field MUST be authored in the workbench schema editor and persisted on the survey schema record. It MUST be captured in the schema snapshot at instance-creation time so instances carry the Instructions text even after the schema is updated.
+- **FR-021**: The workbench MUST display the Instructions field value in the survey preview modal alongside the question simulation, so designers can verify Instructions content before publishing.
+
 ## Assumptions
 
 - All conditions on a given question share one combinator (AND or OR). Nested/grouped logic (e.g., "(A AND B) OR C") is explicitly out of scope.
@@ -166,3 +172,12 @@ A second survey uses a multi-choice question "Which symptoms do you experience?"
 - The spaces filter fix applies only to the researcher chat review list; other space dropdowns in the workbench are assumed to already work correctly.
 - "Number" type freetext accepts any numeric input (integer or decimal); range validation is out of scope for this release.
 - Reordering of conditions within a condition set is a nice-to-have and may be deferred to implementation discretion.
+- The Instructions field replaces any previously instance-level public header field; historical instances with instance-level public header values are intentionally discarded as the field is repurposed at the schema level going forward.
+
+## Clarifications
+
+### Session 2026-03-11 (Post-Implementation — Refinements Applied)
+
+- Q: Was SC-006 (survey preview reflects visibility identically to live gate mode) fully implemented? → A: No — `SurveyPreviewModal` had a known gap where `evaluateVisibility()` was intentionally not applied, causing all questions to be shown regardless of visibility conditions. Fixed: the modal now calls `evaluateVisibility(questions, answersMap)` reactively on each answer change; `questionIndex` is clamped to the visible list length when questions disappear. SC-006 is now fully satisfied.
+- Q: Where should the Instructions (public header) field live — on the survey instance or the survey schema? → A: Schema level only. The field was previously stored on `survey_instances` (DB column `public_header`); it is now stored on `survey_schemas` (DB column `public_header`) via migration 033. The instance creation flow captures it in the `schema_snapshot` JSON at the time of instance creation, so instances inherit the Instructions text without a separate instance-level field. Instance-creation UI no longer exposes an Instructions input; the field is exclusively authored in the schema editor.
+- Q: How is the Instructions field surfaced in the chat-types shared type package? → A: `SurveySchema.publicHeader: string | null` was added (removing it from `SurveyInstance`, `SurveyInstanceListItem`, and `GroupSurveyOrderItem`) in chat-types v1.12.0 (minor version bump for breaking type change). Downstream repos (chat-backend, workbench-frontend, chat-frontend) updated to consume `schemaSnapshot.publicHeader` rather than `instance.publicHeader`.
