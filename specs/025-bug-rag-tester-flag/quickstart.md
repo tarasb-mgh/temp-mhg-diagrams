@@ -168,39 +168,74 @@ npm test   # Vitest unit tests must pass
 
 ## Step 4 — E2E Test in `chat-ui`
 
+> **Strategy (clarified 2026-03-11)**: Use `page.route()` to mock `POST /api/chat/message` with a deterministic fixture response. This ensures the test is reliable regardless of Dialogflow availability on `dev`. The test validates the frontend rendering gate (`testerTagAssigned` + `ragCallDetail` presence) — not the backend RAG extraction pipeline (covered by unit tests in Phase 4).
+
 Create `chat-ui/tests/rag-panel-visibility.spec.ts`:
 
 ```typescript
 import { test, expect } from '@playwright/test';
 
-const TESTER_EMAIL = 'e2e-owner@test.local';
-const RAG_TRIGGER_MESSAGE = 'розкажи про депресію';  // known RAG-triggering prompt
+const DEV_URL = 'https://dev.mentalhelp.chat';
+const API_CHAT_URL = '**/api/chat/message';
 
-test('RAG panel visible for tester-tagged user', async ({ page }) => {
-  // 1. Navigate to dev chat
-  await page.goto('https://dev.mentalhelp.chat');
+const RAG_FIXTURE = {
+  success: true,
+  data: {
+    userMessage: { id: 'u1', role: 'user', content: 'test', timestamp: new Date().toISOString() },
+    assistantMessage: {
+      id: 'a1',
+      role: 'assistant',
+      content: 'Депресія — це серйозний стан...',
+      timestamp: new Date().toISOString(),
+      ragCallDetail: {
+        retrievalQuery: 'депресія',
+        retrievalTimestamp: new Date().toISOString(),
+        retrievedDocuments: [
+          { title: 'Про депресію', relevanceScore: 0.92, contentSnippet: 'Депресія характеризується...' },
+        ],
+      },
+    },
+  },
+};
 
-  // 2. Login with OTP (OTP is logged to browser console in dev)
-  // ... OTP login flow steps ...
+const RAG_FIXTURE_NO_RAG = {
+  ...RAG_FIXTURE,
+  data: {
+    ...RAG_FIXTURE.data,
+    assistantMessage: { ...RAG_FIXTURE.data.assistantMessage, ragCallDetail: undefined },
+  },
+};
 
-  // 3. Send RAG-triggering message
-  await page.getByPlaceholder('Написати повідомлення').fill(RAG_TRIGGER_MESSAGE);
+test('RAG Sources panel visible for tester-tagged user', async ({ page }) => {
+  // Mock chat API to return deterministic ragCallDetail
+  await page.route(API_CHAT_URL, route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RAG_FIXTURE) })
+  );
+
+  await page.goto(DEV_URL);
+  // ... OTP login as e2e-owner@test.local (tester-tagged) ...
+
+  await page.getByPlaceholder('Написати повідомлення').fill('test');
   await page.keyboard.press('Enter');
-  await page.waitForResponse(resp => resp.url().includes('/api/chat/message'));
 
-  // 4. Assert "Sources" panel is visible
   await expect(page.getByText('Sources')).toBeVisible({ timeout: 10000 });
-
-  // 5. Expand and check content
   await page.getByText('Sources').click();
   await expect(page.locator('[data-testid="rag-retrieved-docs"]')).toBeVisible();
 });
 
-test('RAG panel hidden for non-tester user', async ({ page }) => {
-  // Login as regular user (no tester tag)
-  // Send same message
-  // Assert "Sources" panel is NOT visible
-  await expect(page.getByText('Sources')).not.toBeVisible();
+test('RAG Sources panel hidden for non-tester user', async ({ page }) => {
+  await page.route(API_CHAT_URL, route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RAG_FIXTURE) })
+  );
+
+  await page.goto(DEV_URL);
+  // ... OTP login as non-tester user ...
+
+  await page.getByPlaceholder('Написати повідомлення').fill('test');
+  await page.keyboard.press('Enter');
+
+  // Even with ragCallDetail in the mocked response, non-tester user must NOT see the panel
+  await expect(page.getByText('Sources')).not.toBeVisible({ timeout: 5000 });
 });
 ```
 

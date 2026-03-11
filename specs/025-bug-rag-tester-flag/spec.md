@@ -116,7 +116,7 @@ A tester-tagged user sends a message in the chat interface. For AI responses whe
 - **FR-005**: The chat interface MUST render an expandable "Sources" control below any assistant message bubble that includes `ragCallDetail` in its data, visible only when the current user has `testerTagAssigned: true`.
 - **FR-006**: The "Sources" control MUST expand to show: the retrieval query used, a list of retrieved documents each with title/identifier, relevance score, and content snippet.
 - **FR-007**: When `ragCallDetail` is present but `retrievedDocuments` is empty, the expanded panel MUST show an explicit "No documents retrieved" message.
-- **FR-008**: A Playwright E2E test MUST be written that verifies the end-to-end flow: login as tester-tagged user → send RAG-triggering message → confirm "Sources" panel visible → expand panel → confirm content present.
+- **FR-008**: A Playwright E2E test MUST be written that verifies the end-to-end flow using `page.route()` to mock `POST /api/chat/message` with a deterministic fixture response containing `ragCallDetail`. The test MUST: login as tester-tagged user → intercept and mock the chat message response → confirm "Sources" panel visible → expand panel → confirm content present. A separate non-tester user test case MUST confirm the panel is absent. Tests MUST NOT depend on Dialogflow availability on `dev`.
 - **FR-009**: The fix MUST be verified on `dev` environment before any release branch is cut. No production deployment MUST occur without explicit approval.
 
 ### Key Entities
@@ -138,6 +138,14 @@ A tester-tagged user sends a message in the chat interface. For AI responses whe
 - **SC-005**: The "Sources" expandable control appears on 100% of tester-tagged user assistant message bubbles that have `ragCallDetail` populated.
 - **SC-006**: The Playwright E2E test passes on `dev` environment before any release is cut and serves as a regression gate for future deployments.
 - **SC-007**: Zero production deployments occur during this bugfix without explicit written approval. All validation occurs on `dev` only.
+
+---
+
+## Clarifications
+
+### Session 2026-03-11
+
+- Q: What strategy should the Playwright E2E test use when Dialogflow may not return RAG on `dev`? → A: Mock `POST /api/chat/message` via `page.route()` — deterministic fixture, test does not depend on Dialogflow availability.
 
 ---
 

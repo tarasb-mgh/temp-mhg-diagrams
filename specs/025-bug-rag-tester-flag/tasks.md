@@ -91,9 +91,9 @@
 
 **FR-008 requirement**: E2E test must exist and pass before any release is cut.
 
-- [ ] T026 Write Playwright E2E test `rag-panel-visibility.spec.ts`: login as `e2e-owner@test.local` → send `"розкажи про депресію"` → wait for response → assert "Sources" panel visible → expand → assert document content visible — `chat-ui`: `tests/rag-panel-visibility.spec.ts`
-- [ ] T027 Write Playwright E2E test: login as non-tester user → send same message → assert "Sources" panel NOT visible — `chat-ui`: `tests/rag-panel-visibility.spec.ts` (second test case)
-- [ ] T028 Run `npx playwright test rag-panel-visibility.spec.ts` against `https://dev.mentalhelp.chat`; confirm both tests PASS
+- [ ] T026 Write Playwright E2E test `rag-panel-visibility.spec.ts`: login as `e2e-owner@test.local` → mock `POST /api/chat/message` via `page.route()` with deterministic fixture containing `ragCallDetail` → assert "Sources" panel visible → expand → assert document content visible (deterministic; no Dialogflow dependency) — `chat-ui`: `tests/rag-panel-visibility.spec.ts`
+- [ ] T027 [P] Write Playwright E2E test: login as non-tester user → mock same `POST /api/chat/message` route with same fixture → assert "Sources" panel NOT visible — `chat-ui`: `tests/rag-panel-visibility.spec.ts` (second test case)
+- [ ] T028 Run `npx playwright test rag-panel-visibility.spec.ts` against `https://dev.mentalhelp.chat`; confirm both tests PASS (fixture-based; does not require Dialogflow RAG trigger)
 - [ ] T029 Open PR for `chat-ui` branch → `develop`; verify CI passes; merge
 
 **Checkpoint**: E2E test passing on dev — feature is validated end-to-end. Release may now be discussed with owner.
