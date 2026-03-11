@@ -1,4 +1,4 @@
-﻿# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -121,14 +121,24 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
 
 ### Release Promotion To Main And Production
 
-- Cut a short-lived `release/*` branch from `develop` at an agreed release cut-off.
+> ⚠️ **APPROVAL REQUIRED**: Creating a release branch or merging to `main` triggers automatic production deployment. NEVER do this without explicit written instruction from the repository owner. "The feature is ready" is NOT sufficient authorization.
+
+- **STOP**: Before cutting any release branch, confirm explicit written approval from the owner.
+- Cut a short-lived `release/*` branch from `develop` only after owner approval.
 - Run full release verification on `release/*` (unit/integration/UI and migration safety checks).
+- Verify all Playwright E2E tests pass on `dev` before opening the release PR.
 - Open PR from `release/*` to `main` with scope, risks, rollback notes, and test evidence.
 - Merge into `main` only after required reviews and all required checks are green.
 - Create an immutable release tag on the merged `main` commit.
 - Deploy production from that exact tagged `main` commit (never directly from `develop`).
 - Run post-deploy smoke checks on critical flows; rollback by redeploying the previous known-good tag when needed.
 - After every release merge to `main`, create and merge a backmerge PR from `main` to `develop` in each affected repository to prevent divergence.
+
+### CI Gate Requirements
+
+- Before merging any PR (to `develop` or `main`), verify that CI checks have **run and passed** — not pending, not skipped, not failed.
+- A PR with 0 CI status checks reported MUST be investigated before merge; it may indicate the workflow was not triggered.
+- Bypassing CI (via `--no-verify`, skip flags, or force-merging a failing PR) requires **explicit written approval** from the repository owner. Document the approval and reason in the PR.
 
 ### Environments
 
