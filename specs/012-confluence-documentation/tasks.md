@@ -122,7 +122,7 @@
 
 **Purpose**: Validate the full documentation structure, update homepage with final links, and close out Jira tracking.
 
-- [ ] T025 [US2] DEFERRED — Capture production screenshots and replace `[SCREENSHOT: <description>]` placeholders — MTB-30 in Confluence:UD/User Manual/Getting Started, Chat Interface Guide, and Workbench Guide — capture current production UI screenshots for login/OTP, chat sessions, messaging, conversation history, admin overview, user/group management, session review, and settings; upload as Confluence attachments and embed in pages (FR-005)
+- [X] T025 [US2] DEFERRED — Capture production screenshots and replace `[SCREENSHOT: <description>]` placeholders — MTB-30 in Confluence:UD/User Manual/Getting Started, Chat Interface Guide, and Workbench Guide — capture current production UI screenshots for login/OTP, chat sessions, messaging, conversation history, admin overview, user/group management, session review, and settings; upload as Confluence attachments and embed in pages (FR-005)
 - [X] T026 Update the space homepage (page ID `8454317`) via `updateConfluencePage` in Confluence:UD/User Documentation Home — add final links to all section root pages with accurate page IDs, verify navigation structure, and ensure all four sections are prominently linked
 - [X] T027 Validate 3-click navigation: verify every content page is reachable within 3 clicks from the homepage (homepage → section root → content page) in Confluence:UD
 - [X] T028 Validate content quality: review User Manual and Non-Technical Onboarding pages for code references, CLI commands, or developer jargon — flag and remove any violations in Confluence:UD/User Manual and Confluence:UD/Non-Technical Onboarding

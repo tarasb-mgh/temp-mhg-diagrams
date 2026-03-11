@@ -1,12 +1,15 @@
-﻿# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents (Codex, Gemini, Copilot, and others)
+when working with code in this repository. It mirrors the content of CLAUDE.md.
 
 ## Project Overview
 
-Speckit is a specification-driven development framework that enforces spec-first workflows for feature development. It provides a structured pipeline: **Specify → Plan → Tasks → Implement**.
+Speckit is a specification-driven development framework that enforces spec-first
+workflows for feature development. It provides a structured pipeline:
+**Specify → Plan → Tasks → Implement**.
 
-This is a meta-framework containing workflow tools and templates—not application code.
+This is a meta-framework containing workflow tools and templates — not application code.
 
 ## Commands
 
@@ -36,33 +39,15 @@ This is a meta-framework containing workflow tools and templates—not applicati
 /speckit.taskstoissues # Convert tasks.md to GitHub and/or Jira issues
 ```
 
-### PowerShell Scripts
-
-```powershell
-# Create feature branch and initialize spec structure
-.specify/scripts/powershell/create-new-feature.ps1 -Json "feature description"
-
-# Initialize plan artifacts for current feature
-.specify/scripts/powershell/setup-plan.ps1 -Json
-
-# Validate prerequisites before task generation
-.specify/scripts/powershell/check-prerequisites.ps1 -Json
-
-# Update AI agent context files from plan.md
-.specify/scripts/powershell/update-agent-context.ps1 -AgentType claude
-```
-
 ## Architecture
 
 ### Directory Structure
 
 ```
 .specify/
-├── memory/constitution.md     # Project principles (template)
+├── memory/constitution.md     # Project principles
 ├── templates/                 # spec, plan, tasks, checklist templates
 └── scripts/powershell/        # Workflow automation scripts
-
-.claude/commands/              # Claude Code slash commands (speckit.*)
 
 specs/{NNN-feature-name}/      # Generated per-feature (auto-created)
 ├── spec.md                    # Feature specification (what/why)
@@ -81,7 +66,7 @@ specs/{NNN-feature-name}/      # Generated per-feature (auto-created)
 2. **Phase 1 (Design)**: Generate entities, contracts, quickstart → `data-model.md`, `contracts/`, `quickstart.md`
 3. **Phase 2 (Implementation)**: Execute tasks from `tasks.md`
 
-### Jira Integration (Atlassian MCP)
+### Jira Integration
 
 Jira synchronization is handled exclusively by `/speckit.sync`:
 
@@ -96,7 +81,8 @@ file-based tracking and records `PENDING` markers for retroactive Jira sync.
 
 ### Branch Naming Convention
 
-Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The number auto-increments across local branches, remote branches, and `specs/` directories.
+Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The number
+auto-increments across local branches, remote branches, and `specs/` directories.
 
 ### Integration Policy
 
@@ -117,7 +103,8 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
 - Resolve review feedback in follow-up commits on the same branch.
 - Merge only after all required checks are green and required approvals are present.
 - Prefer squash merge for clean history unless repository policy explicitly differs.
-- Post-merge housekeeping is mandatory: delete remote branch, delete local branch, and hard-sync local `develop` to `origin/develop`.
+- Post-merge housekeeping is mandatory: delete remote branch, delete local branch,
+  and hard-sync local `develop` to `origin/develop`.
 
 ### Release Promotion To Main And Production
 
@@ -127,17 +114,19 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
 - Merge into `main` only after required reviews and all required checks are green.
 - Create an immutable release tag on the merged `main` commit.
 - Deploy production from that exact tagged `main` commit (never directly from `develop`).
-- Run post-deploy smoke checks on critical flows; rollback by redeploying the previous known-good tag when needed.
-- After every release merge to `main`, create and merge a backmerge PR from `main` to `develop` in each affected repository to prevent divergence.
+- Run post-deploy smoke checks against canonical prod URLs (see Environments below).
+- After every release merge to `main`, create and merge a backmerge PR from `main` to
+  `develop` in each affected repository to prevent divergence.
 
-### Environments
+## Environments
 
 | Environment | Chat Frontend | Workbench Frontend | Backend API |
 |-------------|---------------|--------------------|-------------|
 | **Dev** | https://dev.mentalhelp.chat | https://workbench.dev.mentalhelp.chat | https://api.dev.mentalhelp.chat |
 | **Prod** | https://mentalhelp.chat | https://workbench.mentalhelp.chat | https://api.mentalhelp.chat |
 
-Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs for testing — always use the canonical domain names above.
+Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs for testing — always use
+the canonical domain names above.
 
 ### Dev UI Testing Prerequisites
 
@@ -146,7 +135,8 @@ Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs for testing — alw
 - Dev backend API: `https://api.dev.mentalhelp.chat`
 - Use an approved account with the required workbench/review permissions.
 - For OTP login in dev, retrieve the OTP from browser console output.
-- Validate that frontend and backend are from the same deployment cycle before debugging API errors.
+- Validate that frontend and backend are from the same deployment cycle before
+  debugging API errors.
 - Confirm active group/space selection is valid for the authenticated account.
 - During review validation, test at least one session with reviewable assistant messages.
 - Always capture browser console and network errors (endpoint + HTTP status) as evidence.

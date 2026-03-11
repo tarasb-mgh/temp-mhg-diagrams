@@ -1,0 +1,323 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e6]:
+      - img [ref=e8]
+      - generic [ref=e10]:
+        - heading "Workbench" [level=1] [ref=e11]
+        - paragraph [ref=e12]: Admin Panel
+    - navigation [ref=e13]:
+      - generic [ref=e14]:
+        - button "Dashboard" [ref=e15] [cursor=pointer]:
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - button "User Management" [ref=e22] [cursor=pointer]:
+          - img [ref=e23]
+          - generic [ref=e28]: User Management
+        - button "Group management" [ref=e29] [cursor=pointer]:
+          - img [ref=e30]
+          - generic [ref=e35]: Group management
+        - button "Approvals" [ref=e36] [cursor=pointer]:
+          - img [ref=e37]
+          - generic [ref=e40]: Approvals
+        - button "Privacy Controls" [ref=e41] [cursor=pointer]:
+          - img [ref=e42]
+          - generic [ref=e44]: Privacy Controls
+        - button "Survey Schemas" [ref=e45] [cursor=pointer]:
+          - img [ref=e46]
+          - generic [ref=e49]: Survey Schemas
+        - button "Survey Instances" [ref=e50] [cursor=pointer]:
+          - img [ref=e51]
+          - generic [ref=e54]: Survey Instances
+        - button "Settings" [ref=e55] [cursor=pointer]:
+          - img [ref=e56]
+          - generic [ref=e59]: Settings
+        - button "Research" [ref=e60] [cursor=pointer]:
+          - img [ref=e61]
+          - generic [ref=e65]: Research
+          - img [ref=e66]
+        - generic [ref=e68]:
+          - button "Research & Moderation" [ref=e69] [cursor=pointer]:
+            - img [ref=e70]
+            - generic [ref=e74]: Research & Moderation
+          - button "Reports & Analytics" [ref=e75] [cursor=pointer]:
+            - img [ref=e76]
+            - generic [ref=e79]: Reports & Analytics
+          - button "Tag Management" [ref=e80] [cursor=pointer]:
+            - img [ref=e81]
+            - generic [ref=e84]: Tag Management
+      - generic [ref=e85]:
+        - paragraph [ref=e86]: Group resources
+        - generic [ref=e87]:
+          - button "Group Dashboard" [ref=e88] [cursor=pointer]:
+            - img [ref=e89]
+            - generic [ref=e94]: Group Dashboard
+          - button "Group Users" [ref=e95] [cursor=pointer]:
+            - img [ref=e96]
+            - generic [ref=e101]: Group Users
+          - button "Group Chats" [ref=e102] [cursor=pointer]:
+            - img [ref=e103]
+            - generic [ref=e107]: Group Chats
+    - button "Back to Chat" [ref=e109] [cursor=pointer]:
+      - img [ref=e110]
+      - generic [ref=e112]: Back to Chat
+  - generic [ref=e113]:
+    - banner [ref=e114]:
+      - button "PII Masked" [ref=e116] [cursor=pointer]:
+        - img [ref=e117]
+        - generic [ref=e122]: PII Masked
+      - generic [ref=e124]:
+        - combobox [ref=e125]:
+          - option "🇬🇧 English" [selected]
+          - option "🇺🇦 Українська"
+          - option "🇷🇺 Русский"
+        - generic [ref=e127]:
+          - generic [ref=e128]: Space
+          - combobox "Select space" [ref=e129]:
+            - option "SurveyGateTest"
+            - option "TarasK"
+            - option "Test_Dimas"
+            - 'option "Test group #1" [selected]'
+        - generic [ref=e130]:
+          - img [ref=e132]
+          - generic [ref=e135]:
+            - paragraph [ref=e136]: Play...
+            - paragraph [ref=e137]: Owner
+          - img [ref=e138]
+        - button "Sign Out" [ref=e140] [cursor=pointer]:
+          - img [ref=e141]
+    - main [ref=e144]:
+      - generic [ref=e408]:
+        - generic [ref=e409]:
+          - generic [ref=e410]:
+            - button [ref=e411] [cursor=pointer]:
+              - img [ref=e412]
+            - heading "Edit Schema" [level=1] [ref=e414]
+            - generic [ref=e415]: Draft
+          - generic [ref=e416]:
+            - status [ref=e605]:
+              - img [ref=e626]
+              - generic [ref=e608]: Saved 07:01 PM
+            - button "Export" [ref=e417] [cursor=pointer]:
+              - img [ref=e418]
+              - text: Export
+            - button "Preview" [ref=e421] [cursor=pointer]:
+              - img [ref=e422]
+              - text: Preview
+            - button "Publish" [ref=e424] [cursor=pointer]
+        - generic [ref=e425]:
+          - generic [ref=e426]:
+            - generic [ref=e427]:
+              - generic [ref=e428]: Title
+              - textbox [ref=e429]: Test Survey for UI Regression
+            - generic [ref=e430]:
+              - generic [ref=e431]: Description
+              - textbox [ref=e432]: Testing all question types and UI elements
+          - generic [ref=e433]:
+            - generic [ref=e434]:
+              - heading "Questions" [level=2] [ref=e435]
+              - button "Preview" [ref=e609] [cursor=pointer]:
+                - img [ref=e610]
+                - text: Preview
+            - generic [ref=e436]:
+              - generic [ref=e437]:
+                - button "Drag to reorder" [ref=e438]:
+                  - img [ref=e439]
+                - generic [ref=e447]:
+                  - generic [ref=e448]:
+                    - generic [ref=e450]: "#1"
+                    - button [ref=e451] [cursor=pointer]:
+                      - img [ref=e452]
+                  - generic [ref=e455]:
+                    - generic [ref=e456]:
+                      - combobox [ref=e457]:
+                        - option "Integer (signed)"
+                        - option "Integer (unsigned)"
+                        - option "Decimal"
+                        - option "Date"
+                        - option "Time"
+                        - option "Date & Time"
+                        - option "Rating Scale"
+                        - option "Email"
+                        - option "Phone"
+                        - option "URL"
+                        - option "Postal Code"
+                        - option "Alphanumeric Code"
+                        - option "Free Text" [selected]
+                        - option "Single Choice"
+                        - option "Multiple Choice"
+                        - option "Yes / No"
+                      - generic [ref=e458] [cursor=pointer]:
+                        - checkbox "Required" [checked] [ref=e459]
+                        - generic [ref=e460]: Required
+                      - generic [ref=e461] [cursor=pointer]:
+                        - checkbox "Risk flag" [ref=e462]
+                        - generic [ref=e463]: Risk flag
+                    - textbox "Enter question text..." [ref=e464]: What is your name?
+                    - generic [ref=e466]:
+                      - generic [ref=e467]:
+                        - text: Min length
+                        - spinbutton [ref=e468]
+                      - generic [ref=e469]:
+                        - text: Max length
+                        - spinbutton [ref=e470]
+                      - generic [ref=e471]:
+                        - text: Regex
+                        - textbox [ref=e472]
+              - generic [ref=e473]:
+                - button "Drag to reorder" [ref=e474]:
+                  - img [ref=e475]
+                - generic [ref=e483]:
+                  - generic [ref=e484]:
+                    - generic [ref=e485]:
+                      - generic [ref=e486]: "#2"
+                      - generic "Depends on Q1" [ref=e613]:
+                        - img [ref=e614]
+                        - text: Q1
+                    - button [ref=e487] [cursor=pointer]:
+                      - img [ref=e488]
+                  - generic [ref=e491]:
+                    - generic [ref=e492]:
+                      - combobox [ref=e493]:
+                        - option "Integer (signed)"
+                        - option "Integer (unsigned)"
+                        - option "Decimal"
+                        - option "Date"
+                        - option "Time"
+                        - option "Date & Time"
+                        - option "Rating Scale"
+                        - option "Email"
+                        - option "Phone"
+                        - option "URL"
+                        - option "Postal Code"
+                        - option "Alphanumeric Code"
+                        - option "Free Text"
+                        - option "Single Choice" [selected]
+                        - option "Multiple Choice"
+                        - option "Yes / No"
+                      - generic [ref=e494] [cursor=pointer]:
+                        - checkbox "Required" [checked] [ref=e495]
+                        - generic [ref=e496]: Required
+                      - generic [ref=e497] [cursor=pointer]:
+                        - checkbox "Risk flag" [ref=e498]
+                        - generic [ref=e499]: Risk flag
+                    - textbox "Enter question text..." [ref=e500]: How are you?
+                    - generic [ref=e501]:
+                      - text: Options
+                      - generic [ref=e502]:
+                        - textbox "Option 1" [ref=e503]: Great
+                        - button [ref=e504] [cursor=pointer]:
+                          - img [ref=e505]
+                      - generic [ref=e508]:
+                        - textbox "Option 2" [ref=e509]: Good
+                        - button [ref=e510] [cursor=pointer]:
+                          - img [ref=e511]
+                      - generic [ref=e514]:
+                        - textbox "Option 3" [ref=e515]: OK
+                        - button [ref=e516] [cursor=pointer]:
+                          - img [ref=e517]
+                      - button "Add option" [ref=e520] [cursor=pointer]:
+                        - img [ref=e521]
+                        - text: Add option
+                    - generic [ref=e617]:
+                      - generic [ref=e618]: Show if
+                      - combobox [ref=e619]:
+                        - 'option "Q1: What is your name?" [selected]'
+                      - combobox [ref=e620]:
+                        - option "equals" [selected]
+                        - option "not equals"
+                        - option "is one of"
+                        - option "contains"
+                      - textbox "Value" [ref=e621]
+                      - button "Remove condition" [ref=e622] [cursor=pointer]:
+                        - img [ref=e623]
+              - generic [ref=e523]:
+                - button "Drag to reorder" [ref=e524]:
+                  - img [ref=e525]
+                - generic [ref=e533]:
+                  - generic [ref=e534]:
+                    - generic [ref=e536]: "#3"
+                    - button [ref=e537] [cursor=pointer]:
+                      - img [ref=e538]
+                  - generic [ref=e541]:
+                    - generic [ref=e542]:
+                      - combobox [ref=e543]:
+                        - option "Integer (signed)"
+                        - option "Integer (unsigned)"
+                        - option "Decimal"
+                        - option "Date"
+                        - option "Time"
+                        - option "Date & Time"
+                        - option "Rating Scale"
+                        - option "Email"
+                        - option "Phone"
+                        - option "URL"
+                        - option "Postal Code"
+                        - option "Alphanumeric Code"
+                        - option "Free Text"
+                        - option "Single Choice"
+                        - option "Multiple Choice" [selected]
+                        - option "Yes / No"
+                      - generic [ref=e544] [cursor=pointer]:
+                        - checkbox "Required" [ref=e545]
+                        - generic [ref=e546]: Required
+                      - generic [ref=e547] [cursor=pointer]:
+                        - checkbox "Risk flag" [ref=e548]
+                        - generic [ref=e549]: Risk flag
+                    - textbox "Enter question text..." [ref=e550]: Select interests
+                    - generic [ref=e551]:
+                      - text: Options
+                      - generic [ref=e552]:
+                        - textbox "Option 1" [ref=e553]: A
+                        - button [ref=e554] [cursor=pointer]:
+                          - img [ref=e555]
+                      - generic [ref=e558]:
+                        - textbox "Option 2" [ref=e559]: B
+                        - button [ref=e560] [cursor=pointer]:
+                          - img [ref=e561]
+                      - generic [ref=e564]:
+                        - textbox "Option 3" [ref=e565]: C
+                        - button [ref=e566] [cursor=pointer]:
+                          - img [ref=e567]
+                      - button "Add option" [ref=e570] [cursor=pointer]:
+                        - img [ref=e571]
+                        - text: Add option
+                    - button "+ Add condition" [ref=e572] [cursor=pointer]
+              - generic [ref=e573]:
+                - button "Drag to reorder" [ref=e574]:
+                  - img [ref=e575]
+                - generic [ref=e583]:
+                  - generic [ref=e584]:
+                    - generic [ref=e586]: "#4"
+                    - button [ref=e587] [cursor=pointer]:
+                      - img [ref=e588]
+                  - generic [ref=e591]:
+                    - generic [ref=e592]:
+                      - combobox [ref=e593]:
+                        - option "Integer (signed)"
+                        - option "Integer (unsigned)"
+                        - option "Decimal"
+                        - option "Date"
+                        - option "Time"
+                        - option "Date & Time"
+                        - option "Rating Scale"
+                        - option "Email"
+                        - option "Phone"
+                        - option "URL"
+                        - option "Postal Code"
+                        - option "Alphanumeric Code"
+                        - option "Free Text"
+                        - option "Single Choice"
+                        - option "Multiple Choice"
+                        - option "Yes / No" [selected]
+                      - generic [ref=e594] [cursor=pointer]:
+                        - checkbox "Required" [checked] [ref=e595]
+                        - generic [ref=e596]: Required
+                      - generic [ref=e597] [cursor=pointer]:
+                        - checkbox "Risk flag" [ref=e598]
+                        - generic [ref=e599]: Risk flag
+                    - textbox "Enter question text..." [ref=e600]: Do you agree?
+                    - button "+ Add condition" [ref=e601] [cursor=pointer]
+              - status [ref=e602]
+              - button "Add Question" [ref=e603] [cursor=pointer]:
+                - img [ref=e604]
+                - text: Add Question
