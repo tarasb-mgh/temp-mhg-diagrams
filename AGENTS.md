@@ -108,8 +108,12 @@ auto-increments across local branches, remote branches, and `specs/` directories
 
 ### Release Promotion To Main And Production
 
-- Cut a short-lived `release/*` branch from `develop` at an agreed release cut-off.
+> ⚠️ **APPROVAL REQUIRED**: Creating a release branch or merging to `main` triggers automatic production deployment. NEVER do this without explicit written instruction from the repository owner.
+
+- **STOP**: Before cutting any release branch, confirm explicit written approval from the owner.
+- Cut a short-lived `release/*` branch from `develop` only after owner approval.
 - Run full release verification on `release/*` (unit/integration/UI and migration safety checks).
+- Verify all Playwright E2E tests pass on `dev` before opening the release PR.
 - Open PR from `release/*` to `main` with scope, risks, rollback notes, and test evidence.
 - Merge into `main` only after required reviews and all required checks are green.
 - Create an immutable release tag on the merged `main` commit.
@@ -117,6 +121,12 @@ auto-increments across local branches, remote branches, and `specs/` directories
 - Run post-deploy smoke checks against canonical prod URLs (see Environments below).
 - After every release merge to `main`, create and merge a backmerge PR from `main` to
   `develop` in each affected repository to prevent divergence.
+
+### CI Gate Requirements
+
+- Before merging any PR, verify that CI checks have **run and passed** — not pending, not skipped, not failed.
+- A PR with 0 CI statuses reported MUST be investigated before merge.
+- Bypassing CI requires explicit written approval from the repository owner, documented in the PR.
 
 ## Environments
 

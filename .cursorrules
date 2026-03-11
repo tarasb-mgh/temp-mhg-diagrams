@@ -1,5 +1,5 @@
 # Cursor Rules — MHG client-spec
-# Synced with constitution v3.8.0 (2026-03-10)
+# Synced with constitution v3.9.0 (2026-03-11)
 
 ## Project Overview
 
@@ -46,6 +46,20 @@ Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs. Always use:
 - Integration branch: `develop` (never commit directly)
 - `main` is promotion-only — via `release/*` branch PR only
 - After merge: delete remote branch, delete local branch, sync `develop`
+
+## Production Deployment Gate (CRITICAL)
+
+**NEVER** create a release branch, open a release PR to `main`, or merge to `main`
+without **explicit written approval** from the repository owner. Merging to `main`
+triggers automatic production deployment. "Feature is ready" is NOT authorization.
+
+All validation MUST happen on `dev` environment only unless owner instructs otherwise.
+
+## CI Gate (CRITICAL)
+
+**NEVER** merge any PR when CI checks have not run and passed. A PR showing 0 CI
+statuses MUST be investigated before merge — the workflow may not have triggered.
+CI bypass requires explicit written owner approval documented in the PR.
 
 ## Key Files
 
