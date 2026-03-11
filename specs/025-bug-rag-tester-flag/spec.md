@@ -4,7 +4,7 @@
 **Created**: 2026-03-11
 **Status**: Ready for Planning
 **Jira Epic**: [MTB-229](https://mentalhelpglobal.atlassian.net/browse/MTB-229) *(parent — spec 023)*
-**Jira Bug**: PENDING
+**Jira Bug**: [MTB-706](https://mentalhelpglobal.atlassian.net/browse/MTB-706)
 **Reference**: Spec `023-fix-rag-panel-visibility` — User Story 2 (FR-002, FR-006, SC-002, SC-003)
 
 **Related Specs**:
