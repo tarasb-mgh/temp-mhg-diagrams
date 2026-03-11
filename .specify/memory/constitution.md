@@ -521,6 +521,8 @@ this principle codifies the gate that would have prevented that.
    publish, then update `package.json` in `chat-backend` and `chat-frontend`
 3. **Implement**: Build the feature in split repos on feature branches
    off `develop`
+4. **Implement**: Build the feature in split repos on feature branches
+   off `develop`
 4. **Test**: Run tests in all affected split repos
 5. **Merge**: Merge to `develop` in all affected repositories
    via Pull Request from feature/bugfix branches only, after required approvals
