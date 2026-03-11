@@ -1,0 +1,277 @@
+openapi: "3.1.0"
+info:
+  title: RAG Visibility Bug Fix — API Contract Delta (025)
+  description: |
+    Documents the corrected response shapes for bugfix 025-bug-rag-tester-flag.
+    This is a delta over spec 023 contracts (specs/023-fix-rag-panel-visibility/contracts/rag-visibility-api.yaml).
+
+    Key corrections vs. spec 023 contract:
+    1. AuthenticatedUser.testerTagAssigned is now required (boolean, not nullable).
+       In spec 023 it was declared as nullable — this was incorrect; the backend
+       always returns true or false after the dbUserToAuthUser() fix.
+    2. /api/auth/otp/verify is now explicitly listed (spec 023 only covered /api/auth/me).
+    3. AnonymizedMessage.ragCallDetail is formally declared (was informal spread in 023).
+  version: "1.0.0"
+
+paths:
+  /api/auth/otp/verify:
+    post:
+      summary: Verify OTP and authenticate
+      description: |
+        After fix: response includes testerTagAssigned in user object.
+        Previously omitted by dbUserToAuthUser().
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp]
+              properties:
+                email:
+                  type: string
+                  format: email
+                otp:
+                  type: string
+      responses:
+        "200":
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/AuthenticatedUser"
+
+  /api/auth/me:
+    get:
+      summary: Get current authenticated user
+      description: |
+        After fix: includes testerTagAssigned in user object.
+        Previously omitted by dbUserToAuthUser().
+      responses:
+        "200":
+          description: Authenticated user object
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/AuthenticatedUser"
+
+  /api/chat/message:
+    post:
+      summary: Send a chat message
+      description: |
+        After fix: for tester-tagged users, the assistant message includes
+        ragCallDetail when RAG retrieval occurred.
+        For all other users, ragCallDetail is never included.
+        The gate is: req.user.testerTagAssigned === true.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                sessionId:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: Chat message pair
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    required: [userMessage, assistantMessage]
+                    properties:
+                      userMessage:
+                        $ref: "#/components/schemas/ChatMessageResponse"
+                      assistantMessage:
+                        $ref: "#/components/schemas/ChatMessageResponseWithRAG"
+
+  /api/review/sessions/{sessionId}:
+    get:
+      summary: Get review session with messages
+      description: |
+        After fix: ragCallDetail is formally declared on AnonymizedMessage.
+        No behavior change — the field was already spread informally.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Review session with messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      session:
+                        type: object
+                      messages:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/AnonymizedMessage"
+
+components:
+  schemas:
+    RAGDocument:
+      type: object
+      required: [title, relevanceScore, contentSnippet]
+      properties:
+        title:
+          type: string
+          description: Document title or source identifier
+        relevanceScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        contentSnippet:
+          type: string
+
+    RAGCallDetail:
+      type: object
+      required: [retrievalQuery, retrievedDocuments, retrievalTimestamp]
+      properties:
+        retrievalQuery:
+          type: string
+        retrievedDocuments:
+          type: array
+          items:
+            $ref: "#/components/schemas/RAGDocument"
+          description: May be empty array; frontend shows "No documents retrieved" in that case
+        retrievalTimestamp:
+          type: string
+          format: date-time
+
+    AuthenticatedUser:
+      type: object
+      required:
+        - id
+        - email
+        - displayName
+        - role
+        - permissions
+        - status
+        - groupId
+        - createdAt
+        - lastLoginAt
+        - testerTagAssigned
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [user, reviewer, senior_reviewer, supervisor, moderator, commander, admin, owner]
+        permissions:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, blocked, pending, approval, disapproved, anonymized]
+        groupId:
+          type: string
+          nullable: true
+        testerTagAssigned:
+          type: boolean
+          description: |
+            CORRECTED in 025: now required (boolean), not nullable.
+            true = user has the 'tester' tag assigned.
+            false = user does not have the 'tester' tag.
+            Always present after dbUserToAuthUser() fix.
+          example: false
+
+    ChatMessageResponse:
+      type: object
+      required: [id, role, content, timestamp]
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ChatMessageResponseWithRAG:
+      allOf:
+        - $ref: "#/components/schemas/ChatMessageResponse"
+        - type: object
+          properties:
+            ragCallDetail:
+              $ref: "#/components/schemas/RAGCallDetail"
+              nullable: true
+              description: |
+                Only present on assistant messages when:
+                  1. req.user.testerTagAssigned === true
+                  2. RAG retrieval occurred (extractRAGDetails() returned non-null)
+                Absent for all non-tester users and when no RAG retrieval occurred.
+
+    AnonymizedMessage:
+      type: object
+      required: [id, role, content, timestamp, metadata, isReviewable]
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          properties:
+            confidence:
+              type: number
+              nullable: true
+            intent:
+              type: string
+              nullable: true
+        isReviewable:
+          type: boolean
+        ragCallDetail:
+          $ref: "#/components/schemas/RAGCallDetail"
+          nullable: true
+          description: |
+            FORMALIZED in 025: previously accessed as (message as any).ragCallDetail.
+            Now formally declared on AnonymizedMessage interface in chat-types.
+            Present on assistant messages when RAG retrieval occurred.
+            Visible to workbench reviewers with REVIEW_ACCESS.

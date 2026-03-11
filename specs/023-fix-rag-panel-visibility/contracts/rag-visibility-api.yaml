@@ -1,0 +1,217 @@
+openapi: "3.1.0"
+info:
+  title: RAG Visibility API — Contract Changes
+  description: |
+    Documents the response shape changes for bugfix 023-fix-rag-panel-visibility.
+    Only modified response fields are listed; unchanged fields are omitted for brevity.
+  version: "1.0.0"
+
+paths:
+  /api/auth/me:
+    get:
+      summary: Get current authenticated user
+      description: |
+        Now includes `testerTagAssigned` to allow chat-frontend to gate RAG panel visibility.
+      responses:
+        "200":
+          description: Authenticated user object
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/AuthenticatedUser"
+
+  /api/review/sessions/{sessionId}:
+    get:
+      summary: Get review session with messages
+      description: |
+        Messages already include `ragCallDetail` (added in 011). This contract documents
+        the formal type — previously the field was an informal spread not declared in
+        AnonymizedMessage.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Review session with messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      session:
+                        type: object
+                      messages:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/AnonymizedMessage"
+
+  /api/chat/message:
+    post:
+      summary: Send a chat message
+      description: |
+        For tester-tagged users, the assistant message in the response now includes
+        `ragCallDetail` when RAG retrieval occurred during response generation.
+        For all other users, `ragCallDetail` is never included.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                sessionId:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: Chat message pair (user message + assistant reply)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      userMessage:
+                        $ref: "#/components/schemas/ChatMessageResponse"
+                      assistantMessage:
+                        $ref: "#/components/schemas/ChatMessageResponse"
+
+components:
+  schemas:
+    RAGDocument:
+      type: object
+      required: [title, relevanceScore, contentSnippet]
+      properties:
+        title:
+          type: string
+          description: Document title or source identifier
+        relevanceScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Relevance score assigned by the retrieval system
+        contentSnippet:
+          type: string
+          description: Excerpt from the retrieved document
+
+    RAGCallDetail:
+      type: object
+      required: [retrievalQuery, retrievedDocuments, retrievalTimestamp]
+      properties:
+        retrievalQuery:
+          type: string
+          description: The query sent to the knowledge base retrieval system
+        retrievedDocuments:
+          type: array
+          items:
+            $ref: "#/components/schemas/RAGDocument"
+          description: Documents retrieved; may be empty if retrieval returned no results
+        retrievalTimestamp:
+          type: string
+          format: date-time
+
+    AnonymizedMessage:
+      type: object
+      required: [id, role, content, timestamp, metadata, isReviewable]
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          properties:
+            confidence:
+              type: number
+              nullable: true
+            intent:
+              type: string
+              nullable: true
+        isReviewable:
+          type: boolean
+        ragCallDetail:
+          $ref: "#/components/schemas/RAGCallDetail"
+          nullable: true
+          description: |
+            Present on assistant messages when RAG retrieval occurred.
+            Visible to all users with REVIEW_ACCESS in the workbench.
+            Absent when no RAG retrieval occurred.
+
+    AuthenticatedUser:
+      type: object
+      required: [id, email, displayName, role, permissions, status, groupId, createdAt, lastLoginAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [user, reviewer, senior_reviewer, supervisor, moderator, commander, admin, owner]
+        permissions:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, blocked, pending, approval, disapproved, anonymized]
+        groupId:
+          type: string
+          nullable: true
+        testerTagAssigned:
+          type: boolean
+          nullable: true
+          description: |
+            True when the user has the 'tester' tag assigned by an admin.
+            Used by chat-frontend to gate RAG detail panel visibility.
+
+    ChatMessageResponse:
+      type: object
+      required: [id, role, content, timestamp]
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        ragCallDetail:
+          $ref: "#/components/schemas/RAGCallDetail"
+          nullable: true
+          description: |
+            Only present on assistant messages returned to tester-tagged users
+            when the AI used RAG retrieval. Never present for non-tester users.
