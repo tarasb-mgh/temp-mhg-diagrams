@@ -13,10 +13,10 @@
 
 **Purpose**: Create feature branches in all affected repositories.
 
-- [ ] T001 Create branch `025-bug-rag-tester-flag` from `develop` in `chat-types` repo
-- [ ] T002 [P] Create branch `025-bug-rag-tester-flag` from `develop` in `chat-backend` repo
-- [ ] T003 [P] Create branch `025-bug-rag-tester-flag` from `develop` in `chat-frontend` repo
-- [ ] T004 [P] Create branch `025-bug-rag-tester-flag` from `develop` in `chat-ui` repo
+- [x] T001 Create branch `025-bug-rag-tester-flag` from `develop` in `chat-types` repo
+- [x] T002 [P] Create branch `025-bug-rag-tester-flag` from `develop` in `chat-backend` repo
+- [x] T003 [P] Create branch `025-bug-rag-tester-flag` from `develop` in `chat-frontend` repo
+- [x] T004 [P] Create branch `025-bug-rag-tester-flag` from `develop` in `chat-ui` repo
 
 ---
 
@@ -26,10 +26,10 @@
 
 **⚠️ CRITICAL**: All Phase 3, 4, 5 work is blocked until this phase is merged.
 
-- [ ] T005 Add `testerTagAssigned: boolean` field to `AuthenticatedUser` interface — `chat-types`: `src/entities.ts`
-- [ ] T006 Add `ragCallDetail?: RAGCallDetail` field to `AnonymizedMessage` interface — `chat-types`: `src/review.ts`
-- [ ] T007 Bump patch version in `chat-types/package.json` and rebuild (`npm run build`)
-- [ ] T008 Open PR for `chat-types` branch → `develop`; verify CI passes; merge
+- [x] T005 Add `testerTagAssigned: boolean` field to `AuthenticatedUser` interface — `chat-types`: `src/entities.ts`
+- [x] T006 Add `ragCallDetail?: RAGCallDetail` field to `AnonymizedMessage` interface — `chat-types`: `src/review.ts`
+- [x] T007 Bump patch version in `chat-types/package.json` and rebuild (`npm run build`)
+- [ ] T008 Open PR for `chat-types` branch → `develop`; verify CI passes; merge — PR: https://github.com/MentalHelpGlobal/chat-types/pull/17 *(awaiting CI + review)*
 
 **Checkpoint**: `chat-types` published/merged — backend and frontend can proceed in parallel.
 
@@ -41,11 +41,11 @@
 
 **Independent Test**: Log in as `e2e-owner@test.local`; inspect `/api/auth/me` response — must contain `testerTagAssigned: true`. Log in as a non-tester user — must contain `testerTagAssigned: false`.
 
-- [ ] T009 [US1] Add `testerTagAssigned: (dbUser as any).tester_tag_assigned === true` to `dbUserToAuthUser()` return object — `chat-backend`: `src/types/index.ts`
-- [ ] T010 [US1] Update `chat-backend/package.json` to reference `chat-types` branch `025-bug-rag-tester-flag` (or bumped version from T007)
-- [ ] T011 [US1] Write Vitest unit test for `dbUserToAuthUser()`: assert `testerTagAssigned: true` when `tester_tag_assigned: true` in input; assert `false` when absent — `chat-backend`: `src/types/index.test.ts`
-- [ ] T012 [US1] Run `npm test` in `chat-backend`; verify all tests pass including T011
-- [ ] T013 [US1] Open PR for `chat-backend` branch → `develop` for T009–T012; verify CI passes; DO NOT merge yet (T016 must be included)
+- [x] T009 [US1] Add `testerTagAssigned: (dbUser as any).tester_tag_assigned === true` to `dbUserToAuthUser()` return object — `chat-backend`: `src/types/index.ts`
+- [x] T010 [US1] Update `chat-backend/package.json` to reference `chat-types` branch `025-bug-rag-tester-flag` (or bumped version from T007)
+- [x] T011 [US1] Write Vitest unit test for `dbUserToAuthUser()`: assert `testerTagAssigned: true` when `tester_tag_assigned: true` in input; assert `false` when absent — `chat-backend`: `tests/unit/types.dbUserToAuthUser.test.ts`
+- [x] T012 [US1] Run `npm test` in `chat-backend`; verify all tests pass including T011
+- [ ] T013 [US1] Open PR for `chat-backend` branch → `develop` for T009–T012; verify CI passes; DO NOT merge yet (T016 must be included) — PR: https://github.com/MentalHelpGlobal/chat-backend/pull/152 *(awaiting CI + review)*
 
 **Checkpoint**: `testerTagAssigned` correctly returned in auth responses on dev after merge.
 
@@ -57,11 +57,11 @@
 
 **Independent Test**: As tester-tagged user, send `"розкажи про депресію"` to `POST /api/chat/message`; inspect response — `data.assistantMessage.ragCallDetail` must be present. Repeat as non-tester — field must be absent.
 
-- [ ] T014 [US2] Import `extractRAGDetails` from `../services/rag.service` in `chat-backend`: `src/routes/chat.ts` (if not already imported)
-- [ ] T015 [US2] After building `assistantMessage` in `POST /api/chat/message` handler, add: check `req.user?.testerTagAssigned === true`, call `extractRAGDetails()` on `dialogflowResponse.diagnosticInfo`, spread result onto response object — `chat-backend`: `src/routes/chat.ts`
-- [ ] T016 [US2] Write Vitest unit test for the chat route handler: mock `req.user.testerTagAssigned = true` → assert `ragCallDetail` present in response; mock `testerTagAssigned = false` → assert absent — `chat-backend`: `src/routes/chat.test.ts`
-- [ ] T017 [US2] Run `npm test` in `chat-backend`; verify all tests pass including T016
-- [ ] T018 [US2] Add T014–T017 commits to the open `chat-backend` PR (T013); verify CI still passes; merge PR into `develop`
+- [x] T014 [US2] Import `extractRAGDetails` from `../services/rag.service` in `chat-backend`: `src/routes/chat.ts` (if not already imported)
+- [x] T015 [US2] After building `assistantMessage` in `POST /api/chat/message` handler, add: check `req.user?.testerTagAssigned === true`, call `extractRAGDetails()` on `dialogflowResponse.diagnosticInfo`, spread result onto response object — `chat-backend`: `src/routes/chat.ts`
+- [x] T016 [US2] Write Vitest unit test for the chat route handler: mock `req.user.testerTagAssigned = true` → assert `ragCallDetail` present in response; mock `testerTagAssigned = false` → assert absent — `chat-backend`: `tests/unit/chat.ragCallDetail.test.ts`
+- [x] T017 [US2] Run `npm test` in `chat-backend`; verify all tests pass including T016
+- [ ] T018 [US2] Verify CI passes on PR #152 (T014–T017 already included); merge PR into `develop` — PR: https://github.com/MentalHelpGlobal/chat-backend/pull/152 *(awaiting CI + owner approval to merge)*
 
 **Checkpoint**: `POST /api/chat/message` returns `ragCallDetail` for tester users on dev after merge.
 
@@ -73,13 +73,13 @@
 
 **Independent Test**: In chat UI as tester-tagged user with US1+US2 fixes deployed, send RAG-triggering message — "Sources" expandable panel appears. Click to expand — documents shown. As non-tester user — panel absent.
 
-- [ ] T019 [P] [US3] Update `chat-frontend/package.json` to reference `chat-types` branch `025-bug-rag-tester-flag` (or bumped version from T007) — `chat-frontend`: `package.json`
-- [ ] T020 [P] [US3] Create `RAGDetailPanel` component adapted from workbench version: renders collapsible "Sources" section with retrieval query, document list (title, score, snippet), and "No documents retrieved" empty state — `chat-frontend`: `src/components/RAGDetailPanel.tsx`
-- [ ] T021 [US3] Update `MessageBubble` to import `RAGDetailPanel` and render it when `isAssistant && user?.testerTagAssigned && message.ragCallDetail` — `chat-frontend`: `src/components/MessageBubble.tsx`
-- [ ] T022 [US3] Write Vitest + RTL unit test for `RAGDetailPanel`: renders documents when `retrievedDocuments` present; shows "No documents retrieved" when empty array — `chat-frontend`: `src/components/RAGDetailPanel.test.tsx`
-- [ ] T023 [US3] Write Vitest + RTL unit test for `MessageBubble`: renders `RAGDetailPanel` when `testerTagAssigned=true` and `ragCallDetail` present; does not render when either condition false — `chat-frontend`: `src/components/MessageBubble.test.tsx`
-- [ ] T024 [US3] Run `npm test` in `chat-frontend`; verify all tests pass including T022–T023
-- [ ] T025 [US3] Open PR for `chat-frontend` branch → `develop`; verify CI passes; merge PR into `develop`
+- [x] T019 [P] [US3] Update `chat-frontend/package.json` to reference `chat-types` branch `025-bug-rag-tester-flag` (or bumped version from T007) — `chat-frontend`: `package.json`
+- [x] T020 [P] [US3] Create `RAGDetailPanel` component adapted from workbench version: renders collapsible "Sources" section with retrieval query, document list (title, score, snippet), and "No documents retrieved" empty state — `chat-frontend`: `src/components/RAGDetailPanel.tsx`
+- [x] T021 [US3] Update `MessageBubble` to import `RAGDetailPanel` and render it when `isAssistant && user?.testerTagAssigned && message.ragCallDetail` — `chat-frontend`: `src/features/chat/MessageBubble.tsx`
+- [x] T022 [US3] Write Vitest + RTL unit test for `RAGDetailPanel`: renders documents when `retrievedDocuments` present; shows empty-state key when empty array — `chat-frontend`: `src/test/unit/RAGDetailPanel.test.tsx`
+- [x] T023 [US3] Write Vitest + RTL unit test for `MessageBubble`: renders `RAGDetailPanel` when `testerTagAssigned=true` and `ragCallDetail` present; does not render when either condition false — `chat-frontend`: `src/test/unit/MessageBubble.rag.test.tsx`
+- [x] T024 [US3] Run `npm test` in `chat-frontend`; verify all tests pass including T022–T023
+- [ ] T025 [US3] Open PR for `chat-frontend` branch → `develop`; verify CI passes; merge PR into `develop` — PR: https://github.com/MentalHelpGlobal/chat-frontend/pull/92 *(awaiting CI + review)*
 
 **Checkpoint**: RAG panel renders in chat UI for tester users on dev after merge + deploy.
 
@@ -91,10 +91,10 @@
 
 **FR-008 requirement**: E2E test must exist and pass before any release is cut.
 
-- [ ] T026 Write Playwright E2E test `rag-panel-visibility.spec.ts`: login as `e2e-owner@test.local` → mock `POST /api/chat/message` via `page.route()` with deterministic fixture containing `ragCallDetail` → assert "Sources" panel visible → expand → assert document content visible (deterministic; no Dialogflow dependency) — `chat-ui`: `tests/rag-panel-visibility.spec.ts`
-- [ ] T027 [P] Write Playwright E2E test: login as non-tester user → mock same `POST /api/chat/message` route with same fixture → assert "Sources" panel NOT visible — `chat-ui`: `tests/rag-panel-visibility.spec.ts` (second test case)
+- [x] T026 Write Playwright E2E test `rag-panel-visibility.spec.ts`: login as `e2e-owner@test.local` → mock `POST /api/chat/message` via `page.route()` with deterministic fixture containing `ragCallDetail` → assert "Sources" panel visible → expand → assert document content visible (deterministic; no Dialogflow dependency) — `chat-ui`: `tests/e2e/chat/rag-panel-visibility.spec.ts`
+- [x] T027 [P] Write Playwright E2E test: login as non-tester user → mock same `POST /api/chat/message` route with same fixture → assert "Sources" panel NOT visible — `chat-ui`: `tests/e2e/chat/rag-panel-visibility.spec.ts` (second test case)
 - [ ] T028 Run `npx playwright test rag-panel-visibility.spec.ts` against `https://dev.mentalhelp.chat`; confirm both tests PASS (fixture-based; does not require Dialogflow RAG trigger)
-- [ ] T029 Open PR for `chat-ui` branch → `develop`; verify CI passes; merge
+- [ ] T029 Open PR for `chat-ui` branch → `develop`; verify CI passes; merge — PR: https://github.com/MentalHelpGlobal/chat-ui/pull/20 *(awaiting E2E pass on dev before merge)*
 
 **Checkpoint**: E2E test passing on dev — feature is validated end-to-end. Release may now be discussed with owner.
 
