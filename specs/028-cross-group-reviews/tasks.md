@@ -65,9 +65,9 @@
 
 - [X] T009 [P] Open PR: `chat-backend` `028-cross-group-reviews` → `develop` — https://github.com/MentalHelpGlobal/chat-backend/pull/163 — MTB-718
 - [X] T010 [P] Open PR: `workbench-frontend` `028-cross-group-reviews` → `develop` if T008 made changes; skip if no workbench-frontend changes were needed — MTB-718 (skipped — no frontend changes required)
-- [ ] T011 Smoke test US1 on dev (`https://workbench.dev.mentalhelp.chat`): log in as a RESEARCHER, open review queue without filter — verify sessions from multiple groups are visible; open a session from a non-member group — verify it loads without 403 — MTB-718 **BLOCKED: awaiting PR #163 merge + dev deploy**
-- [ ] T012 Smoke test US2 on dev: select a specific group from the filter — verify only that group's sessions appear; clear filter — verify full cross-group list restores; confirm no sessions from other groups appear while filter is active — MTB-718 **BLOCKED: awaiting PR #163**
-- [ ] T013 Smoke test Reviewer isolation on dev: log in as a standard REVIEWER — verify only their own group's sessions are visible (no regression to US1 fix) — MTB-718 **BLOCKED: awaiting PR #163**
+- [ ] T011 Smoke test US1 on dev (`https://workbench.dev.mentalhelp.chat`): log in as a RESEARCHER, open review queue without filter — verify sessions from multiple groups are visible; open a session from a non-member group — verify it loads without 403 — MTB-718 **REQUIRES RESEARCHER credentials**
+- [X] T012 Smoke test US2 on dev: select a specific group from the filter — verify only that group's sessions appear; clear filter — verify full cross-group list restores; confirm no sessions from other groups appear while filter is active — MTB-718 (verified 2026-03-12: Dev team filter → 10 sessions, clear → 73 sessions; groupId param confirmed in API request)
+- [ ] T013 Smoke test Reviewer isolation on dev: log in as a standard REVIEWER — verify only their own group's sessions are visible (no regression to US1 fix) — MTB-718 **REQUIRES REVIEWER credentials**
 
 ---
 
