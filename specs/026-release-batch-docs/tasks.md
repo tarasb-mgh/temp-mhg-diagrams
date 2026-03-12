@@ -123,7 +123,7 @@ auto-saves on field blur, and exports/imports JSON with full fidelity.
 - [x] T035 [P] All local develop branches synced to origin/develop across repos
 - [x] T036 Open PR from 026-release-batch-docs → main in MentalHelpGlobal/client-spec
 - [x] T037 [P] Run /speckit.sync push to transition locally-done tasks to Jira Done
-- [ ] T038 [P] Publish biweekly activity report to Confluence covering this batch (/mhg.activity-report)
+- [x] T038 [P] Publish biweekly activity report to Confluence covering this batch (/mhg.activity-report)
 
 ---
 
