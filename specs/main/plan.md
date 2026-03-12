@@ -1,228 +1,319 @@
-# Implementation Plan: Fix Group Chats Not Reflected in Group Sessions Interface
+# Implementation Plan: Security Hardening — Audit Findings Remediation
 
-**Branch**: `bugfix/group-session-visibility` | **Date**: 2026-02-24 | **Spec**: Production bugfix (user report)
-**Input**: Group admin reports that chats from users within the group are not visible in the group sessions interface.
+**Branch**: `main` | **Date**: 2026-03-12 | **Spec**: `specs/main/spec.md`
+**Input**: Security Audit 2026-03-12 ([Confluence](https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/21463041))
 
 ## Summary
 
-Users added to groups via `addUserToGroup()`, `createAndAddUserToGroup()`,
-or `approveGroupRequest()` have their `users.active_group_id` left as NULL.
-When those users create chat sessions, `getGroupIdForUserId()` returns NULL,
-and `sessions.group_id` is stored as NULL. The group sessions query filters
-by `sessions.group_id = $groupId`, so NULL-group sessions are invisible.
+Address all CRITICAL, HIGH, and MEDIUM findings from the 2026-03-12 security audit across six workstreams:
+1. npm dependency CVE patches (`npm audit fix`) in chat-backend, chat-frontend, workbench-frontend
+2. Helmet security headers middleware in chat-backend
+3. CORS 500→silent-reject fix and JSON 404/error handlers in chat-backend
+4. GitHub branch protection on `develop` in 3 repos
+5. GCP IAM — remove `roles/owner` from 2 service accounts, add scoped roles
+6. Prod Cloud Run — verify `EMAIL_PROVIDER != console`
 
-The fix applies the existing `COALESCE(active_group_id, $groupId)` pattern
-(already used in `setGroupMembershipRole()`) to all three broken mutation
-points, adds a data backfill migration, and enhances the group sessions
-query with a membership-based fallback.
+No new API contracts or data models introduced. All changes are hardening/configuration.
 
 ## Technical Context
 
-**Language/Version**: TypeScript / Node.js (Express.js backend)
-**Primary Dependencies**: Express.js, `pg` (PostgreSQL driver)
-**Storage**: PostgreSQL (Cloud SQL)
-**Testing**: Vitest (unit tests in `chat-backend`)
-**Target Platform**: GCP Cloud Run (Linux)
-**Project Type**: Web application (split repositories)
-**Constraints**: Production hotfix — minimal change surface, backward-compatible
+**Language/Version**: TypeScript (Node.js) — chat-backend (`express@^5.1.0`, `jsonwebtoken@^9.0.2`)
+**Primary Dependencies added**: `helmet@^8.1.0` (chat-backend only)
+**Storage**: PostgreSQL (unchanged)
+**Testing**: Vitest (existing); smoke test via curl after deploy
+**Target Platform**: Cloud Run (europe-west1), GitHub Actions CI
+**Project Type**: Multi-repo backend security patch + infra config
+**Performance Goals**: No new performance requirements; helmet adds <1ms overhead
+**Constraints**: Must not break existing auth flow, CORS for valid origins, or PWA behaviour
+**Scale/Scope**: 3 frontend repos, 1 backend repo, GCP project-level IAM, 3 GitHub repos
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+| Principle | Status | Notes |
+|-----------|--------|-------|
+| I. Spec-First | ✅ | spec.md created in specs/main/ |
+| II. Multi-Repo | ✅ | Targets chat-backend, chat-frontend, workbench-frontend, chat-infra |
+| III. Test-Aligned | ✅ | Existing Vitest; smoke tests via curl in evidence/ |
+| IV. Branch Discipline | ✅ | Feature branches in affected repos; PRs to develop |
+| V. Privacy/Security | ✅ | This feature IS the security work |
+| VI. Accessibility/i18n | N/A | No UI changes |
+| VII. Split-Repo First | ✅ | All changes in split repos |
+| VIII. GCP CLI | ✅ | IAM changes scripted as gcloud commands in chat-infra |
+| IX. Responsive/PWA | ✅ | npm audit fix non-breaking; vite-plugin-pwa chain deferred |
+| X. Jira Traceability | ⚠️ | Create Epic + Tasks in Jira before implementing |
+| XI. Docs | N/A | Security hardening — no user-facing docs required |
+| XII. Release Engineering | ✅ | Dev deploy + smoke checks before release; owner approval for prod |
 
-- [x] Spec-first workflow is preserved (bugfix documented → plan → tasks → implementation)
-- [x] Affected split repositories are explicitly listed with per-repo file paths
-- [x] Test strategy aligns with each target repository conventions (Vitest for chat-backend)
-- [x] Integration strategy enforces PR-only merges into `develop` from bugfix branch
-- [x] Required approvals and required CI checks are identified (chat-backend CI)
-- [x] Post-merge hygiene is defined: delete merged remote/local bugfix branch
-      and sync local `develop` to `origin/develop`
-- [x] For user-facing changes, responsive and PWA compatibility checks are
-      defined — N/A (backend-only fix, no UI changes)
-- [x] Post-deploy smoke checks are defined: verify group sessions endpoint
-      returns sessions for users with active group memberships
-- [ ] Jira Epic exists for this feature — PENDING (bugfix, to be created)
-- [x] Documentation impact identified: Release Notes require entry on fix;
-      User Manual and Technical Onboarding do not need updates (no UI or
-      workflow changes)
-- [x] Release readiness verified: `chat-backend` has deploy workflows for
-      both dev and prod environments
+**Gate**: Passes. No violations requiring justification.
 
 ## Project Structure
 
-### Documentation (this bugfix)
+### Documentation
 
-```text
+```
 specs/main/
-├── plan.md              # This file
-├── research.md          # Root cause analysis
-└── tasks.md             # Task breakdown (via /speckit.tasks)
+├── plan.md         ← this file
+├── research.md     ← Phase 0 complete
+├── spec.md         ← requirements
+└── tasks.md        ← Phase 2 output (next step: /speckit.tasks)
 ```
 
-### Source Code (affected repositories)
+### Source Changes
 
-```text
+```
 chat-backend/
-├── src/
-│   ├── services/
-│   │   ├── group.service.ts          # addUserToGroup, createAndAddUserToGroup
-│   │   ├── groupMembership.service.ts # approveGroupRequest
-│   │   ├── groupSessions.service.ts   # listGroupSessions query
-│   │   └── session.service.ts         # getGroupIdForUserId (reference)
-│   └── db/
-│       └── migrations/
-│           └── 023_backfill_group_session_visibility.sql  # New migration
-└── tests/
-    └── unit/
-        └── group-session-visibility.test.ts  # New test file
+├── package.json                     ← add helmet; npm audit fix
+├── src/index.ts                     ← add helmet middleware, fix CORS callback, add 404/error handlers
+
+chat-frontend/
+├── package.json                     ← npm audit fix (non-breaking only)
+
+workbench-frontend/
+├── package.json                     ← npm audit fix (non-breaking only)
+
+chat-infra/
+└── scripts/
+    └── security-hardening-2026-03-12.sh   ← IAM gcloud commands (idempotent)
 ```
 
-**Structure Decision**: Single-repository bugfix in `chat-backend`. No
-cross-repo changes needed — the bug is entirely in the backend service
-layer and database.
+---
 
-## Fix Implementation
+## Phase 0 Research — Complete
 
-### Layer 1: Fix Group Mutation Points
+See `research.md` for all decisions. Summary:
+- Helmet: `helmet@^8.1.0`, API-only CSP config, insert before cors()
+- npm audit: `npm audit fix` only — no --force; vite-plugin-pwa chain deferred
+- CORS: change error callback to `callback(null, false)`
+- 404: add catch-all JSON handler + global error handler
+- Branch protection: `gh api PUT` with required reviews
+- IAM: remove `roles/owner`; add scoped roles; confirm WIF SA binding first
+- Prod email: read env vars; no code change if already non-console
 
-**Goal**: Ensure `users.active_group_id` is set whenever a user gains
-active group membership.
+---
 
-#### 1a. `addUserToGroup()` — `group.service.ts:294`
+## Phase 1 Design
 
-After the `group_memberships` INSERT/UPSERT (line 308–325), add:
+### US1 — Dependency CVEs (npm audit fix)
 
-```sql
-UPDATE users SET active_group_id = COALESCE(active_group_id, $1) WHERE id = $2
+**Affected repos**: chat-backend, chat-frontend, workbench-frontend
+
+**chat-backend** — run in `D:\src\MHG\chat-backend`:
+```bash
+npm audit fix
+# Resolves: fast-xml-parser CRITICAL, tar HIGH, rollup HIGH, @mapbox/node-pre-gyp HIGH
+# Does NOT use --force (no @google-cloud/* downgrade)
+npm audit --json | node -e "..." # verify 0 critical/high remain (google-cloud LOW residuals acceptable)
 ```
 
-This matches the pattern already used in `setGroupMembershipRole()` at
-`groupMembership.service.ts:361`.
-
-#### 1b. `createAndAddUserToGroup()` — `group.service.ts:343`
-
-After the `group_memberships` INSERT (line 368–381), add the same
-`UPDATE users SET active_group_id = COALESCE(active_group_id, $1)` query.
-Since the user was just created, `active_group_id` is guaranteed NULL, so
-this always sets it.
-
-#### 1c. `approveGroupRequest()` — `groupMembership.service.ts:263`
-
-After the membership status is set to `'active'` (line 301–308), add:
-
-```sql
-UPDATE users SET active_group_id = COALESCE(active_group_id, $1) WHERE id = $2
+**chat-frontend** — run in `D:\src\MHG\chat-frontend`:
+```bash
+npm audit fix
+# Resolves: @remix-run/router HIGH, react-router HIGH, react-router-dom HIGH, minimatch HIGH, rollup HIGH
+# vite-plugin-pwa chain (serialize-javascript HIGH) — DEFERRED, no --force
 ```
 
-This ensures that users approved via the invite flow get their
-`active_group_id` set on approval, not deferred until they manually
-select a group.
-
-### Layer 2: Data Backfill Migration
-
-**Goal**: Repair existing sessions and users affected by the bug.
-
-Create migration `023_backfill_group_session_visibility.sql`:
-
-```sql
--- Step 1: Set active_group_id for users who have active memberships
--- but NULL active_group_id and NULL group_id
-UPDATE users u
-SET active_group_id = (
-  SELECT gm.group_id
-  FROM group_memberships gm
-  WHERE gm.user_id = u.id AND gm.status = 'active'
-  ORDER BY gm.approved_at ASC NULLS LAST
-  LIMIT 1
-)
-WHERE u.active_group_id IS NULL
-  AND u.group_id IS NULL
-  AND EXISTS (
-    SELECT 1 FROM group_memberships gm
-    WHERE gm.user_id = u.id AND gm.status = 'active'
-  );
-
--- Step 2: Backfill sessions.group_id using group_memberships
--- for sessions where group_id is NULL but user has active membership
-UPDATE sessions s
-SET group_id = (
-  SELECT gm.group_id
-  FROM group_memberships gm
-  WHERE gm.user_id = s.user_id AND gm.status = 'active'
-  ORDER BY gm.approved_at ASC NULLS LAST
-  LIMIT 1
-)
-WHERE s.group_id IS NULL
-  AND s.user_id IS NOT NULL
-  AND EXISTS (
-    SELECT 1 FROM group_memberships gm
-    WHERE gm.user_id = s.user_id AND gm.status = 'active'
-  );
+**workbench-frontend** — run in `D:\src\MHG\workbench-frontend`:
+```bash
+npm audit fix
+# Resolves: minimatch HIGH, rollup HIGH
+# vite-plugin-pwa chain — DEFERRED
 ```
 
-### Layer 3: Query Enhancement (Defense-in-Depth)
+**Verification**: `npm audit` shows 0 critical, 0 high (excluding vite-plugin-pwa residuals, which are documented as deferred).
 
-**Goal**: Ensure `listGroupSessions()` can find sessions even if
-`sessions.group_id` was not properly set.
+---
 
-Modify `listGroupSessions()` in `groupSessions.service.ts` to use a
-combined filter:
+### US2 — Security Headers (helmet)
 
-```sql
-WHERE (s.group_id = $1
-       OR (s.group_id IS NULL
-           AND s.user_id IN (
-             SELECT gm.user_id
-             FROM group_memberships gm
-             WHERE gm.group_id = $1 AND gm.status = 'active'
-           )))
+**Affected repo**: chat-backend
+
+**File**: `chat-backend/src/index.ts`
+
+1. Install: `npm install helmet` in chat-backend
+2. Add import: `import helmet from 'helmet';`
+3. Insert middleware after `dotenv.config()`, before `cors()`:
+
+```typescript
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: { defaultSrc: ["'none'"] },
+  },
+}));
 ```
 
-This preserves the existing fast path (`s.group_id = $1`) and adds a
-fallback for sessions with NULL `group_id` belonging to current group
-members. After the migration backfills data, the fallback clause will
-match zero rows in steady state.
+**Expected headers on all responses after change**:
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+- `X-Frame-Options: SAMEORIGIN`
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: no-referrer`
+- `Content-Security-Policy: default-src 'none'`
+- `X-Powered-By` header: **absent**
 
-Similarly update `getGroupSessionById()` to use the same combined filter
-for consistency.
+**Verification**: `curl -si https://api.dev.mentalhelp.chat/api/settings` (after deploy) — all 5 headers present, X-Powered-By absent.
 
-## Risk Assessment
+---
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| Migration backfill sets wrong group for multi-group users | Low | Low | Uses earliest approved membership; `active_group_id` uses COALESCE (preserves existing) |
-| Query fallback introduces performance regression | Low | Low | Subquery only executes when `s.group_id IS NULL`; post-migration this matches ~0 rows |
-| Mutation fix causes unexpected side effects | Very Low | Low | Uses exact same pattern as existing `setGroupMembershipRole()` |
+### US3 — CORS fix and JSON error handlers
 
-## Rollback Plan
+**Affected repo**: chat-backend
 
-1. **Code rollback**: Revert the three service file changes — sessions
-   will resume being created with NULL `group_id` (pre-existing behavior)
-2. **Migration**: The backfill migration is non-destructive (sets
-   previously NULL fields). No rollback migration needed — the data
-   corrections are valid regardless of code state.
-3. **Query rollback**: Revert `listGroupSessions()` changes — the
-   backfilled `sessions.group_id` values will keep sessions visible.
+**File**: `chat-backend/src/index.ts`
 
-## Verification
+**Change 1 — CORS silent reject** (line ~100):
+```typescript
+// Before:
+callback(new Error('Not allowed by CORS'));
+// After:
+callback(null, false);
+```
 
-### Pre-deploy (dev environment)
+**Change 2 — JSON 404 handler** (after all app.use() route registrations, before startServer()):
+```typescript
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    error: { code: 'NOT_FOUND', message: 'Endpoint not found' },
+  });
+});
+```
 
-1. Add a user to a group via workbench
-2. Verify `users.active_group_id` is set (query DB directly)
-3. User creates a chat session
-4. Verify `sessions.group_id` matches the group UUID
-5. Group admin views group sessions → new session is visible
+**Change 3 — Global error handler** (after 404 handler):
+```typescript
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[Error]', err.message);
+  res.status(500).json({
+    success: false,
+    error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
+  });
+});
+```
 
-### Post-deploy (production)
+**Verification**:
+- `curl -H "Origin: https://evil.example.com" -si https://api.dev.mentalhelp.chat/api/settings` → no 500, no `Access-Control-Allow-Origin` header
+- `curl -si https://api.dev.mentalhelp.chat/api/nonexistent` → 404 with `{"success":false,"error":{"code":"NOT_FOUND",...}}`
 
-1. Run migration — verify it completes without errors
-2. Group admin views group sessions → previously invisible sessions
-   now appear
-3. Add a new user to group → their subsequent sessions are visible
-4. Verify health endpoint returns ok
+---
+
+### US4 — Branch Protection
+
+**Affected repos**: chat-backend, chat-frontend, workbench-frontend (GitHub only, no source changes)
+
+For each repo:
+```bash
+gh api repos/MentalHelpGlobal/chat-backend/branches/develop/protection \
+  --method PUT \
+  --input - <<'EOF'
+{
+  "required_status_checks": { "strict": false, "contexts": [] },
+  "enforce_admins": false,
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 1,
+    "dismiss_stale_reviews": false,
+    "require_code_owner_reviews": false
+  },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+EOF
+```
+
+(Repeat for chat-frontend and workbench-frontend.)
+
+**Verification**: `gh api repos/MentalHelpGlobal/chat-backend/branches/develop/protection` returns 200 with `required_pull_request_reviews.required_approving_review_count: 1`.
+
+---
+
+### US5 — GCP IAM Least-Privilege
+
+**Affected**: GCP project `mental-help-global-25` IAM (not a source code change — scripted in chat-infra)
+
+**Script**: `chat-infra/scripts/security-hardening-2026-03-12.sh`
+
+```bash
+#!/usr/bin/env bash
+# Security hardening — IAM least-privilege remediation
+# 2026-03-12 — Audit finding A05:2021
+set -euo pipefail
+PROJECT=mental-help-global-25
+
+# ── Compute SA: remove roles/owner (scoped roles remain) ──
+gcloud projects remove-iam-policy-binding $PROJECT \
+  --member="serviceAccount:942889188964-compute@developer.gserviceaccount.com" \
+  --role="roles/owner" \
+  --project=$PROJECT
+
+# ── ai-devops SA: remove roles/owner ──
+gcloud projects remove-iam-policy-binding $PROJECT \
+  --member="serviceAccount:ai-devops@mental-help-global-25.iam.gserviceaccount.com" \
+  --role="roles/owner" \
+  --project=$PROJECT
+
+# ── ai-devops SA: add minimum scoped roles ──
+DEVOPS_SA="serviceAccount:ai-devops@mental-help-global-25.iam.gserviceaccount.com"
+for ROLE in \
+  roles/artifactregistry.writer \
+  roles/run.admin \
+  roles/storage.objectAdmin \
+  roles/secretmanager.secretAccessor \
+  roles/iam.serviceAccountUser \
+  roles/cloudsql.client; do
+  gcloud projects add-iam-policy-binding $PROJECT \
+    --member="$DEVOPS_SA" \
+    --role="$ROLE" \
+    --project=$PROJECT
+done
+
+echo "IAM hardening complete. Verify with:"
+echo "  gcloud projects get-iam-policy $PROJECT | grep -A5 'roles/owner'"
+```
+
+**Pre-condition**: Confirm which WIF binding uses `ai-devops` vs `github-actions-sa` before running. Check:
+```bash
+gcloud iam service-accounts get-iam-policy ai-devops@mental-help-global-25.iam.gserviceaccount.com \
+  --project=mental-help-global-25
+```
+If no `roles/iam.workloadIdentityUser` binding exists, `ai-devops` may not be the active CI/CD SA — use `github-actions-sa` as reference and verify before removing owner.
+
+**Verification**: After running script, `gcloud projects get-iam-policy mental-help-global-25` shows no `roles/owner` for either SA.
+
+---
+
+### US6 — Prod OTP devCode Verification
+
+**Affected**: Cloud Run service `chat-backend` (prod, europe-west1)
+
+**Check**:
+```bash
+gcloud run services describe chat-backend --region=europe-west1 \
+  --project=mental-help-global-25 \
+  --format="yaml(spec.template.spec.containers[0].env)"
+```
+
+Look for `EMAIL_PROVIDER` env var. If `console` → update to `gmail` or remove:
+```bash
+gcloud run services update chat-backend --region=europe-west1 \
+  --project=mental-help-global-25 \
+  --update-env-vars EMAIL_PROVIDER=gmail
+```
+
+**Expected**: `EMAIL_PROVIDER` is `gmail` or not set in the prod service.
+
+---
+
+## Cross-Repository Dependencies
+
+| Change | Repos affected | Order |
+|--------|---------------|-------|
+| npm audit fix | chat-backend, chat-frontend, workbench-frontend | Parallel |
+| helmet + CORS + 404 | chat-backend | After npm audit fix in backend |
+| Branch protection | GitHub API (3 repos) | Independent, any order |
+| IAM hardening | GCP project IAM | Independent |
+| Prod email verify | Cloud Run chat-backend | Independent |
+
+All changes can be done in parallel across repos. The helmet/CORS/404 changes should be batched into a single PR for chat-backend.
 
 ## Complexity Tracking
 
-No constitution violations. All changes follow existing patterns in the
-codebase.
+No constitution violations.

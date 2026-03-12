@@ -1,128 +1,121 @@
-# Research: Group Chats Not Reflected in Group Sessions Interface
+# Research: Security Hardening — Audit Findings Remediation
 
-**Branch**: `main` | **Date**: 2026-02-24 | **Type**: Production Bugfix
+**Date**: 2026-03-12 | **Source**: Security Audit 2026-03-12 + implementation research
 
-## Problem Statement
+---
 
-Users added to groups in production have their chat sessions invisible in
-the group chats (sessions) interface. Group admins viewing group sessions
-see an empty or incomplete list, missing chats from group members.
+## Decision 1 — Helmet middleware for Express 5
 
-## Root Cause Analysis
+**Decision**: Use `helmet@^8.1.0` with custom CSP for the API-only backend.
 
-### Data Flow (Happy Path — Expected)
+**Rationale**: Helmet 8.1.0 has zero dependencies and no Express version peer constraint — fully compatible with `express@^5.1.0`. Default `helmet()` sets 13 headers including HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and removes X-Powered-By automatically. The default CSP (`default-src 'self'`) is designed for browser apps; for an API-only backend use `useDefaults: false` + `defaultSrc: ["'none'"]`.
 
-1. User is added to a group → `users.active_group_id` is set
-2. User starts a chat session → `getGroupIdForUserId()` reads
-   `COALESCE(active_group_id, group_id)` → returns group UUID
-3. Session is persisted with `sessions.group_id = <group UUID>`
-4. Group admin queries sessions → `WHERE s.group_id = $1` → session appears
-
-### Data Flow (Actual — Broken)
-
-1. User is added to a group via `addUserToGroup()`,
-   `createAndAddUserToGroup()`, or `approveGroupRequest()`
-   → only `group_memberships` row is created/updated
-   → `users.active_group_id` and `users.group_id` remain **NULL**
-2. User starts a chat session → `getGroupIdForUserId()` reads
-   `COALESCE(NULL, NULL)` → returns **NULL**
-3. Session is persisted with `sessions.group_id = NULL`
-4. Group admin queries sessions → `WHERE s.group_id = $1`
-   → session with NULL group_id is **excluded** → invisible
-
-### Affected Code Paths
-
-| Function | File | Issue |
-|----------|------|-------|
-| `addUserToGroup()` | `chat-backend/src/services/group.service.ts:294` | Inserts `group_memberships` only; does not update `users.active_group_id` |
-| `createAndAddUserToGroup()` | `chat-backend/src/services/group.service.ts:343` | Creates user + membership; does not set `users.active_group_id` |
-| `approveGroupRequest()` | `chat-backend/src/services/groupMembership.service.ts:263` | Activates membership; does not set `users.active_group_id` |
-
-### Correct Reference Pattern
-
-`setGroupMembershipRole()` at `groupMembership.service.ts:339` already
-implements the correct pattern:
-
-```sql
-UPDATE users SET active_group_id = COALESCE(active_group_id, $1) WHERE id = $2
+**Implementation snippet** (insert after `dotenv.config()`, before `cors()`):
+```typescript
+import helmet from 'helmet';
+app.use(helmet({
+  contentSecurityPolicy: { useDefaults: false, directives: { defaultSrc: ["'none'"] } },
+}));
 ```
 
-This sets `active_group_id` only if it is currently NULL, preserving
-existing group context. The three broken functions above must adopt this
-same pattern.
+**Install**: `npm install helmet` in `chat-backend` (types bundled in package).
 
-### Secondary Issue: Query Brittleness
+**Alternatives considered**: Manual `res.setHeader()` per route — rejected (fragile, easy to miss).
 
-`listGroupSessions()` in `groupSessions.service.ts:30` relies exclusively
-on `sessions.group_id` for filtering:
+---
 
-```sql
-WHERE s.group_id = $1
+## Decision 2 — npm audit fix strategy
+
+**Decision**: Run `npm audit fix` (non-breaking patches only). Do NOT use `--force` for the vite-plugin-pwa chain.
+
+### chat-backend — `npm audit fix` resolves:
+- `fast-xml-parser` CRITICAL → patched to 4.5.4+
+- `tar` HIGH → patched to 7.5.10+
+- `rollup` HIGH → patched to 4.59.0+
+- `@mapbox/node-pre-gyp` HIGH → resolved via tar patch
+
+Do NOT force-downgrade `@google-cloud/dialogflow-cx` or `@google-cloud/storage` — those `--force` fixes are major downgrades that break functionality.
+
+### chat-frontend — `npm audit fix` resolves:
+- `@remix-run/router` HIGH (GHSA-2w69-qvjg-hvjx) → 1.23.2+
+- `react-router` / `react-router-dom` HIGH → via router bump
+- `minimatch` HIGH → patched
+- `rollup` HIGH → patched
+
+**vite-plugin-pwa chain** (serialize-javascript, workbox-build, @rollup/plugin-terser): The suggested `--force` fix downgrades v1.2.0 → v0.19.8 (major regression, backwards-incompatible API). Current vite config uses only stable, cross-version features — but the PWA test risk on a major downgrade is unacceptable. **Accept as known risk** pending upstream vite-plugin-pwa v1.3.0+ fix. Track as LOW carry-forward.
+
+### workbench-frontend — same strategy as chat-frontend.
+
+---
+
+## Decision 3 — CORS 500 fix
+
+**Decision**: Change `callback(new Error('Not allowed by CORS'))` → `callback(null, false)` in the CORS origin function (`chat-backend/src/index.ts:100`).
+
+**Rationale**: `callback(null, false)` silently rejects the origin — no CORS headers added, browser blocks request, no 500 thrown. This is the canonical Express cors package pattern for denying origins.
+
+---
+
+## Decision 4 — JSON 404 and error handlers
+
+**Decision**: Add a catch-all 404 JSON handler and global error handler as the last two middleware in `index.ts`, after all route registrations.
+
+```typescript
+app.use((_req, res) => {
+  res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Endpoint not found' } });
+});
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[Error]', err.message);
+  res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } });
+});
 ```
 
-This means sessions created before the user was added to a group (or
-before the fix) will never appear, even after the user becomes a group
-member. The `group_memberships` table — the authoritative source for
-group membership — is never consulted.
+---
 
-### Historical Context
+## Decision 5 — Branch protection
 
-Migration `010_groups_and_group_scoping.sql` added `group_id` to both
-`users` and `sessions`, and included a backfill:
+**Decision**: Enable branch protection on `develop` for `chat-backend`, `chat-frontend`, `workbench-frontend` via `gh api PUT`.
 
-```sql
-UPDATE sessions s SET group_id = u.group_id
-FROM users u
-WHERE s.group_id IS NULL AND s.user_id IS NOT NULL
-  AND u.id = s.user_id AND u.group_id IS NOT NULL;
+```bash
+gh api repos/MentalHelpGlobal/<repo>/branches/develop/protection \
+  --method PUT \
+  --input - <<'EOF'
+{
+  "required_status_checks": { "strict": false, "contexts": [] },
+  "enforce_admins": false,
+  "required_pull_request_reviews": { "required_approving_review_count": 1 },
+  "restrictions": null
+}
+EOF
 ```
 
-This backfill only worked for users who had `users.group_id` set at
-migration time. Users added to groups via `addUserToGroup()` after the
-migration have `users.group_id = NULL`, so their sessions were never
-backfilled.
+---
 
-## Decision: Fix Strategy
+## Decision 6 — GCP IAM least-privilege
 
-### Decision: Two-layer fix (mutation + query)
+**Decision**: Remove `roles/owner` from both over-permissioned SAs. Confirm scoped roles replace it.
 
-**Rationale**: Fixing only the mutation points leaves historical sessions
-invisible. Fixing only the query without fixing mutations means
-`sessions.group_id` remains unreliable for other potential consumers.
-Both layers must be fixed.
+### Default Compute SA (`942889188964-compute@developer.gserviceaccount.com`)
+Currently has `roles/owner` PLUS 4 scoped roles (aiplatform.user, cloudsql.client, dialogflow.client, secretmanager.secretAccessor) — used by `devagent1` GCE instance. Action: remove `roles/owner` only; 4 scoped roles remain and cover actual usage.
 
-**Alternatives considered**:
+### ai-devops SA (`ai-devops@mental-help-global-25.iam.gserviceaccount.com`)
+Currently has ONLY `roles/owner`. Used via WIF from GitHub Actions for Cloud Run deployments. Minimum required scoped roles: `artifactregistry.writer`, `run.admin`, `storage.objectAdmin`, `secretmanager.secretAccessor`, `iam.serviceAccountUser`, `cloudsql.client`.
 
-1. *Mutation-only fix + migration backfill*: Would fix future sessions and
-   backfill historical ones, but requires ongoing migration maintenance if
-   new group assignment flows are added. Chosen as the primary approach.
+**Note**: `ai-devops` and `github-actions-sa` may overlap. Confirm which SA is bound to the GitHub OIDC WIF before the change to avoid breaking CI/CD.
 
-2. *Query-only fix (JOIN group_memberships)*: More resilient to future
-   bugs but changes semantics — a user removed from a group would
-   immediately lose all session visibility, even for sessions created
-   while they were a member. Also more expensive per query. Rejected as
-   primary approach but adopted as defense-in-depth fallback.
+---
 
-3. *Combined approach*: Fix mutations, add backfill migration, AND
-   enhance the query to use `group_memberships` as a fallback for
-   sessions with NULL `group_id`. **Selected** — provides immediate fix,
-   historical data repair, and future resilience.
+## Decision 7 — Prod OTP devCode verification
 
-### Decision: Use `active_group_id` (not `group_id`)
+**Decision**: Read prod Cloud Run service `chat-backend` env vars; confirm `EMAIL_PROVIDER != console`. Dev behaviour is intentional — no code change to the dev Cloud Run service.
 
-**Rationale**: The `group_id` column on `users` is a legacy direct
-assignment field. The `active_group_id` field represents the user's
-current group context and is the first operand in
-`COALESCE(active_group_id, group_id)`. Setting `active_group_id` is
-consistent with `setGroupMembershipRole()` and the multi-group
-membership model.
+---
 
-## Impact Assessment
+## Carry-Forward (Out of Scope for this cycle)
 
-- **Severity**: High — group admin core functionality is broken
-- **Affected users**: All users added to groups via the workbench
-  interface (manual add, create-and-add, invite approval)
-- **Data impact**: No data loss — sessions exist but are not linked to
-  groups; fix is non-destructive
-- **Rollback risk**: Low — changes are additive (setting previously NULL
-  fields, adding fallback query logic)
+| Item | Reason deferred |
+|------|----------------|
+| vite-plugin-pwa HIGH advisories | Awaiting upstream fix; --force downgrade breaks PWA |
+| Cloud SQL private IP | Infrastructure investment, separate cycle |
+| GHA SHA pinning | Maintenance task, separate cycle |
+| n8n access restriction | Separate service, not chat platform |

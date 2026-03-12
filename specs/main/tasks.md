@@ -1,78 +1,140 @@
-# Tasks: Fix Group Chats Not Reflected in Group Sessions Interface
+# Tasks: Security Hardening — Audit Findings Remediation
 
-**Input**: Design documents from `/specs/main/`
-**Prerequisites**: plan.md, research.md
-**Repository**: `chat-backend` (`D:\src\MHG\chat-backend`)
-**Branch**: `bugfix/group-session-visibility`
+**Input**: `specs/main/plan.md`, `specs/main/spec.md`, `specs/main/research.md`
+**Branch**: `main` | **Date**: 2026-03-12
 
-**Organization**: Tasks are grouped by fix layer (mutation fix, migration,
-query hardening) to enable incremental verification at each checkpoint.
+## Format: `[ID] [P?] [Story] Description`
 
-## Format: `[ID] [P?] Description`
-
-- **[P]**: Can run in parallel (different files, no dependencies)
-- Include exact file paths in descriptions
+- **[P]**: Can run in parallel (different repos/files, no blocking dependency)
+- **[Story]**: User story reference (US1–US6)
+- No tests requested — implementation tasks only
 
 ---
 
-## Phase 1: Setup
+## Phase 1: Setup (Feature Branches)
 
-**Purpose**: Create bugfix branch in `chat-backend` and verify baseline
+**Purpose**: Create hardening branches in each affected repo before making changes.
 
-- [X] T001 Create `bugfix/group-session-visibility` branch from `develop` in `D:\src\MHG\chat-backend`
-- [X] T002 Verify current failing behavior: query `SELECT id, active_group_id, group_id FROM users WHERE id IN (SELECT user_id FROM group_memberships WHERE status = 'active') AND active_group_id IS NULL AND group_id IS NULL` against dev DB to confirm affected user count — skipped (requires dev DB access, deferred to T010)
-
-**Checkpoint**: Branch ready, scope of affected data confirmed
-
----
-
-## Phase 2: Fix Group Membership Mutation Points
-
-**Goal**: Ensure `users.active_group_id` is set whenever a user gains
-active group membership, using the existing `COALESCE` pattern from
-`setGroupMembershipRole()`.
-
-- [X] T003 [P] Add `UPDATE users SET active_group_id = COALESCE(active_group_id, $1) WHERE id = $2` after the `group_memberships` INSERT/UPSERT in `addUserToGroup()` in `chat-backend/src/services/group.service.ts`
-- [X] T004 [P] Add `UPDATE users SET active_group_id = COALESCE(active_group_id, $1) WHERE id = $2` after the `group_memberships` INSERT in `createAndAddUserToGroup()` in `chat-backend/src/services/group.service.ts`
-- [X] T005 Add `UPDATE users SET active_group_id = COALESCE(active_group_id, $1) WHERE id = $2` after the membership status update to `'active'` in `approveGroupRequest()` in `chat-backend/src/services/groupMembership.service.ts`
-
-**Checkpoint**: New group assignments correctly set `users.active_group_id`; future sessions will have correct `sessions.group_id`
+- [X] T001 Create feature branch `security/hardening-2026-03-12` in chat-backend (`D:\src\MHG\chat-backend`)
+- [X] T002 [P] Create feature branch `security/hardening-2026-03-12` in chat-frontend (`D:\src\MHG\chat-frontend`)
+- [X] T003 [P] Create feature branch `security/hardening-2026-03-12` in workbench-frontend (`D:\src\MHG\workbench-frontend`)
+- [X] T004 [P] Create feature branch `security/hardening-2026-03-12` in chat-infra (`D:\src\MHG\chat-infra`)
 
 ---
 
-## Phase 3: Data Backfill Migration
+## Phase 2: US1 — Dependency CVEs (npm audit fix)
 
-**Goal**: Repair existing users and sessions affected by the bug
+**Goal**: Remove all CRITICAL and HIGH npm advisories from the three frontend/backend repos.
 
-- [X] T006 Create migration `chat-backend/src/db/migrations/023_backfill_group_session_visibility.sql` that backfills `users.active_group_id` from `group_memberships` for users with NULL `active_group_id` and NULL `group_id`, then backfills `sessions.group_id` from `group_memberships` for sessions with NULL `group_id` whose user has an active membership
+**Independent Test**: `npm audit` in each repo returns 0 critical, 0 high (vite-plugin-pwa HIGH deferred — accepted known risk per research.md Decision 2).
 
-**Checkpoint**: Historical data repaired; existing sessions now have correct `group_id` values
+- [X] T005 [P] [US1] Run `npm audit fix` in chat-backend and commit updated `package.json` / `package-lock.json` in `D:\src\MHG\chat-backend`
+- [X] T006 [P] [US1] Run `npm audit fix` in chat-frontend and commit updated `package.json` / `package-lock.json` in `D:\src\MHG\chat-frontend`
+- [X] T007 [P] [US1] Run `npm audit fix` in workbench-frontend and commit updated `package.json` / `package-lock.json` in `D:\src\MHG\workbench-frontend`
+- [X] T008 [US1] Verify residuals: chat-backend 2 HIGH (google-cloud --force deferred + tar via node-pre-gyp unmaintained); frontends 4 HIGH (vite-plugin-pwa chain deferred). 0 CRITICAL across all repos.
 
----
-
-## Phase 4: Query Enhancement (Defense-in-Depth)
-
-**Goal**: Harden `listGroupSessions()` and `getGroupSessionById()` to find
-sessions even if `sessions.group_id` is NULL, using `group_memberships`
-as fallback
-
-- [X] T007 [P] Modify the WHERE clause in `listGroupSessions()` in `chat-backend/src/services/groupSessions.service.ts` to add a membership-based fallback: `(s.group_id = $1 OR (s.group_id IS NULL AND s.user_id IN (SELECT gm.user_id FROM group_memberships gm WHERE gm.group_id = $1 AND gm.status = 'active')))`
-- [X] T008 [P] Modify the WHERE clause in `getGroupSessionById()` in `chat-backend/src/services/groupSessions.service.ts` to use the same membership-based fallback for consistency
-
-**Checkpoint**: Group sessions endpoint returns all sessions for group members regardless of `sessions.group_id` state
+**Checkpoint**: All three repos show 0 critical / 0 high in `npm audit`.
 
 ---
 
-## Phase 5: Verification & Delivery
+## Phase 3: US2 — Security Headers (helmet middleware)
 
-**Purpose**: Validate fix end-to-end, merge via PR
+**Goal**: Every API response includes HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, CSP; `X-Powered-By` absent.
 
-- [X] T009 Run existing unit tests in `chat-backend` to confirm no regressions (`npm test`) — 127 tests passed, 0 failures
-- [ ] T010 Manually verify in dev environment: add user to group via workbench, confirm `users.active_group_id` is set, create chat session, confirm session appears in group sessions view
-- [X] T011 Open PR from `bugfix/group-session-visibility` to `develop` in `chat-backend` with scope, root cause summary, and test evidence — https://github.com/MentalHelpGlobal/chat-backend/pull/68
-- [X] T012 After PR approval and CI checks green, merge to `develop` (squash merge) — merged as d764064
-- [X] T013 Delete merged remote and local `bugfix/group-session-visibility` branch and sync local `develop` to `origin/develop`
-- [X] T014 Production deployed (PR #69 merged to main, tag v2026.02.24-group-session-visibility). Backmerge #66 synced develop. Smoke: verify `GET /api/group/sessions` with group admin token returns sessions.
+**Independent Test**: `curl -si https://api.dev.mentalhelp.chat/api/settings` (after deploy) returns all 5 security headers; `X-Powered-By` absent.
+
+**Note**: T009–T010 build on T005 — commit chat-backend npm audit fix before adding helmet to keep lockfile clean.
+
+- [X] T009 [US2] Install `helmet@^8.1.0` in chat-backend: run `npm install helmet` in `D:\src\MHG\chat-backend`
+- [X] T010 [US2] Add helmet middleware to `chat-backend/src/index.ts`: add `import helmet from 'helmet'` and `app.use(helmet({ contentSecurityPolicy: { useDefaults: false, directives: { defaultSrc: ["'none'"] } } }))` after `dotenv.config()`, before `cors()`
+
+**Checkpoint**: Helmet import present in index.ts; middleware in correct position.
+
+---
+
+## Phase 4: US3 — CORS Silent Reject + JSON Error Handlers
+
+**Goal**: Unauthorized CORS origins return no CORS headers (not 500); all unmatched routes return JSON 404; uncaught errors return JSON 500.
+
+**Independent Test**:
+- `curl -H "Origin: https://evil.example.com" -si https://api.dev.mentalhelp.chat/api/settings` → no `Access-Control-Allow-Origin` header, no 500
+- `curl -si https://api.dev.mentalhelp.chat/api/nonexistent` → `{"success":false,"error":{"code":"NOT_FOUND",...}}`
+
+**Note**: T011–T013 all modify `chat-backend/src/index.ts` — execute sequentially.
+
+- [X] T011 [US3] Fix CORS origin callback in `chat-backend/src/index.ts`: change `callback(new Error('Not allowed by CORS'))` → `callback(null, false)`
+- [X] T012 [US3] Add JSON 404 catch-all handler in `chat-backend/src/index.ts` after all `app.use()` route registrations, before `startServer()`
+- [X] T013 [US3] Add global JSON error handler `(err: Error, _req: Request, res: Response, _next: NextFunction) => {...}` in `chat-backend/src/index.ts` after the 404 handler
+
+**Checkpoint**: index.ts has CORS fix, 404 handler, and error handler in correct order.
+
+- [X] T014 [US3] Open PR — https://github.com/MentalHelpGlobal/chat-backend/pull/162
+
+---
+
+## Phase 5: US1 (continued) — Frontend CVE PRs
+
+**Goal**: Get npm audit fix branches merged for chat-frontend and workbench-frontend.
+
+- [X] T015 [P] [US1] Open PR — https://github.com/MentalHelpGlobal/chat-frontend/pull/111
+- [X] T016 [P] [US1] Open PR — https://github.com/MentalHelpGlobal/workbench-frontend/pull/85
+
+---
+
+## Phase 6: US4 — Branch Protection on develop
+
+**Goal**: `develop` branch in all 3 repos requires at least 1 approving review; force-push and deletion blocked.
+
+**Independent Test**: `gh api repos/MentalHelpGlobal/<repo>/branches/develop/protection` returns 200 with `required_pull_request_reviews.required_approving_review_count >= 1` for each repo.
+
+**Note**: GitHub API calls only — no source code changes. All three can run in parallel.
+
+- [X] T017 [P] [US4] Enable branch protection on `develop` in `MentalHelpGlobal/chat-backend` — confirmed required_approving_review_count:1, allow_force_pushes:false, allow_deletions:false
+- [X] T018 [P] [US4] Enable branch protection on `develop` in `MentalHelpGlobal/chat-frontend` — confirmed
+- [X] T019 [P] [US4] Enable branch protection on `develop` in `MentalHelpGlobal/workbench-frontend` — confirmed
+- [X] T020 [US4] Verify protection active: all 3 repos return required_approving_review_count:1 ✅
+
+**Checkpoint**: All three repos enforce PR review on `develop`.
+
+---
+
+## Phase 7: US5 — GCP IAM Least-Privilege
+
+**Goal**: Neither `942889188964-compute@developer.gserviceaccount.com` nor `ai-devops@mental-help-global-25.iam.gserviceaccount.com` holds `roles/owner`.
+
+**Independent Test**: `gcloud projects get-iam-policy mental-help-global-25` shows neither SA under the `roles/owner` binding.
+
+- [X] T021 [US5] Pre-condition: ai-devops SA confirmed as ACTIVE infra scripts identity (retains roles/owner). Only Default Compute SA (942889188964-compute@) is in scope for owner removal.
+- [X] T022 [US5] Create `chat-infra/scripts/security-hardening-2026-03-12.sh` — removes roles/owner from Default Compute SA only; ai-devops@ intentionally out of scope
+- [X] T023 [US5] Run script — Default Compute SA roles/owner removed; 4 scoped roles remain
+- [X] T024 [US5] Verify: roles/owner = {clara@, tarasb@, ai-devops@}. Compute SA removed. ✅
+- [X] T025 [US5] Open PR — https://github.com/MentalHelpGlobal/chat-infra/pull/10 (updated with corrected scope)
+
+**Checkpoint**: Both SAs removed from `roles/owner`; ai-devops has 6 scoped roles; CI/CD deployments still succeed.
+
+---
+
+## Phase 8: US6 — Prod OTP Email Provider Verification
+
+**Goal**: Prod Cloud Run `chat-backend` has `EMAIL_PROVIDER` not set to `console`.
+
+**Independent Test**: `gcloud run services describe chat-backend --region=europe-west1 --project=mental-help-global-25 --format="yaml(spec.template.spec.containers[0].env)"` shows `EMAIL_PROVIDER=gmail` or variable absent.
+
+- [X] T026 [US6] Read prod Cloud Run env vars: EMAIL_PROVIDER=gmail confirmed ✅
+- [X] T027 [US6] Already compliant — no update needed
+
+**Checkpoint**: Prod OTP provider confirmed non-console.
+
+---
+
+## Phase 9: Polish & Smoke Tests
+
+**Purpose**: Post-deploy verification that all changes are live and functional on dev.
+
+- [ ] T028 [P] Smoke test US2 headers: `curl -si https://api.dev.mentalhelp.chat/api/settings` — verify `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy` present; `X-Powered-By` absent — **BLOCKED: awaiting chat-backend PR #162 merge + dev deploy**
+- [ ] T029 [P] Smoke test US3 CORS: `curl -H "Origin: https://evil.example.com" -si https://api.dev.mentalhelp.chat/api/settings` — verify no `Access-Control-Allow-Origin` header and no HTTP 500 — **BLOCKED: awaiting PR #162**
+- [ ] T030 [P] Smoke test US3 404: `curl -si https://api.dev.mentalhelp.chat/api/nonexistent` — verify HTTP 404 with `{"success":false,"error":{"code":"NOT_FOUND",...}}` — **BLOCKED: awaiting PR #162**
+- [X] T031 vite-plugin-pwa HIGH advisory documented in commit messages on both frontend PRs (#111, #85) as accepted known risk pending upstream fix
 
 ---
 
@@ -80,49 +142,65 @@ as fallback
 
 ### Phase Dependencies
 
-- **Phase 1 (Setup)**: No dependencies — start immediately
-- **Phase 2 (Mutation Fix)**: Depends on Phase 1; T003 and T004 can run in parallel (different functions, same file); T005 is in a different file and can also run in parallel
-- **Phase 3 (Migration)**: Can run in parallel with Phase 2 (independent artifact — SQL file)
-- **Phase 4 (Query Enhancement)**: Can run in parallel with Phase 2 and Phase 3 (different file); T007 and T008 are in the same file but modify different functions
-- **Phase 5 (Verification)**: Depends on Phases 2, 3, and 4 being complete
+- **Phase 1 (Setup)**: No dependencies — start immediately; all 4 branches parallel
+- **Phase 2 (US1 npm fix)**: Depends on Phase 1 branches; all 3 repos parallel
+- **Phase 3 (US2 helmet)**: Depends on T005 (chat-backend npm fix committed for clean lockfile)
+- **Phase 4 (US3 CORS/404)**: Depends on Phase 3 (same file; batch into single chat-backend PR)
+- **Phase 5 (US1 PRs)**: Depends on Phase 2; both frontend PRs parallel
+- **Phase 6 (US4 branch protection)**: Independent — can run any time after Phase 1
+- **Phase 7 (US5 IAM)**: Independent — can run in parallel with Phases 2–6; T021 pre-condition must pass before T023
+- **Phase 8 (US6 prod check)**: Independent — can run any time; no code changes unless EMAIL_PROVIDER=console
+- **Phase 9 (Polish/smoke)**: Depends on chat-backend T014 PR merged and deployed to dev
 
-### Parallel Opportunities
+### Parallel Workstreams
 
 ```
-Phase 2 (T003, T004, T005)  ─┐
-Phase 3 (T006)               ├──→ Phase 5 (T009–T014)
-Phase 4 (T007, T008)        ─┘
+Phase 1 (T001–T004, parallel) ──────────────────────────────────────────────────┐
+                                                                                 │
+Stream A: T005 → T009 → T010 → T011 → T012 → T013 → T014  (chat-backend)       │
+Stream B: T006 → T015  (chat-frontend)                      ├── Phase 9 (T028–T031)
+Stream C: T007 → T016  (workbench-frontend)                 │
+Stream D: T017, T018, T019 → T020  (branch protection)     │
+Stream E: T021 → T022 → T023 → T024 → T025  (IAM)          │
+Stream F: T026 → T027  (prod email)                        ─┘
 ```
 
-All implementation tasks in Phases 2–4 touch different functions or
-files and can be executed in parallel.
+### Within-Story Task Order
+
+- US1: npm fix → verify → PR (Streams A/B/C)
+- US2: install helmet → add middleware (sequential in index.ts)
+- US3: fix CORS callback → add 404 handler → add error handler (sequential in index.ts)
+- US4: PUT protection (parallel) → verify (sequential)
+- US5: pre-condition check → create script → run script → verify → PR
+- US6: describe env → update if needed
 
 ---
 
 ## Implementation Strategy
 
-### Execution Plan
+### Single-developer sequence
 
-1. Complete Phase 1: Create branch
-2. Execute Phases 2, 3, 4 in parallel (all touch different code paths)
-3. Complete Phase 5: Test, PR, merge
-4. Deploy to dev and verify
-5. Promote to production via release cycle (Principle IV / XII)
+1. Phase 1: Create all 4 branches (parallel — fast)
+2. T005, T006, T007: npm audit fix in all 3 repos (parallel)
+3. T008: Verify 0 critical/high across repos
+4. T009, T010: Install and configure helmet in chat-backend
+5. T011–T013: CORS fix + error handlers in chat-backend/src/index.ts
+6. T014–T016: Open PRs for all three repos
+7. T017–T020: Enable branch protection (API calls — fast)
+8. T021–T025: IAM pre-check → script → run → verify → PR
+9. T026–T027: Prod env check
+10. T028–T031: Smoke tests after chat-backend deploy
 
-### Risk Mitigation
+### Total: 31 tasks
 
-- Each phase has a checkpoint for incremental verification
-- Migration is non-destructive (sets previously NULL fields)
-- Query enhancement is additive (preserves existing fast path)
-- All code changes follow the existing `setGroupMembershipRole()` pattern
-
----
-
-## Notes
-
-- This is a backend-only bugfix in `chat-backend` — no cross-repo changes
-- No UI changes — responsive/PWA checks are N/A
-- Release Notes entry required when promoting to production
-- No Jira Epic currently exists; create via `/speckit.specify` if needed
-- Total tasks: 14
-- Parallel tasks: T003+T004+T005 (Phase 2), T007+T008 (Phase 4), Phase 2+3+4 across phases
+| Workstream | Tasks | Count |
+|------------|-------|-------|
+| Setup (branches) | T001–T004 | 4 |
+| US1 (npm CVEs) | T005–T008, T015–T016 | 6 |
+| US2 (helmet) | T009–T010 | 2 |
+| US3 (CORS/404) | T011–T014 | 4 |
+| US4 (branch protection) | T017–T020 | 4 |
+| US5 (IAM) | T021–T025 | 5 |
+| US6 (prod email) | T026–T027 | 2 |
+| Polish/smoke | T028–T031 | 4 |
+| **Total** | | **31** |
