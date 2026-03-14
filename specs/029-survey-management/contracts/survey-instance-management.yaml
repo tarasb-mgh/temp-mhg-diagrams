@@ -1,0 +1,309 @@
+openapi: 3.1.0
+info:
+  title: Survey Instance Management API (029)
+  version: "1.0"
+  description: |
+    New and updated endpoints for survey instance expiration date editing,
+    group reassignment, and completion statistics.
+
+servers:
+  - url: https://api.dev.mentalhelp.chat
+    description: Dev environment
+  - url: https://api.mentalhelp.chat
+    description: Production environment
+
+paths:
+  /workbench/survey-instances/{id}:
+    patch:
+      summary: Update survey instance (expiration date and/or group assignment)
+      description: |
+        Updates mutable fields of a survey instance. Supports partial update —
+        only provided fields are changed. Existing responses are never deleted
+        by a group assignment change.
+
+        Status re-activation: if the instance is `expired` and `expirationDate`
+        is updated to a future datetime, the status is reset to `active`.
+      operationId: patchSurveyInstance
+      tags: [Survey Instances]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SurveyInstanceUpdateInput'
+            examples:
+              updateExpirationOnly:
+                summary: Extend expiration date
+                value:
+                  expirationDate: "2026-04-30T23:59:59Z"
+              updateGroupsOnly:
+                summary: Reassign to different group
+                value:
+                  groupIds: ["a1b2c3d4-0000-0000-0000-000000000001"]
+              updateBoth:
+                summary: Update both expiration and groups
+                value:
+                  expirationDate: "2026-04-30T23:59:59Z"
+                  groupIds:
+                    - "a1b2c3d4-0000-0000-0000-000000000001"
+                    - "a1b2c3d4-0000-0000-0000-000000000002"
+      responses:
+        '200':
+          description: Updated survey instance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/SurveyInstance'
+        '400':
+          description: Validation error (past date, empty groupIds, no fields provided)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                pastDate:
+                  value:
+                    success: false
+                    error:
+                      code: VALIDATION_ERROR
+                      message: "expirationDate must be a future date"
+                emptyGroups:
+                  value:
+                    success: false
+                    error:
+                      code: VALIDATION_ERROR
+                      message: "groupIds must be a non-empty array"
+                noFields:
+                  value:
+                    success: false
+                    error:
+                      code: VALIDATION_ERROR
+                      message: "At least one field (expirationDate or groupIds) must be provided"
+        '403':
+          description: Missing SURVEY_INSTANCE_MANAGE permission
+        '404':
+          description: Survey instance not found
+        '409':
+          description: Instance is closed — closed instances cannot be modified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                value:
+                  success: false
+                  error:
+                    code: INSTANCE_CLOSED
+                    message: "Cannot modify a closed survey instance"
+
+  /workbench/survey-instances/{id}/statistics:
+    get:
+      summary: Get completion statistics for a survey instance
+      description: |
+        Returns per-group completion statistics for the survey instance,
+        including the list of all members with their individual completion status.
+        Scoped to the currently assigned groups (instance.groupIds).
+
+        The `nonCompleters` view can be derived client-side by filtering
+        `members` where `isComplete = false`.
+      operationId: getSurveyInstanceStatistics
+      tags: [Survey Instances]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: groupId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: |
+            Optional. If provided, returns statistics for that group only.
+            Must be one of the instance's currently assigned groupIds.
+      responses:
+        '200':
+          description: Survey instance statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/SurveyInstanceStatistics'
+              example:
+                success: true
+                data:
+                  instanceId: "inst-uuid-001"
+                  groups:
+                    - groupId: "group-uuid-001"
+                      groupName: "Therapy Group A"
+                      totalMembers: 10
+                      completedCount: 7
+                      pendingCount: 3
+                      completionRate: 0.7
+                      members:
+                        - userId: "user-uuid-001"
+                          displayName: "Alice Smith"
+                          email: "alice@example.com"
+                          isComplete: true
+                          completedAt: "2026-03-13T14:22:00Z"
+                        - userId: "user-uuid-002"
+                          displayName: "Bob Jones"
+                          email: "bob@example.com"
+                          isComplete: false
+                          completedAt: null
+        '400':
+          description: groupId query param is not one of the instance's assigned groups
+        '403':
+          description: Missing SURVEY_INSTANCE_MANAGE or SURVEY_INSTANCE_VIEW permission
+        '404':
+          description: Survey instance not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    SurveyInstanceUpdateInput:
+      type: object
+      description: Partial update for a survey instance. At least one field required.
+      properties:
+        expirationDate:
+          type: string
+          format: date-time
+          description: New expiration datetime (ISO 8601). Must be a future datetime.
+          example: "2026-04-30T23:59:59Z"
+        groupIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          description: Replacement group assignment. Replaces existing groupIds entirely.
+          example: ["a1b2c3d4-0000-0000-0000-000000000001"]
+      minProperties: 1
+
+    SurveyMemberCompletion:
+      type: object
+      required: [userId, displayName, email, isComplete, completedAt]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        email:
+          type: string
+          format: email
+        isComplete:
+          type: boolean
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    SurveyGroupStatistics:
+      type: object
+      required: [groupId, groupName, totalMembers, completedCount, pendingCount, completionRate, members]
+      properties:
+        groupId:
+          type: string
+          format: uuid
+        groupName:
+          type: string
+        totalMembers:
+          type: integer
+          minimum: 0
+        completedCount:
+          type: integer
+          minimum: 0
+        pendingCount:
+          type: integer
+          minimum: 0
+        completionRate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: completedCount / totalMembers; 0 when totalMembers = 0
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/SurveyMemberCompletion'
+
+    SurveyInstanceStatistics:
+      type: object
+      required: [instanceId, groups]
+      properties:
+        instanceId:
+          type: string
+          format: uuid
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/SurveyGroupStatistics'
+
+    SurveyInstance:
+      type: object
+      description: Existing SurveyInstance type (see chat-types)
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, expired, closed]
+        groupIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        expirationDate:
+          type: string
+          format: date-time
+        startDate:
+          type: string
+          format: date-time
+        completedCount:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
