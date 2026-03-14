@@ -122,8 +122,8 @@
 - [X] T029 [P] Write Vitest unit tests for `getInstanceStatistics()` covering: correct completer/non-completer split, `completionRate=0` when no members, `groupIdFilter` validation (400 when not assigned), 404 on missing instance — in `D:\src\MHG\chat-backend\src\services\surveyInstance.service.test.ts`
 - [X] T030 [P] Write Vitest unit tests for `updateInstance()` groupIds handling: non-empty validation, `group_survey_order` insert for added groups, delete for removed groups, responses not deleted — in `D:\src\MHG\chat-backend\src\services\surveyInstance.service.test.ts`
 - [X] T031 Validate accessibility on `InstanceEditModal` (focus trap, ESC, label associations) and `SurveyStatisticsView` (table `<caption>`, progress bar ARIA) in `D:\src\MHG\workbench-frontend\src\features\workbench\surveys\components\`
-- [ ] T032 Run quickstart.md validation scenarios against `https://workbench.dev.mentalhelp.chat` and capture screenshots as evidence in `D:\src\MHG\client-spec\specs\029-survey-management\evidence\`
-- [ ] T033 Update Confluence User Manual page for Survey Instance Management with screenshots captured via Playwright MCP against `https://workbench.dev.mentalhelp.chat` (add sections: Edit Expiration Date, Change Group Assignment, View Completion Statistics)
+- [X] T032 Run quickstart.md validation scenarios against `https://workbench.dev.mentalhelp.chat` and capture screenshots as evidence in `D:\src\MHG\client-spec\specs\029-survey-management\evidence\`
+- [X] T033 Update Confluence User Manual page for Survey Instance Management with screenshots captured via Playwright MCP against `https://workbench.dev.mentalhelp.chat` (add sections: Edit Expiration Date, Change Group Assignment, View Completion Statistics)
 
 ---
 
