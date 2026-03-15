@@ -17,15 +17,15 @@
 
 **Purpose**: Branch setup and shared type definitions in chat-types — must precede all backend/frontend work
 
-- [ ] T001 Create feature branch `030-non-therapy-backlog` in chat-types, chat-backend, workbench-frontend, chat-infra, chat-ui (all from develop) — GH-37
-- [ ] T002 [P] Add identity types to chat-types: `src/identity.types.ts` — ConsentRecord, IdentityMapping, ErasureJob — GH-38
-- [ ] T003 [P] Add cohort types to chat-types: `src/cohort.types.ts` — Cohort, CohortMembership, InviteCode — GH-39
-- [ ] T004 [P] Add assessment types to chat-types: `src/assessment.types.ts` — AssessmentSession, AssessmentItem, AssessmentScore, ScoreTrajectory, AssessmentSchedule, RiskThreshold — GH-40
-- [ ] T005 [P] Add analytics types to chat-types: `src/analytics.types.ts` — AnalyticsEventType (8 variants), AnalyticsEvent, GDPRAuditEntry — GH-41
-- [ ] T006 [P] Add annotation types to chat-types: `src/annotation.types.ts` — Annotation, SamplingRun, KappaResult, CategoryMetrics, ModelMetrics — GH-42
-- [ ] T007 [P] Add AI filter types to chat-types: `src/ai-filter.types.ts` — FilterEvent, FilterResult, ScoreContextCache — GH-43
-- [ ] T008 Export all new types from chat-types `src/index.ts` barrel; bump package version; publish to GitHub Packages — GH-44
-- [ ] T009 Update chat-backend package.json to consume new chat-types version; run `npm install`; confirm TypeScript compilation passes — GH-45
+- [X] T001 Create feature branch `030-non-therapy-backlog` in chat-types, chat-backend, workbench-frontend, chat-infra, chat-ui (all from develop) — GH-37
+- [X] T002 [P] Add identity types to chat-types: `src/identity.types.ts` — ConsentRecord, IdentityMapping, ErasureJob — GH-38
+- [X] T003 [P] Add cohort types to chat-types: `src/cohort.types.ts` — Cohort, CohortMembership, InviteCode — GH-39
+- [X] T004 [P] Add assessment types to chat-types: `src/assessment.types.ts` — AssessmentSession, AssessmentItem, AssessmentScore, ScoreTrajectory, AssessmentSchedule, RiskThreshold — GH-40
+- [X] T005 [P] Add analytics types to chat-types: `src/analytics.types.ts` — AnalyticsEventType (8 variants), AnalyticsEvent, GDPRAuditEntry — GH-41
+- [X] T006 [P] Add annotation types to chat-types: `src/annotation.types.ts` — Annotation, SamplingRun, KappaResult, CategoryMetrics, ModelMetrics — GH-42
+- [X] T007 [P] Add AI filter types to chat-types: `src/ai-filter.types.ts` — FilterEvent, FilterResult, ScoreContextCache — GH-43
+- [X] T008 Export all new types from chat-types `src/index.ts` barrel; bump package version; publish to GitHub Packages — GH-44
+- [X] T009 Update chat-backend package.json to consume new chat-types version; run `npm install`; confirm TypeScript compilation passes — GH-45
 
 ---
 
@@ -35,14 +35,14 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T010 Write and run chat-infra script `scripts/030-create-identity-map-instance.sh` — creates `chat-identity-map-dev` Cloud SQL PostgreSQL 15 instance (private IP, no public IP, europe-central2) — GH-46
-- [ ] T011 Write and run chat-infra script `scripts/030-iam-identity-map-bindings.sh` — creates `auth-identity-map-sa` service account; binds `roles/cloudsql.client` to SA; adds IAM deny policy for all other SAs — GH-47
-- [ ] T012 Write and run chat-infra script `scripts/030-cloud-tasks-assessment-queue.sh` — creates `assessment-scheduler` Cloud Tasks queue in `mental-help-global-25`, region `europe-central2` — GH-48
-- [ ] T013 Write and run chat-infra script `scripts/030-audit-log-retention.sh` — configures Cloud Logging sink to Cloud Storage with 3-year lifecycle retention policy on `gdpr_audit_log` exports — GH-49
-- [ ] T014 Write data migration script `chat-backend/migrations/data/030-001-assign-pseudonymous-ids.ts` — assigns UUID v4 + per-user salt to any existing users before schema migration runs — GH-50
-- [ ] T015 Write and apply migration `chat-backend/migrations/030-001-pseudonymous-users.sql` — redesign `users` table: add `pseudonymous_user_id` UUID PK, `salt` BYTEA, `created_at`, `deleted_at`; remove all PII columns — GH-51
-- [ ] T016 Implement `chat-backend/src/auth/pii-rejection.middleware.ts` — Express middleware applied to all routes; compiles regex patterns for email, UA phone format, name-length strings at startup; returns 400 + logs to `gdpr_audit_log` on match — GH-52
-- [ ] T017 Add `pii-rejection.middleware.ts` to Express app entry point `chat-backend/src/app.ts` before all route handlers; write integration test `chat-backend/tests/integration/pii-rejection.test.ts` confirming 400 on PII input and pass-through on clean input — GH-53
+- [X] T010 Write and run chat-infra script `scripts/030-create-identity-map-instance.sh` — creates `chat-identity-map-dev` Cloud SQL PostgreSQL 15 instance (private IP, no public IP, europe-central2) — GH-46
+- [X] T011 Write and run chat-infra script `scripts/030-iam-identity-map-bindings.sh` — creates `auth-identity-map-sa` service account; binds `roles/cloudsql.client` to SA; adds IAM deny policy for all other SAs — GH-47
+- [X] T012 Write and run chat-infra script `scripts/030-cloud-tasks-assessment-queue.sh` — creates `assessment-scheduler` Cloud Tasks queue in `mental-help-global-25`, region `europe-central2` — GH-48
+- [X] T013 Write and run chat-infra script `scripts/030-audit-log-retention.sh` — configures Cloud Logging sink to Cloud Storage with 3-year lifecycle retention policy on `gdpr_audit_log` exports — GH-49
+- [X] T014 Write data migration script `chat-backend/migrations/data/030-001-assign-pseudonymous-ids.ts` — assigns UUID v4 + per-user salt to any existing users before schema migration runs — GH-50
+- [X] T015 Write and apply migration `chat-backend/migrations/030-001-pseudonymous-users.sql` — redesign `users` table: add `pseudonymous_user_id` UUID PK, `salt` BYTEA, `created_at`, `deleted_at`; remove all PII columns — GH-51
+- [X] T016 Implement `chat-backend/src/auth/pii-rejection.middleware.ts` — Express middleware applied to all routes; compiles regex patterns for email, UA phone format, name-length strings at startup; returns 400 + logs to `gdpr_audit_log` on match — GH-52
+- [X] T017 Add `pii-rejection.middleware.ts` to Express app entry point `chat-backend/src/app.ts` before all route handlers; write integration test `chat-backend/tests/integration/pii-rejection.test.ts` confirming 400 on PII input and pass-through on clean input — GH-53
 
 **Checkpoint**: Infrastructure provisioned, users table migrated, PII middleware active — user story phases can now begin
 
@@ -54,16 +54,16 @@
 
 **Independent Test**: Run `tests/integration/erasure-cascade.test.ts` — confirms identity_map deletion → FK nullification → audit log entry. Attempt cross-service identity map query → confirm 403.
 
-- [ ] T018 [US1] Write and apply migration `chat-backend/migrations/030-002-user-identity-map-remote.sql` — document that `user_identity_map` table resides on `chat-identity-map-dev` instance; create connection config in `chat-backend/src/db/identity-map.db.ts` using `auth-identity-map-sa` credentials — GH-54
-- [ ] T019 [US1] Implement `chat-backend/src/auth/identity-map.service.ts` — createIdentityMapping(), lookupPseudonymousId(), retireDeviceEntry() (for guest→OTP), deleteForErasure(); enforces auth-service-only access by catching connection errors from non-auth services — GH-55
-- [ ] T020 [US1] Implement `POST /auth/identity` endpoint in `chat-backend/src/auth/identity.controller.ts` — generates UUID v4 + per-user salt; writes to `users` (main DB) and `user_identity_map` (identity map DB); no PII in request or response — GH-56
-- [ ] T021 [US1] Implement `chat-backend/src/erasure/erasure-cascade.service.ts` — async job: (1) delete identity_map record, (2) nullify FK references in `sessions`, `assessment_scores`, `risk_flags`, `user_intake` via UPDATE SET pseudonymous_user_id = NULL WHERE ..., (3) set `users.deleted_at`, (4) write completion event to `gdpr_audit_log` — GH-57
-- [ ] T022 [US1] Implement `POST /gdpr/erasure` and `GET /gdpr/erasure/:jobId` endpoints in `chat-backend/src/erasure/erasure.controller.ts`; queue job via Cloud Tasks; return 202 with job_id — GH-58
-- [ ] T023 [US1] Implement `chat-backend/src/analytics/gdpr-audit.service.ts` — writeAuditEvent() writes to `gdpr_audit_log` table with event_type, actor, pseudonymous_user_id_hash (SHA-256), details JSONB, outcome — GH-59
-- [ ] T024 [US1] Write integration test `chat-backend/tests/integration/erasure-cascade.test.ts` — seed user with sessions + assessments + flags → submit erasure → verify identity_map deleted, all FK references nullified, audit log entry created, job status = completed — GH-60
-- [ ] T025 [US1] Verify cross-service access control: write test `chat-backend/tests/integration/identity-map-access-control.test.ts` — attempt identity_map query from session service SA → assert permission denied error → assert attempt logged to gdpr_audit_log — GH-61
-- [ ] T026 [US1] Run chat-infra script `scripts/030-audit-log-retention.sh` for prod; verify Cloud Logging sink and 3-year retention lifecycle policy via `gcloud logging sinks describe` — GH-62
-- [ ] T027 [US1] Verify Cloud SQL at-rest encryption: add verification step to `chat-infra/scripts/030-encryption-audit.sh` that queries `gcloud sql instances describe` for `diskEncryptionConfiguration`; output result to `evidence/T027/encryption-audit.txt` — GH-63
+- [X] T018 [US1] Write and apply migration `chat-backend/migrations/030-002-user-identity-map-remote.sql` — document that `user_identity_map` table resides on `chat-identity-map-dev` instance; create connection config in `chat-backend/src/db/identity-map.db.ts` using `auth-identity-map-sa` credentials — GH-54
+- [X] T019 [US1] Implement `chat-backend/src/auth/identity-map.service.ts` — createIdentityMapping(), lookupPseudonymousId(), retireDeviceEntry() (for guest→OTP), deleteForErasure(); enforces auth-service-only access by catching connection errors from non-auth services — GH-55
+- [X] T020 [US1] Implement `POST /auth/identity` endpoint in `chat-backend/src/auth/identity.controller.ts` — generates UUID v4 + per-user salt; writes to `users` (main DB) and `user_identity_map` (identity map DB); no PII in request or response — GH-56
+- [X] T021 [US1] Implement `chat-backend/src/erasure/erasure-cascade.service.ts` — async job: (1) delete identity_map record, (2) nullify FK references in `sessions`, `assessment_scores`, `risk_flags`, `user_intake` via UPDATE SET pseudonymous_user_id = NULL WHERE ..., (3) set `users.deleted_at`, (4) write completion event to `gdpr_audit_log` — GH-57
+- [X] T022 [US1] Implement `POST /gdpr/erasure` and `GET /gdpr/erasure/:jobId` endpoints in `chat-backend/src/erasure/erasure.controller.ts`; queue job via Cloud Tasks; return 202 with job_id — GH-58
+- [X] T023 [US1] Implement `chat-backend/src/analytics/gdpr-audit.service.ts` — writeAuditEvent() writes to `gdpr_audit_log` table with event_type, actor, pseudonymous_user_id_hash (SHA-256), details JSONB, outcome — GH-59
+- [X] T024 [US1] Write integration test `chat-backend/tests/integration/erasure-cascade.test.ts` — seed user with sessions + assessments + flags → submit erasure → verify identity_map deleted, all FK references nullified, audit log entry created, job status = completed — GH-60
+- [X] T025 [US1] Verify cross-service access control: write test `chat-backend/tests/integration/identity-map-access-control.test.ts` — attempt identity_map query from session service SA → assert permission denied error → assert attempt logged to gdpr_audit_log — GH-61
+- [X] T026 [US1] Run chat-infra script `scripts/030-audit-log-retention.sh` for prod; verify Cloud Logging sink and 3-year retention lifecycle policy via `gcloud logging sinks describe` — GH-62
+- [X] T027 [US1] Verify Cloud SQL at-rest encryption: add verification step to `chat-infra/scripts/030-encryption-audit.sh` that queries `gcloud sql instances describe` for `diskEncryptionConfiguration`; output result to `evidence/T027/encryption-audit.txt` — GH-63
 
 **Checkpoint**: US1 fully functional — DPO can trigger erasure, verify no PII in operational tables, confirm cross-service isolation
 
