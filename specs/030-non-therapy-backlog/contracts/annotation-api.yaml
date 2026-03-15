@@ -1,0 +1,392 @@
+openapi: 3.1.0
+info:
+  title: Annotation & ML Infrastructure API
+  version: "1.0"
+  description: |
+    Annotation blinding, transcript sampling, inter-rater reliability computation,
+    and model performance metrics (FR-030–FR-035).
+
+    Annotation blinding is enforced at the data layer.
+    Peer labels are not visible until all annotators for a transcript submit.
+
+servers:
+  - url: https://api.dev.mentalhelp.chat
+    description: Dev
+  - url: https://api.mentalhelp.chat
+    description: Prod
+
+paths:
+
+  /annotation/assignments:
+    post:
+      summary: Assign annotators to a transcript (FR-030)
+      description: |
+        Admin only. Assigns two or more annotators to the same transcript.
+        Creates annotation records with is_visible_to_peers = false.
+      tags: [Annotation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignAnnotatorsRequest'
+      responses:
+        '201':
+          description: Annotators assigned
+        '403':
+          description: Admin role required
+
+  /annotation/transcripts/{transcriptId}/my-assignment:
+    get:
+      summary: Get current annotator's assignment for a transcript (FR-030)
+      description: |
+        Returns the transcript content (PII-redacted) and any prior
+        annotations submitted by the current annotator only.
+        Peer annotations are NOT returned (blinding enforced).
+      tags: [Annotation]
+      parameters:
+        - name: transcriptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnotationAssignment'
+        '404':
+          description: No assignment for current user on this transcript
+
+  /annotation/transcripts/{transcriptId}/submit:
+    post:
+      summary: Submit annotation labels (FR-030)
+      description: |
+        Saves annotation labels for the current annotator.
+        If all annotators for this transcript have now submitted:
+          - Sets is_visible_to_peers = true for all annotations on this transcript
+          - Triggers kappa computation (FR-033)
+          - Notifies Clinical Lead if kappa < 0.6
+      tags: [Annotation]
+      parameters:
+        - name: transcriptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnotationSubmission'
+      responses:
+        '201':
+          description: Labels submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionResult'
+
+  /annotation/transcripts/{transcriptId}/adjudication:
+    get:
+      summary: Get adjudication view — all labels side by side (FR-030)
+      description: |
+        Available only after all annotators have submitted (is_visible_to_peers = true).
+        Returns all annotators' labels for side-by-side comparison.
+      tags: [Annotation]
+      parameters:
+        - name: transcriptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdjudicationView'
+        '403':
+          description: Not all annotators have submitted yet
+
+  /annotation/transcripts/{transcriptId}/kappa:
+    get:
+      summary: Get inter-rater reliability statistics (FR-033)
+      description: |
+        Returns Cohen's kappa (pairwise), weighted kappa (linear + quadratic),
+        Fleiss' kappa (if ≥3 raters), bootstrap CI (1,000 iterations),
+        and confusion matrices per label category.
+      tags: [Annotation]
+      parameters:
+        - name: transcriptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KappaResult'
+        '403':
+          description: Not all annotators have submitted yet
+
+  /annotation/sampling/runs:
+    post:
+      summary: Trigger a transcript sampling run (FR-032)
+      description: |
+        Admin only. Stratified sampling across flag_type, session_length,
+        region, severity. Logs random seed. Triggers PII auto-redaction
+        on selected transcripts before making them available to annotators.
+      tags: [Annotation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SamplingRunRequest'
+      responses:
+        '202':
+          description: Sampling run queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SamplingRunResponse'
+
+  /annotation/metrics:
+    get:
+      summary: Get model performance metrics (FR-034)
+      description: |
+        Returns sensitivity, specificity, PPV, NPV, FNR, F1, F-beta (β=4.47)
+        per label category and in aggregate.
+        Computed from ground-truth annotations (is_ground_truth = true).
+      tags: [Annotation]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelMetrics'
+
+components:
+  schemas:
+    AssignAnnotatorsRequest:
+      type: object
+      required: [transcript_id, annotator_ids]
+      properties:
+        transcript_id:
+          type: string
+          format: uuid
+        annotator_ids:
+          type: array
+          minItems: 2
+          items:
+            type: string
+            format: uuid
+
+    AnnotationAssignment:
+      type: object
+      properties:
+        transcript_id:
+          type: string
+          format: uuid
+        transcript_content:
+          type: object
+          description: PII-redacted transcript messages
+        my_labels:
+          type: array
+          description: Labels already submitted by the current annotator (may be empty)
+          items:
+            $ref: '#/components/schemas/AnnotationLabel'
+        peer_labels_visible:
+          type: boolean
+          description: True only after all annotators have submitted
+
+    AnnotationLabel:
+      type: object
+      required: [message_id, label_category, confidence]
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          nullable: true
+        label_category:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        rationale:
+          type: string
+          nullable: true
+
+    AnnotationSubmission:
+      type: object
+      required: [labels]
+      properties:
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnnotationLabel'
+
+    SubmissionResult:
+      type: object
+      properties:
+        all_annotators_submitted:
+          type: boolean
+        kappa_triggered:
+          type: boolean
+        kappa_alert_sent:
+          type: boolean
+          nullable: true
+
+    AdjudicationView:
+      type: object
+      properties:
+        transcript_id:
+          type: string
+          format: uuid
+        annotators:
+          type: array
+          items:
+            type: object
+            properties:
+              annotator_index:
+                type: integer
+                description: Anonymous index (not identity) for display
+              labels:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnnotationLabel'
+
+    KappaResult:
+      type: object
+      properties:
+        transcript_id:
+          type: string
+          format: uuid
+        pairwise_kappa:
+          type: array
+          items:
+            type: object
+            properties:
+              annotator_pair:
+                type: array
+                items:
+                  type: integer
+                description: Anonymous indices of the annotator pair
+              kappa:
+                type: number
+              ci_lower:
+                type: number
+              ci_upper:
+                type: number
+              ci_iterations:
+                type: integer
+                default: 1000
+        weighted_kappa_linear:
+          type: number
+          nullable: true
+        weighted_kappa_quadratic:
+          type: number
+          nullable: true
+        fleiss_kappa:
+          type: number
+          nullable: true
+          description: Populated if ≥3 raters
+        below_threshold_alert_sent:
+          type: boolean
+          description: True if kappa < 0.6 and Clinical Lead was alerted
+        confusion_matrices:
+          type: array
+          items:
+            type: object
+
+    SamplingRunRequest:
+      type: object
+      required: [sample_size]
+      properties:
+        sample_size:
+          type: integer
+          minimum: 1
+        stratification:
+          type: object
+          properties:
+            flag_types:
+              type: array
+              items:
+                type: string
+            session_length_buckets:
+              type: array
+              items:
+                type: string
+                enum: [short, medium, long]
+            regions:
+              type: array
+              items:
+                type: string
+            severity_bands:
+              type: array
+              items:
+                type: string
+
+    SamplingRunResponse:
+      type: object
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued]
+        random_seed:
+          type: string
+          description: Logged for reproducibility
+
+    ModelMetrics:
+      type: object
+      properties:
+        computed_at:
+          type: string
+          format: date-time
+        ground_truth_count:
+          type: integer
+        per_category:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryMetrics'
+        aggregate:
+          $ref: '#/components/schemas/CategoryMetrics'
+
+    CategoryMetrics:
+      type: object
+      properties:
+        label_category:
+          type: string
+          nullable: true
+          description: Null for aggregate row
+        sensitivity:
+          type: number
+        specificity:
+          type: number
+        ppv:
+          type: number
+          description: Positive predictive value (precision)
+        npv:
+          type: number
+          description: Negative predictive value
+        fnr:
+          type: number
+          description: False negative rate (miss rate)
+        f1:
+          type: number
+        f_beta:
+          type: number
+          description: F-beta with β=4.47 (20:1 FN:FP cost asymmetry)

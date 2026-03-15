@@ -1,0 +1,276 @@
+openapi: 3.1.0
+info:
+  title: Analytics & RBAC API
+  version: "1.0"
+  description: |
+    Analytics event instrumentation, GDPR audit log, and dashboard access control (FR-025–FR-029).
+
+    All analytics endpoints enforce role-based access at the API layer (FR-027).
+    Cohort-level queries apply k=10 suppression (FR-026).
+
+servers:
+  - url: https://api.dev.mentalhelp.chat
+    description: Dev
+  - url: https://api.mentalhelp.chat
+    description: Prod
+
+paths:
+
+  /analytics/events:
+    post:
+      summary: Record analytics event (FR-025)
+      description: |
+        Records one of the 8 instrumented event types.
+        Accepts pseudonymous_user_id + cohort_id + event_type + metadata.
+        No PII permitted in metadata.
+      tags: [Analytics]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyticsEvent'
+      responses:
+        '201':
+          description: Event recorded
+        '400':
+          description: Invalid event type or PII detected in metadata
+
+  /analytics/cohorts/{cohortId}/outcomes:
+    get:
+      summary: Get cohort outcome summary (FR-026, FR-027)
+      description: |
+        Admin: full access. Supervisor: own cohorts only (FR-027).
+        Returns 403 for cross-cohort access. Applies k=10 suppression (FR-026).
+        Returns empty result with suppression_reason if cohort < 10 members.
+      tags: [Analytics]
+      parameters:
+        - name: cohortId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: instrument_type
+          in: query
+          schema:
+            type: string
+            enum: [PHQ9, GAD7, PCL5, WHO5]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CohortOutcomeSummary'
+        '403':
+          description: Insufficient role or cohort not in supervisor's assignments
+        '404':
+          description: Cohort not found
+
+  /gdpr/audit-log:
+    get:
+      summary: Query GDPR audit log (FR-028)
+      description: |
+        Admin role only. Returns paginated audit events with filtering.
+        Alerts flagged for erasure requests not completed within 30 days.
+      tags: [GDPR]
+      parameters:
+        - name: event_type
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogPage'
+        '403':
+          description: Admin role required
+
+  /gdpr/audit-log/export:
+    post:
+      summary: Export GDPR audit log as CSV (FR-029)
+      description: |
+        Admin only. Exports metadata only — no clinical data, no assessment scores.
+        Logs this export event itself to gdpr_audit_log.
+      tags: [GDPR]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+        '403':
+          description: Admin role required
+
+components:
+  schemas:
+    AnalyticsEvent:
+      type: object
+      required: [event_type, occurred_at]
+      properties:
+        event_type:
+          type: string
+          enum:
+            - session_start
+            - session_end
+            - message_sent
+            - assessment_completed
+            - assessment_abandoned
+            - flag_created
+            - flag_resolved
+            - review_submitted
+        pseudonymous_user_id:
+          type: string
+          format: uuid
+          nullable: true
+        cohort_id:
+          type: string
+          format: uuid
+          nullable: true
+        occurred_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          description: Event-specific fields. No PII permitted.
+
+    CohortOutcomeSummary:
+      type: object
+      properties:
+        cohort_id:
+          type: string
+          format: uuid
+        member_count:
+          type: integer
+        suppressed:
+          type: boolean
+          description: True if member_count < 10 — no aggregate data returned
+        suppression_reason:
+          type: string
+          nullable: true
+          description: Human-readable reason if suppressed
+        outcomes:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              instrument_type:
+                type: string
+              period_start:
+                type: string
+                format: date
+              period_end:
+                type: string
+                format: date
+              mean_score:
+                type: number
+              improvement_rate:
+                type: number
+                description: Fraction of users with clinically_meaningful_improvement
+
+    AuditLogPage:
+      type: object
+      properties:
+        total_count:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        alerts:
+          type: array
+          description: Erasure requests not completed within 30 days
+          items:
+            type: object
+            properties:
+              job_id:
+                type: string
+                format: uuid
+              requested_at:
+                type: string
+                format: date-time
+              days_overdue:
+                type: integer
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+
+    AuditLogEntry:
+      type: object
+      properties:
+        audit_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+        actor:
+          type: string
+        pseudonymous_user_id_hash:
+          type: string
+          nullable: true
+        details:
+          type: object
+        occurred_at:
+          type: string
+          format: date-time
+        outcome:
+          type: string
+          enum: [success, failure, pending]
+
+    ExportRequest:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        event_types:
+          type: array
+          items:
+            type: string
+          description: If empty, exports all event types

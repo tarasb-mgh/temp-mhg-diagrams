@@ -1,0 +1,336 @@
+openapi: 3.1.0
+info:
+  title: Identity & Consent API
+  version: "1.0"
+  description: |
+    Pseudonymous identity management, GDPR erasure, consent versioning,
+    and cohort onboarding (FR-001–FR-014).
+
+    All endpoints require Bearer JWT authentication.
+    Identity map queries are auth-service-internal only.
+
+servers:
+  - url: https://api.dev.mentalhelp.chat
+    description: Dev
+  - url: https://api.mentalhelp.chat
+    description: Prod
+
+paths:
+
+  /auth/identity:
+    post:
+      summary: Create pseudonymous identity (FR-001, FR-002)
+      description: |
+        Called at account creation. Generates UUID v4 + per-user salt.
+        Writes to users table (main DB) and user_identity_map (identity map DB).
+        No PII in request or response body.
+      tags: [Identity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIdentityRequest'
+      responses:
+        '201':
+          description: Identity created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResponse'
+        '400':
+          description: PII detected in request (FR-004)
+        '409':
+          description: Credential already registered
+
+  /auth/identity/upgrade:
+    post:
+      summary: Guest→OTP upgrade (FR-014)
+      description: |
+        Merges a device UUID session into an OTP-verified session.
+        Preserves pseudonymous_user_id. Marks old device UUID entry as upgraded.
+      tags: [Identity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpgradeRequest'
+      responses:
+        '200':
+          description: Upgrade successful — same pseudonymous_user_id returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResponse'
+        '404':
+          description: Device UUID session not found
+        '409':
+          description: Phone already registered under a different identity
+
+  /gdpr/erasure:
+    post:
+      summary: Request right-to-erasure cascade (FR-003)
+      description: |
+        Queues an async erasure job. Deletes identity_map record,
+        nullifies FK references in all operational tables, sets deleted_at.
+        Logs start and completion to gdpr_audit_log.
+        Admin or user-initiated (verified via token claims).
+      tags: [GDPR]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ErasureRequest'
+      responses:
+        '202':
+          description: Erasure queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErasureJobResponse'
+        '404':
+          description: Pseudonymous user ID not found
+
+  /gdpr/erasure/{jobId}:
+    get:
+      summary: Check erasure job status (FR-003)
+      tags: [GDPR]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErasureJobStatus'
+
+  /consent:
+    post:
+      summary: Record consent affirmation (FR-008)
+      description: |
+        Creates a new consent_record. Called after user explicitly affirms consent.
+        No DB write for health data may precede this call (FR-010).
+      tags: [Consent]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentRequest'
+      responses:
+        '201':
+          description: Consent recorded
+        '400':
+          description: Invalid consent version or categories
+
+  /consent/current:
+    get:
+      summary: Get current consent status for authenticated user (FR-008, FR-009)
+      tags: [Consent]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentStatus'
+        '404':
+          description: No consent record on file — user must consent before proceeding
+
+  /cohorts:
+    post:
+      summary: Create cohort invite code (FR-011)
+      description: |
+        Generates 8-char uppercase alphanumeric code.
+        Org-level only — no individual codes.
+        Returns code, QR data URL (300 DPI), and cohort ID.
+      tags: [Cohort]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCohortRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CohortResponse'
+        '403':
+          description: Insufficient role (admin only)
+
+  /cohorts/join:
+    post:
+      summary: Join cohort via invite code (FR-011, FR-013)
+      description: |
+        Validates invite code, checks expiry (FR-013), and creates cohort_membership.
+        Returns 410 if code expired. Returns 403 if code deactivated.
+        No PII stored.
+      tags: [Cohort]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinCohortRequest'
+      responses:
+        '201':
+          description: Joined cohort
+        '404':
+          description: Code not found
+        '410':
+          description: Code expired (FR-013)
+        '403':
+          description: Code deactivated
+
+components:
+  schemas:
+    CreateIdentityRequest:
+      type: object
+      required: [auth_credential_hash, auth_method]
+      properties:
+        auth_credential_hash:
+          type: string
+          description: SHA-256 of phone hash or device UUID — never raw PII
+        auth_method:
+          type: string
+          enum: [otp_phone, google_oauth, device_uuid]
+
+    IdentityResponse:
+      type: object
+      properties:
+        pseudonymous_user_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
+    UpgradeRequest:
+      type: object
+      required: [device_credential_hash, otp_credential_hash]
+      properties:
+        device_credential_hash:
+          type: string
+        otp_credential_hash:
+          type: string
+
+    ErasureRequest:
+      type: object
+      required: [pseudonymous_user_id]
+      properties:
+        pseudonymous_user_id:
+          type: string
+          format: uuid
+        initiated_by:
+          type: string
+          enum: [user_request, admin_request, legal_request]
+
+    ErasureJobResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued]
+        estimated_completion:
+          type: string
+          format: date-time
+          description: Within 24 hours
+
+    ErasureJobStatus:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, in_progress, completed, failed]
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        sla_met:
+          type: boolean
+          nullable: true
+
+    ConsentRequest:
+      type: object
+      required: [consent_version, accepted_categories, method]
+      properties:
+        consent_version:
+          type: string
+        accepted_categories:
+          type: array
+          items:
+            type: integer
+            enum: [1, 2, 3]
+        method:
+          type: string
+          enum: [explicit_tap, re_consent_prompt]
+
+    ConsentStatus:
+      type: object
+      properties:
+        has_valid_consent:
+          type: boolean
+        current_version:
+          type: string
+        accepted_categories:
+          type: array
+          items:
+            type: integer
+        consented_at:
+          type: string
+          format: date-time
+        requires_reconsent:
+          type: boolean
+
+    CreateCohortRequest:
+      type: object
+      required: [organisation_id, region]
+      properties:
+        organisation_id:
+          type: string
+          format: uuid
+        region:
+          type: string
+        role_category:
+          type: string
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CohortResponse:
+      type: object
+      properties:
+        cohort_id:
+          type: string
+          format: uuid
+        invite_code:
+          type: string
+          pattern: '^[A-HJ-NP-Z2-9]{8}$'
+        qr_data_url:
+          type: string
+          description: Base64 PNG data URL at ≥300 DPI
+        member_count:
+          type: integer
+
+    JoinCohortRequest:
+      type: object
+      required: [invite_code]
+      properties:
+        invite_code:
+          type: string

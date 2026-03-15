@@ -1,0 +1,380 @@
+openapi: 3.1.0
+info:
+  title: Assessment Data API
+  version: "1.0"
+  description: |
+    Clinical assessment schema endpoints (FR-015–FR-021).
+    Append-only assessment storage, longitudinal trajectories,
+    score aggregation, assessment scheduling, and risk threshold configuration.
+
+    All endpoints require Bearer JWT + Category 3 consent check (FR-009).
+
+servers:
+  - url: https://api.dev.mentalhelp.chat
+    description: Dev
+  - url: https://api.mentalhelp.chat
+    description: Prod
+
+paths:
+
+  /assessments/sessions:
+    post:
+      summary: Create assessment session (FR-015)
+      description: |
+        Starts an assessment session. Status set to in_progress.
+        Checks Category 3 consent before writing (FR-009).
+        PII-rejection middleware runs on all inputs (FR-004).
+      tags: [Assessment]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentSession'
+        '403':
+          description: Category 3 consent not given
+
+  /assessments/sessions/{sessionId}/items:
+    post:
+      summary: Record item response (FR-015)
+      description: Appends item response to assessment_items. Append-only.
+      tags: [Assessment]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemResponse'
+      responses:
+        '201':
+          description: Item recorded
+        '404':
+          description: Session not found
+        '409':
+          description: Item already recorded for this index
+
+  /assessments/sessions/{sessionId}/complete:
+    post:
+      summary: Complete assessment session and compute score (FR-015, FR-016)
+      description: |
+        Sets status=completed, computes total_score + severity_band,
+        stores scoring_key_hash, writes to assessment_scores.
+        Triggers score_trajectories view refresh (async).
+        Triggers Cloud Tasks scheduler update (FR-019).
+        Invalidates score context cache (FR-024).
+      tags: [Assessment]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentScore'
+
+  /assessments/sessions/{sessionId}/abandon:
+    post:
+      summary: Mark assessment as abandoned (FR-015)
+      description: |
+        Sets status=abandoned. Records last_question_index in metadata.
+        Logs assessment_abandoned analytics event (FR-025).
+        Does NOT compute a score.
+      tags: [Assessment]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session marked abandoned
+
+  /assessments/trajectories/{pseudonymousUserId}:
+    get:
+      summary: Get score trajectories for a user (FR-016, FR-017)
+      description: |
+        Returns data from score_trajectories materialised view.
+        Internal endpoint — supervisor + admin access only.
+        Supervisor scoping enforced (FR-027): must be in supervisor's cohort.
+        p95 < 200ms target.
+      tags: [Assessment]
+      parameters:
+        - name: pseudonymousUserId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: instrument_type
+          in: query
+          schema:
+            type: string
+            enum: [PHQ9, GAD7, PCL5, WHO5]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreTrajectories'
+        '403':
+          description: User not in supervisor's cohort
+
+  /assessments/schedule/{pseudonymousUserId}:
+    get:
+      summary: Get assessment schedule for a user (FR-019)
+      tags: [Assessment]
+      parameters:
+        - name: pseudonymousUserId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentSchedule'
+
+    patch:
+      summary: Pause or defer assessment schedule (FR-019)
+      tags: [Assessment]
+      parameters:
+        - name: pseudonymousUserId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scheduler_paused:
+                  type: boolean
+      responses:
+        '200':
+          description: Schedule updated
+
+  /assessments/thresholds:
+    get:
+      summary: List active risk thresholds (FR-020)
+      description: Returns thresholds with effective_from <= now
+      tags: [Assessment]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RiskThreshold'
+
+    post:
+      summary: Create new risk threshold (FR-020)
+      description: |
+        Clinical lead only. New threshold effective from now.
+        Prior thresholds remain valid for assessments administered before effective_from.
+        Logs configuration change to gdpr_audit_log.
+      tags: [Assessment]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateThresholdRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskThreshold'
+        '403':
+          description: Clinical lead role required
+
+components:
+  schemas:
+    CreateSessionRequest:
+      type: object
+      required: [instrument_id]
+      properties:
+        instrument_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Associated chat session ID (optional)
+
+    AssessmentSession:
+      type: object
+      properties:
+        assessment_session_id:
+          type: string
+          format: uuid
+        instrument_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [in_progress, completed, abandoned]
+        administered_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ItemResponse:
+      type: object
+      required: [item_index, item_key, response_value]
+      properties:
+        item_index:
+          type: integer
+          minimum: 0
+        item_key:
+          type: string
+        response_value:
+          type: integer
+          minimum: 0
+          maximum: 4
+
+    AssessmentScore:
+      type: object
+      properties:
+        score_id:
+          type: string
+          format: uuid
+        instrument_type:
+          type: string
+          enum: [PHQ9, GAD7, PCL5, WHO5]
+        total_score:
+          type: integer
+        severity_band:
+          type: string
+          enum: [minimal, mild, moderate, moderately_severe, severe]
+        instrument_version:
+          type: string
+        computed_at:
+          type: string
+          format: date-time
+
+    ScoreTrajectories:
+      type: object
+      properties:
+        pseudonymous_user_id:
+          type: string
+          format: uuid
+        trajectories:
+          type: array
+          items:
+            type: object
+            properties:
+              instrument_type:
+                type: string
+              scores:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    total_score:
+                      type: integer
+                    severity_band:
+                      type: string
+                    administered_at:
+                      type: string
+                      format: date-time
+                    rolling_30d_mean:
+                      type: number
+                      nullable: true
+                    rci:
+                      type: number
+                      nullable: true
+                    clinically_meaningful_improvement:
+                      type: boolean
+                      nullable: true
+
+    AssessmentSchedule:
+      type: object
+      properties:
+        schedule_id:
+          type: string
+          format: uuid
+        instrument_type:
+          type: string
+        next_trigger_at:
+          type: string
+          format: date-time
+        deferral_count:
+          type: integer
+        scheduler_paused:
+          type: boolean
+        last_severity_band:
+          type: string
+          nullable: true
+
+    RiskThreshold:
+      type: object
+      properties:
+        threshold_id:
+          type: string
+          format: uuid
+        instrument_type:
+          type: string
+        threshold_type:
+          type: string
+          enum: [absolute, deterioration, item_response]
+        threshold_value:
+          type: object
+          description: |
+            absolute: {"score": 20}
+            deterioration: {"delta": -5, "within_days": 28}
+            item_response: {"item_index": 8, "min_value": 1}
+        tier:
+          type: string
+          enum: [critical, urgent, routine]
+        effective_from:
+          type: string
+          format: date-time
+
+    CreateThresholdRequest:
+      type: object
+      required: [instrument_type, threshold_type, threshold_value, tier]
+      properties:
+        instrument_type:
+          type: string
+          enum: [PHQ9, GAD7, PCL5, WHO5]
+        threshold_type:
+          type: string
+          enum: [absolute, deterioration, item_response]
+        threshold_value:
+          type: object
+        tier:
+          type: string
+          enum: [critical, urgent, routine]
