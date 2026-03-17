@@ -314,6 +314,9 @@ updated on every change deployed to the production environment. Four
 documentation types are defined, each targeting a distinct audience and
 purpose.
 
+- All project artifacts in this repository (`specs/`, checklists, plans,
+  tasks, and related speckit documentation) MUST be written in English.
+
 - **User Manual**
   - Audience: end users (clients, therapists, administrators)
   - Scope: comprehensive, step-by-step guidance for both the **chat**
