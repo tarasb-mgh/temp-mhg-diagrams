@@ -3,7 +3,7 @@
 **Feature Branch**: `034-global-role-group-access`
 **Created**: 2026-03-19
 **Status**: Draft
-**Jira Epic**: [PENDING: Epic creation failed 2026-03-19T00:00:00Z — Atlassian MCP unavailable. Sync retroactively with `/mhg.sync push`]
+**Jira Epic**: MTB-818
 **Input**: User description: "Global role holders (Researcher, Moderator, Supervisor, Owner) must be able to access all group-scoped workbench functionality for any group without being explicit group members."
 
 ## Summary
