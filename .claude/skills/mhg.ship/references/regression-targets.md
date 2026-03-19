@@ -68,8 +68,7 @@ Steps:
 2. Auth via OTP (same pattern as Flow 1)
 3. Navigate to Review Queue (sidebar or direct URL)
 4. `browser_snapshot` — confirm queue tabs visible
-5. **Check Safety Review tab is present** — look for "Safety Review" / "Перевірка безпеки" / "Проверка безопасности" label in tab bar
-6. Click into any available session
+5. Click into any available session
 7. `browser_snapshot` — confirm message list renders
 8. Look for assistant messages with a collapsible "CX Debug" / intent panel
 9. If a session has CX metadata: expand the panel, confirm intent + confidence + RAG used fields display
@@ -77,27 +76,45 @@ Steps:
 
 **Pass criteria**:
 - Workbench loads without 500 errors
-- Safety Review tab visible in queue tab bar
 - CxMetadataPanel renders for sessions that have intent data (no blank panel, no JS crash)
 - No 4xx/5xx on review API endpoints
 
 ---
 
-### Flow 4 — Workbench: Safety Review Tab Filter
+### Flow 4 — Workbench: Priority-Flagged Session Queue
 
-**Purpose**: Verify the crisis_low_confidence queue filter works.
+**Purpose**: Verify that elevated-priority sessions surface at the top of the main review queue with a visual priority indicator, and that the review form shows the mandatory "Safety flag resolution" step.
+
+**Prerequisite**: At least one session with `safety_priority = 'elevated'` must exist in dev. Seed with:
+```sql
+UPDATE sessions SET safety_priority = 'elevated' WHERE id = '<any pending session id>';
+```
 
 Steps:
-1. In the Review Queue, click the "Safety Review" tab
-2. `browser_wait_for` — session list refreshes
-3. `browser_snapshot` — capture the session list
-4. Capture `browser_network_requests` — confirm the API request includes `tab=crisis_low_confidence`
-5. Check that the API returns 200 (even if the list is empty — empty is valid)
+1. `browser_navigate` → `https://workbench.dev.mentalhelp.chat`
+2. Auth via OTP; navigate to Review Queue
+3. `browser_snapshot` — confirm "Pending" tab is active
+4. Verify elevated session appears above any normal sessions (check ordering in accessibility tree)
+5. Verify the amber "Elevated" badge renders on the elevated session card
+6. Click into the elevated session
+7. `browser_snapshot` — confirm "Safety Flag Resolution" fieldset is visible in the right panel
+8. Attempt to click "Submit Review" without selecting a disposition
+9. Verify submit is blocked and amber warning text renders (`review.safetyFlag.resolutionRequired`)
+10. Select "Resolve — no further action needed" radio
+11. Add a test note in the textarea
+12. Click "Submit Review" — `browser_wait_for` success confirmation
+13. Capture `browser_network_requests` — verify `POST /api/review/sessions/:id/reviews/:id/submit` returns 200
+14. Navigate back to queue — verify session no longer appears with elevated badge
+15. Switch language to Ukrainian and Russian; `browser_snapshot` — verify no literal key strings
 
 **Pass criteria**:
-- Tab click triggers API call with `tab=crisis_low_confidence`
-- API returns 200 (not 400/500)
-- No JS console errors on tab switch
+- Elevated sessions appear above normal sessions in the queue
+- Amber "Elevated" badge visible on elevated session cards in all 3 locales
+- "Safety Flag Resolution" fieldset renders only for elevated sessions (verify on a normal session too)
+- Submit blocked when no disposition selected; amber validation message visible
+- Resolve submission returns 200; session leaves elevated tier
+- No JS console errors on queue load or flag resolution submit
+- No `review.safetyFlag.*` literal key strings visible in any locale
 
 ---
 
@@ -115,8 +132,8 @@ Steps:
 3. `browser_snapshot` after language switch — check for untranslated keys in uk/ru locale
 
 **Common newly-added keys to verify are translated**:
-- `review.queue.tabs.safetyReview` (added in this feature)
-- Any key in `src/locales/en.json` under `review.queue.tabs.*`
+- Any key in `src/locales/en.json` under `review.queue.*` added by recent features
+- `review.priorityBadge.elevated` / `review.safetyFlag.*` (when spec 032 ships)
 
 ---
 
@@ -179,7 +196,7 @@ Mark each item before declaring Phase 4 complete:
 - [ ] Flow 1 (Chat auth + message) — console clean, network clean
 - [ ] Flow 2 (Feedback button) — renders, submits 200
 - [ ] Flow 3 (Workbench session + CX metadata) — panel renders, no crash
-- [ ] Flow 4 (Safety Review tab) — tab present, API call correct
+- [ ] Flow 4 (Priority-flagged queue) — elevated badge visible, resolution step renders, submit with disposition returns 200
 - [ ] Flow 5 (i18n keys) — no literal dotted key strings in UI
 - [ ] Server logs — zero ERROR entries post-deploy
 - [ ] All monitored API endpoints return expected status codes

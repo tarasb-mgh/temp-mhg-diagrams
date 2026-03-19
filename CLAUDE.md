@@ -147,6 +147,10 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
 | **Dev** | https://dev.mentalhelp.chat | https://workbench.dev.mentalhelp.chat | https://api.dev.mentalhelp.chat |
 | **Prod** | https://mentalhelp.chat | https://workbench.mentalhelp.chat | https://api.mentalhelp.chat |
 
+| Environment | Delivery Workbench Frontend | Delivery Workbench API |
+|-------------|----------------------------|------------------------|
+| **Single** | https://delivery.mentalhelp.chat | https://api.delivery.mentalhelp.chat |
+
 Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs for testing — always use the canonical domain names above.
 
 ### Dev UI Testing Prerequisites

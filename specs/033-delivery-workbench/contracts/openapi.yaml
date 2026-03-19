@@ -1,0 +1,1284 @@
+openapi: 3.0.3
+info:
+  title: Delivery Workbench API
+  version: 1.0.0
+  description: |
+    Internal API for the MHG Delivery Workbench. All endpoints except
+    /api/config/flags/resolve are protected by GCP IAP. The flags
+    resolve endpoint requires OIDC service-to-service authentication.
+
+servers:
+  - url: https://api.delivery.mentalhelp.chat
+    description: Production (single environment)
+
+paths:
+  # === Feature View ===
+  /api/features:
+    get:
+      summary: List all features with summary status
+      tags: [Features]
+      responses:
+        '200':
+          description: Feature list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeatureSummary'
+
+  /api/features/{id}:
+    get:
+      summary: Full feature view (spec, tasks, PRs, deploys, tests)
+      tags: [Features]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Feature spec directory name (e.g., 032-review-queue)
+      responses:
+        '200':
+          description: Feature detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureDetail'
+        '404':
+          description: Feature not found
+
+  /api/features/{id}/timeline:
+    get:
+      summary: Chronological events for a feature
+      tags: [Features]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Timeline events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimelineEvent'
+
+  /api/features/{id}/evidence:
+    get:
+      summary: Evidence files for a feature's tasks
+      tags: [Features]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Evidence file list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvidenceFile'
+
+  /api/features/{id}/artifacts:
+    get:
+      summary: Spec directory file listing and content
+      tags: [Features]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Artifact list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Artifact'
+
+  # === Task Tracker ===
+  /api/tasks/features:
+    get:
+      summary: List active features with completion percentage
+      tags: [Tasks]
+      responses:
+        '200':
+          description: Feature task summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskFeatureSummary'
+
+  /api/tasks/features/{id}:
+    get:
+      summary: Feature detail with task list and Jira sync
+      tags: [Tasks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskFeatureDetail'
+
+  /api/tasks/sync/{id}:
+    post:
+      summary: Trigger manual sync for a feature
+      tags: [Tasks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskFeatureDetail'
+        '502':
+          description: Upstream API error (GitHub or Jira)
+
+  # === Repository & Deployment Health ===
+  /api/repos:
+    get:
+      summary: All deployable repos with health summary
+      tags: [Repos]
+      parameters:
+        - name: refresh
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: When true, bypasses cache and performs live fetch
+      responses:
+        '200':
+          description: Repo health list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RepoHealth'
+
+  /api/repos/{name}:
+    get:
+      summary: Single repo detail
+      tags: [Repos]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repo detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepoDetail'
+
+  /api/repos/{name}/deployments:
+    get:
+      summary: Deployment history for a repo
+      tags: [Repos]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deployment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Deployment'
+
+  # === Test Status ===
+  /api/tests:
+    get:
+      summary: Test summary across all repos
+      tags: [Tests]
+      parameters:
+        - name: refresh
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: When true, bypasses cache and performs live fetch
+      responses:
+        '200':
+          description: Test summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TestSummary'
+
+  /api/tests/{repo}:
+    get:
+      summary: Test detail for a repo (last 10 runs)
+      tags: [Tests]
+      parameters:
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TestResult'
+
+  # === Configuration ===
+  /api/config/env-vars/{repo}:
+    get:
+      summary: GitHub env vars for a repo (dev + prod)
+      tags: [Config]
+      parameters:
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Environment variables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvVarSet'
+    put:
+      summary: Update non-sensitive env var
+      tags: [Config]
+      parameters:
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvVarUpdate'
+      responses:
+        '200':
+          description: Updated
+        '403':
+          description: Variable not on allowlist
+
+  /api/config/secrets/{repo}:
+    get:
+      summary: Secret names (no values) for a repo
+      tags: [Config]
+      parameters:
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Secret names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SecretInfo'
+
+  /api/config/app:
+    get:
+      summary: App configuration key-values
+      tags: [Config]
+      responses:
+        '200':
+          description: Config entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppConfigEntry'
+    post:
+      summary: Create a new app config entry
+      tags: [Config]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppConfigCreate'
+      responses:
+        '201':
+          description: Created
+        '409':
+          description: Key already exists
+
+  /api/config/app/{key}:
+    put:
+      summary: Update app config value
+      tags: [Config]
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppConfigUpdate'
+      responses:
+        '200':
+          description: Updated
+        '404':
+          description: Key not found
+    delete:
+      summary: Delete an app config entry
+      tags: [Config]
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Key not found
+
+  /api/config/flags:
+    get:
+      summary: All feature flags
+      tags: [Config]
+      responses:
+        '200':
+          description: Feature flags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeatureFlag'
+    post:
+      summary: Create a new feature flag
+      tags: [Config]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlagCreate'
+      responses:
+        '201':
+          description: Created
+        '409':
+          description: Flag name already exists
+
+  /api/config/flags/{flag}:
+    put:
+      summary: Toggle a feature flag
+      tags: [Config]
+      parameters:
+        - name: flag
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlagUpdate'
+      responses:
+        '200':
+          description: Updated
+        '404':
+          description: Flag not found
+    delete:
+      summary: Delete a feature flag
+      tags: [Config]
+      parameters:
+        - name: flag
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Flag not found
+
+  /api/config/flags/resolve:
+    get:
+      summary: Public endpoint for consumer apps to fetch active flags
+      description: |
+        Excluded from IAP. Requires OIDC token with audience
+        https://api.delivery.mentalhelp.chat. Returns minimal payload.
+      tags: [Config]
+      security:
+        - oidcToken: []
+      responses:
+        '200':
+          description: Active flags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResolvedFlag'
+        '401':
+          description: Missing or invalid OIDC token
+
+  /api/config/schedules:
+    get:
+      summary: Worker schedule configuration
+      tags: [Config]
+      responses:
+        '200':
+          description: Schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkerSchedule'
+
+  /api/config/schedules/{job}:
+    put:
+      summary: Update worker schedule interval
+      tags: [Config]
+      parameters:
+        - name: job
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleUpdate'
+      responses:
+        '200':
+          description: Updated
+
+  # === Monitoring ===
+  /api/monitoring/summary:
+    get:
+      summary: Dashboard summary cards (cached)
+      tags: [Monitoring]
+      parameters:
+        - name: refresh
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: When true, bypasses cache and performs live fetch
+      responses:
+        '200':
+          description: Monitoring summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitoringSummary'
+
+  /api/monitoring/cloud-run/{svc}:
+    get:
+      summary: Cloud Run metrics for a service
+      tags: [Monitoring]
+      parameters:
+        - name: svc
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: range
+          in: query
+          schema:
+            type: string
+            enum: [24h, 7d, 30d]
+            default: 24h
+      responses:
+        '200':
+          description: Cloud Run metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudRunMetrics'
+
+  /api/monitoring/cloud-sql:
+    get:
+      summary: Cloud SQL metrics
+      tags: [Monitoring]
+      parameters:
+        - name: range
+          in: query
+          schema:
+            type: string
+            enum: [24h, 7d, 30d]
+            default: 24h
+      responses:
+        '200':
+          description: Cloud SQL metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudSqlMetrics'
+
+  /api/monitoring/storage:
+    get:
+      summary: Cloud Storage metrics
+      tags: [Monitoring]
+      parameters:
+        - name: range
+          in: query
+          schema:
+            type: string
+            enum: [24h, 7d, 30d]
+            default: 24h
+      responses:
+        '200':
+          description: Storage metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageMetrics'
+
+  /api/monitoring/logs:
+    get:
+      summary: Live log query (proxies Cloud Logging)
+      tags: [Monitoring]
+      parameters:
+        - name: service
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [DEFAULT, DEBUG, INFO, WARNING, ERROR, CRITICAL]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LogEntry'
+
+  /api/monitoring/traces/{traceId}:
+    get:
+      summary: Individual trace detail
+      tags: [Monitoring]
+      parameters:
+        - name: traceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trace detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceDetail'
+
+  # === Health ===
+  /api/health:
+    get:
+      summary: Health check (DB, GCP connectivity, worker job status)
+      tags: [System]
+      responses:
+        '200':
+          description: All healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: One or more dependencies unhealthy
+
+components:
+  securitySchemes:
+    oidcToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Google OIDC token with aud=https://api.delivery.mentalhelp.chat
+
+  schemas:
+    FeatureSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        completionPct:
+          type: number
+        syncStatus:
+          type: string
+          enum: [in-sync, drifted, error]
+        openPrCount:
+          type: integer
+        jiraEpicKey:
+          type: string
+        lastActivity:
+          type: string
+          format: date-time
+
+    FeatureDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        specSummary:
+          type: string
+        jiraEpicKey:
+          type: string
+        jiraEpicUrl:
+          type: string
+        tasks:
+          $ref: '#/components/schemas/TaskFeatureDetail'
+        pullRequests:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeaturePR'
+        deployments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureDeployment'
+        testResults:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestResult'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceFile'
+
+    TimelineEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [spec-created, plan-completed, tasks-generated,
+                 pr-opened, pr-merged, deployed, jira-transition]
+        timestamp:
+          type: string
+          format: date-time
+        description:
+          type: string
+        url:
+          type: string
+
+    EvidenceFile:
+      type: object
+      properties:
+        taskId:
+          type: string
+        fileName:
+          type: string
+        fileType:
+          type: string
+          enum: [image, text, other]
+        url:
+          type: string
+        content:
+          type: string
+          description: Base64-encoded for images, raw text for text files
+
+    Artifact:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        url:
+          type: string
+
+    FeaturePR:
+      type: object
+      properties:
+        repo:
+          type: string
+        number:
+          type: integer
+        title:
+          type: string
+        state:
+          type: string
+          enum: [open, closed, merged]
+        ciStatus:
+          type: string
+          enum: [success, failure, pending]
+        url:
+          type: string
+
+    FeatureDeployment:
+      type: object
+      properties:
+        repo:
+          type: string
+        revision:
+          type: string
+        deployedAt:
+          type: string
+          format: date-time
+        isFeatureDeployed:
+          type: boolean
+
+    TaskFeatureSummary:
+      type: object
+      properties:
+        featureId:
+          type: string
+        featureName:
+          type: string
+        totalTasks:
+          type: integer
+        completedTasks:
+          type: integer
+        completionPct:
+          type: number
+        syncStatus:
+          type: string
+          enum: [in-sync, drifted, error]
+        lastSyncedAt:
+          type: string
+          format: date-time
+
+    TaskFeatureDetail:
+      type: object
+      properties:
+        featureId:
+          type: string
+        totalTasks:
+          type: integer
+        completedTasks:
+          type: integer
+        completionPct:
+          type: number
+        syncStatus:
+          type: string
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskItem'
+        driftDetails:
+          type: array
+          items:
+            type: object
+            properties:
+              taskId:
+                type: string
+              localState:
+                type: string
+              jiraState:
+                type: string
+
+    TaskItem:
+      type: object
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        completed:
+          type: boolean
+        jiraKey:
+          type: string
+        jiraStatus:
+          type: string
+        jiraUrl:
+          type: string
+
+    RepoHealth:
+      type: object
+      properties:
+        repoName:
+          type: string
+        defaultBranchCi:
+          type: string
+          enum: [success, failure, pending]
+        ciRunUrl:
+          type: string
+        openPrCount:
+          type: integer
+        lastDeployAt:
+          type: string
+          format: date-time
+        cloudRunRevision:
+          type: string
+        activeInstances:
+          type: integer
+        lastSyncedAt:
+          type: string
+          format: date-time
+
+    RepoDetail:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/RepoHealth'
+        - type: object
+          properties:
+            openPrs:
+              type: array
+              items:
+                type: object
+                properties:
+                  number:
+                    type: integer
+                  title:
+                    type: string
+                  ciStatus:
+                    type: string
+                  author:
+                    type: string
+                  url:
+                    type: string
+
+    Deployment:
+      type: object
+      properties:
+        revision:
+          type: string
+        deployedAt:
+          type: string
+          format: date-time
+        activeInstances:
+          type: integer
+
+    TestSummary:
+      type: object
+      properties:
+        repoName:
+          type: string
+        unit:
+          $ref: '#/components/schemas/TestResultBrief'
+        api:
+          $ref: '#/components/schemas/TestResultBrief'
+        e2e:
+          $ref: '#/components/schemas/TestResultBrief'
+
+    TestResultBrief:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pass, fail, none]
+        coveragePct:
+          type: number
+        lastRunAt:
+          type: string
+          format: date-time
+
+    TestResult:
+      type: object
+      properties:
+        repoName:
+          type: string
+        workflowType:
+          type: string
+        status:
+          type: string
+        coveragePct:
+          type: number
+        runUrl:
+          type: string
+        runNumber:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+
+    EnvVarSet:
+      type: object
+      properties:
+        dev:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvVar'
+        prod:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvVar'
+
+    EnvVar:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+        editable:
+          type: boolean
+
+    EnvVarUpdate:
+      type: object
+      required: [environment, name, value]
+      properties:
+        environment:
+          type: string
+          enum: [dev, prod]
+        name:
+          type: string
+        value:
+          type: string
+
+    SecretInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        lastRotatedAt:
+          type: string
+          format: date-time
+
+    AppConfigEntry:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        description:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+
+    AppConfigCreate:
+      type: object
+      required: [key, value]
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        description:
+          type: string
+
+    AppConfigUpdate:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+        description:
+          type: string
+
+    FeatureFlag:
+      type: object
+      properties:
+        flagName:
+          type: string
+        enabled:
+          type: boolean
+        environment:
+          type: string
+          enum: [dev, prod, all]
+        description:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+
+    FlagCreate:
+      type: object
+      required: [flagName, enabled]
+      properties:
+        flagName:
+          type: string
+        enabled:
+          type: boolean
+        environment:
+          type: string
+          enum: [dev, prod, all]
+          default: all
+        description:
+          type: string
+
+    FlagUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        environment:
+          type: string
+          enum: [dev, prod, all]
+
+    ResolvedFlag:
+      type: object
+      properties:
+        flagName:
+          type: string
+        enabled:
+          type: boolean
+        environment:
+          type: string
+
+    WorkerSchedule:
+      type: object
+      properties:
+        jobName:
+          type: string
+        intervalSeconds:
+          type: integer
+        enabled:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+
+    ScheduleUpdate:
+      type: object
+      required: [intervalSeconds]
+      properties:
+        intervalSeconds:
+          type: integer
+          minimum: 60
+        enabled:
+          type: boolean
+
+    MonitoringSummary:
+      type: object
+      properties:
+        cloudRun:
+          type: array
+          items:
+            type: object
+            properties:
+              serviceName:
+                type: string
+              requestRate:
+                type: number
+              errorRate:
+                type: number
+              p50Latency:
+                type: number
+              p95Latency:
+                type: number
+              activeInstances:
+                type: integer
+        cloudSql:
+          type: object
+          properties:
+            activeConnections:
+              type: integer
+            queryLatency:
+              type: number
+            storageBytes:
+              type: integer
+        storage:
+          type: array
+          items:
+            type: object
+            properties:
+              bucketName:
+                type: string
+              sizeBytes:
+                type: integer
+              requestCount:
+                type: integer
+        lastSyncedAt:
+          type: string
+          format: date-time
+
+    CloudRunMetrics:
+      type: object
+      properties:
+        serviceName:
+          type: string
+        dataPoints:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              requestRate:
+                type: number
+              errorRate:
+                type: number
+              p50Latency:
+                type: number
+              p95Latency:
+                type: number
+              activeInstances:
+                type: integer
+
+    CloudSqlMetrics:
+      type: object
+      properties:
+        dataPoints:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              activeConnections:
+                type: integer
+              queryLatency:
+                type: number
+              storageBytes:
+                type: integer
+
+    StorageMetrics:
+      type: object
+      properties:
+        buckets:
+          type: array
+          items:
+            type: object
+            properties:
+              bucketName:
+                type: string
+              dataPoints:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    timestamp:
+                      type: string
+                      format: date-time
+                    sizeBytes:
+                      type: integer
+                    requestCount:
+                      type: integer
+
+    LogEntry:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        severity:
+          type: string
+        message:
+          type: string
+        labels:
+          type: object
+        traceId:
+          type: string
+
+    TraceDetail:
+      type: object
+      properties:
+        traceId:
+          type: string
+        spans:
+          type: array
+          items:
+            type: object
+            properties:
+              spanId:
+                type: string
+              name:
+                type: string
+              startTime:
+                type: string
+                format: date-time
+              endTime:
+                type: string
+                format: date-time
+              status:
+                type: string
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        dependencies:
+          type: object
+          properties:
+            db:
+              type: string
+              enum: [ok, unreachable]
+            gcp:
+              type: string
+              enum: [ok, unreachable]
+            github:
+              type: string
+              enum: [ok, rate-limited, auth-failed, unreachable]
+            jira:
+              type: string
+              enum: [ok, unreachable]
+        workerJobs:
+          type: array
+          items:
+            type: object
+            properties:
+              jobName:
+                type: string
+              lastRunAt:
+                type: string
+                format: date-time
+              lastError:
+                type: string
+              onSchedule:
+                type: boolean
+                description: True if last run was within 2x configured interval

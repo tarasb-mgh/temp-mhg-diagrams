@@ -1,48 +1,62 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 3.8.0 → 3.9.0
+  Version change: 3.9.0 → 3.10.0
 
   Modified principles:
-  - IV. Branch and Integration Discipline — added explicit CI/pipeline bypass
-    prohibition (requires written approval); added requirement to verify CI
-    status shows all checks passing (not 0 statuses) before merge.
-  - XII. Release Engineering and Production Readiness — added explicit
-    "approval required for production release" rule; added automatic deployment
-    awareness requirement; added "dev-only validation by default" rule; added
-    E2E test gate and explicit owner approval to pre-release checklist (item 5
-    and 6).
+  - II. Multi-Repository Orchestration — added delivery-workbench-frontend
+    and delivery-workbench-backend to primary target repository list.
+  - VII. Split-Repository First — added delivery-workbench-frontend and
+    delivery-workbench-backend to canonical split repo list.
 
-  Added compliance violations:
-  - Creating release branch / merging to main without owner approval
-  - Merging PR when CI has 0 statuses or failing checks without approval
+  Added sections:
+  - New "Delivery Workbench" subsystem section under Multi-Repository
+    Orchestration describing purpose, single-environment policy, and
+    repo roles.
+  - Delivery Workbench row in Environments table (single environment).
 
-  Rationale for change:
-  - In March 2026, an AI agent autonomously cut a release branch and merged to
-    main without owner approval, triggering an unplanned production deployment
-    for the chat-backend. The owner explicitly did not authorize this. These
-    additions codify the gates that would have prevented that incident.
+  Modified sections:
+  - Repository Roles table: added delivery-workbench-frontend and
+    delivery-workbench-backend rows.
+  - Environments table: added Delivery Workbench column group.
+  - Artifact Flow: added delivery workbench repos to implementation
+    target list.
+  - Cross-Repository References: no structural change needed.
+  - Reference Documents: added delivery workbench repo CLAUDE.md refs.
+  - XI. Documentation Standards: added delivery workbench to screenshot
+    capture URLs.
+  - XII. Release Engineering: added delivery workbench to post-deploy
+    health verification URLs.
+  - Fixed duplicate step 3/4 in Split-Repository Implementation
+    Procedure.
+
+  Removed sections: none.
 
   Templates requiring updates:
   - ✅ .specify/templates/plan-template.md (no change needed)
   - ✅ .specify/templates/tasks-template.md (no change needed)
   - ✅ .specify/templates/spec-template.md (no change needed)
-  - ✅ .claude/commands/speckit.implement.md (no change needed)
-  - ✅ .claude/commands/speckit.plan.md (no change needed)
-  - ✅ .claude/commands/speckit.specify.md (no change needed)
-  - ✅ .claude/commands/speckit.tasks.md (no change needed)
-  - ✅ .claude/commands/speckit.analyze.md (no change needed)
-  - ✅ CLAUDE.md (needs update: add prod-approval and CI-gate rules)
-  - ✅ AGENTS.md (needs update: mirrors CLAUDE.md)
-  - ✅ .cursorrules (needs update: mirrors key rules)
+  - ⚠ CLAUDE.md (needs update: add delivery workbench repos to
+    repo list and environments table)
+  - ⚠ AGENTS.md (needs update: mirrors CLAUDE.md)
 
-  Follow-up TODOs (carried from 3.8.0):
-  - Add workbench-frontend and chat-frontend-common to
+  Follow-up TODOs:
+  - Create delivery-workbench-frontend and delivery-workbench-backend
+    GitHub repositories under MentalHelpGlobal org
+  - Add delivery-workbench-frontend and delivery-workbench-backend to
     chat-infra/config/github-repos.json and re-run setup-github.sh
-  - Delete or document deprecated VPC connector (chat-vpc-connector)
-    and associated firewall rule (allow-vpc-connector-to-redis)
-  - Delete or mark deprecated redis-host / redis-port secrets in
-    Secret Manager (replaced by GitHub environment variables)
+  - Provision DNS records for delivery.mentalhelp.chat and
+    api.delivery.mentalhelp.chat
+  - Initialize CLAUDE.md / AGENTS.md in both new repositories
+  - (Carried from 3.8.0) Add workbench-frontend and
+    chat-frontend-common to chat-infra/config/github-repos.json and
+    re-run setup-github.sh
+  - (Carried from 3.8.0) Delete or document deprecated VPC connector
+    (chat-vpc-connector) and associated firewall rule
+    (allow-vpc-connector-to-redis)
+  - (Carried from 3.8.0) Delete or mark deprecated redis-host /
+    redis-port secrets in Secret Manager (replaced by GitHub
+    environment variables)
 -->
 
 # Mental Health Global Client-Spec Constitution
@@ -69,7 +83,8 @@ for feature development across multiple codebases.
 - Specifications and plans live here; implementation happens in target repos
 - Primary target repositories: `chat-backend`, `chat-frontend`,
   `workbench-frontend`, `chat-frontend-common`, `chat-ui`, `chat-infra`,
-  `chat-types`, `chat-ci`
+  `chat-types`, `chat-ci`, `delivery-workbench-frontend`,
+  `delivery-workbench-backend`
 - `chat-client` (monorepo) is LEGACY — see Principle VII
 - Each spec references target repository paths explicitly
 - Cross-repository dependencies MUST be documented in plan.md
@@ -173,7 +188,8 @@ receive new feature work.
 
 - The split repos are the canonical and sole target for all changes:
   `chat-types`, `chat-backend`, `chat-frontend`, `workbench-frontend`,
-  `chat-frontend-common`, `chat-ui`, `chat-ci`, `chat-infra`
+  `chat-frontend-common`, `chat-ui`, `chat-ci`, `chat-infra`,
+  `delivery-workbench-frontend`, `delivery-workbench-backend`
 - Shared type changes MUST go through `chat-types` first, then consumers
   (`chat-backend`, `chat-frontend`) MUST update their dependency
 - CI workflow changes MUST go through `chat-ci` and be tagged before
@@ -382,7 +398,8 @@ Screenshot capture process:
 - Screenshots for documentation MUST be captured using the Playwright
   MCP (`plugin-playwright-playwright`) against the deployed dev
   environment (`https://dev.mentalhelp.chat` for chat,
-  `https://workbench.dev.mentalhelp.chat` for workbench)
+  `https://workbench.dev.mentalhelp.chat` for workbench,
+  `https://delivery.mentalhelp.chat` for delivery workbench)
 - The Playwright MCP MUST navigate to the relevant page, interact
   with the UI to reach the desired state, and take a screenshot
 - Screenshots MUST be uploaded to Confluence as page attachments and
@@ -479,7 +496,9 @@ or data storage.
   smoke checks MUST be run against the canonical production URLs
   (`https://mentalhelp.chat` for chat,
   `https://workbench.mentalhelp.chat` for workbench,
-  `https://api.mentalhelp.chat` for the backend API). Every backend
+  `https://api.mentalhelp.chat` for the backend API,
+  `https://delivery.mentalhelp.chat` and
+  `https://api.delivery.mentalhelp.chat` for the delivery workbench). Every backend
   service health endpoint MUST return `ok` status for all dependencies
   before the release is considered complete. Degraded status MUST
   trigger immediate investigation and hotfix.
@@ -514,22 +533,57 @@ this principle codifies the gate that would have prevented that.
 | `chat-ui` | Playwright E2E tests | Active | `D:\src\MHG\chat-ui` |
 | `chat-ci` | Reusable GitHub Actions workflows | Active | `D:\src\MHG\chat-ci` |
 | `chat-infra` | GCP infrastructure scripts + Terraform | Active | `D:\src\MHG\chat-infra` |
+| `delivery-workbench-frontend` | React frontend (delivery workbench — AI dev, config, monitoring, infra) | Active | `D:\src\MHG\delivery-workbench-frontend` |
+| `delivery-workbench-backend` | Express.js backend API (delivery workbench) | Active | `D:\src\MHG\delivery-workbench-backend` |
 | `chat-client` | Monorepo (historical reference only) | **LEGACY** | `D:\src\MHG\chat-client` |
+
+### Delivery Workbench Subsystem
+
+The delivery workbench is an internal-only subsystem for the tech team
+to manage AI development, configuration, monitoring, and infrastructure.
+It operates under a **single-environment** model (no dev/prod split)
+because it is not user-facing and does not require staged rollouts.
+
+- **Repositories**: `delivery-workbench-frontend` (React SPA) and
+  `delivery-workbench-backend` (Express.js API)
+- **Single environment**: `https://delivery.mentalhelp.chat` (frontend),
+  `https://api.delivery.mentalhelp.chat` (backend API)
+- The delivery workbench MAY share `chat-types` for common type
+  definitions and `chat-frontend-common` for shared auth/API utilities
+  where applicable
+- CI/CD workflows MUST follow the same `chat-ci` patterns used by
+  other split repos
+- Branch discipline (Principle IV), privacy (Principle V), and
+  infrastructure management (Principle VIII) apply equally to
+  delivery workbench repositories
+- Principle IX (Responsive UX / PWA) does NOT apply — the delivery
+  workbench targets desktop browsers for tech team use only
+- Principle VI (Accessibility / i18n) applies at a reduced scope:
+  WCAG AA compliance MUST be maintained but multi-language translation
+  is NOT required (English-only is acceptable for internal tooling)
+- Principle XII release gates apply with one simplification: since
+  there is no dev/prod split, the single environment serves as both
+  the validation and deployment target. Pre-release E2E verification
+  runs against the same environment.
+
+**Rationale**: AI development tooling, model configuration, monitoring
+dashboards, and infrastructure management are internal concerns that
+do not require the staged release process of user-facing products. A
+single environment reduces operational overhead while maintaining the
+same code quality and governance standards.
 
 ### Split-Repository Implementation Procedure
 
 1. **Plan**: Identify all affected split repos; plan.md MUST list
    target repository paths for every file change
 2. **Types first**: If shared types changed, bump `chat-types` version,
-   publish, then update `package.json` in `chat-backend` and `chat-frontend`
+   publish, then update `package.json` in consuming repos
 3. **Implement**: Build the feature in split repos on feature branches
-   off `develop`
-4. **Implement**: Build the feature in split repos on feature branches
    off `develop`
 4. **Test**: Run tests in all affected split repos
 5. **Merge**: Merge to `develop` in all affected repositories
-   via Pull Request from feature/bugfix branches only, after required approvals
-   and required checks pass
+   via Pull Request from feature/bugfix branches only, after required
+   approvals and required checks pass
 6. **Deploy**: Verify CI/CD pipelines complete successfully
 7. **Cleanup**: Delete merged remote and local feature/bugfix branches;
    sync local `develop` with `origin/develop`
@@ -540,7 +594,9 @@ this principle codifies the gate that would have prevented that.
 2. **Planning** (`client-spec`): `/speckit.plan` generates technical design artifacts
 3. **Task Breakdown** (`client-spec`): `/speckit.tasks` creates actionable task list
 4. **Implementation** (target repos): Execute tasks against split repos
-   (`chat-backend`, `chat-frontend`, `workbench-frontend`, `chat-ui`, etc.)
+   (`chat-backend`, `chat-frontend`, `workbench-frontend`,
+   `delivery-workbench-frontend`, `delivery-workbench-backend`,
+   `chat-ui`, etc.)
 5. **Verification** (`client-spec`): Update task status, capture evidence
 
 ### Cross-Repository References
@@ -564,6 +620,10 @@ values directly.
 |-------------|---------------|--------------------|-------------|
 | **Dev** | https://dev.mentalhelp.chat | https://workbench.dev.mentalhelp.chat | https://api.dev.mentalhelp.chat |
 | **Prod** | https://mentalhelp.chat | https://workbench.mentalhelp.chat | https://api.mentalhelp.chat |
+
+| Environment | Delivery Workbench Frontend | Delivery Workbench API |
+|-------------|----------------------------|------------------------|
+| **Single** | https://delivery.mentalhelp.chat | https://api.delivery.mentalhelp.chat |
 
 - All Playwright E2E tests MUST target the **dev** environment URLs above
 - All documentation screenshots MUST be captured from the **dev** environment
@@ -665,6 +725,8 @@ orchestrated through `client-spec`.
 - CI workflows: `D:\src\MHG\chat-ci\README.md`
 - E2E tests: `D:\src\MHG\chat-ui\CLAUDE.md`
 - Infrastructure: `D:\src\MHG\chat-infra\CLAUDE.md`
+- Delivery workbench frontend: `D:\src\MHG\delivery-workbench-frontend\CLAUDE.md`
+- Delivery workbench backend: `D:\src\MHG\delivery-workbench-backend\CLAUDE.md`
 - Shared types: `D:\src\MHG\chat-types\package.json`
 - Monorepo (LEGACY): `D:\src\MHG\chat-client\AGENTS.md`
 - Release retrospective: `D:\src\MHG\client-spec\releases\v2026.02.23-retrospective.md`
@@ -678,4 +740,4 @@ orchestrated through `client-spec`.
 | Non-Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding |
 | Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding |
 
-**Version**: 3.9.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-11
+**Version**: 3.10.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-19

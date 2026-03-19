@@ -7,7 +7,7 @@ description: >
   "review PRs and deploy", or "merge and test on dev".
   Executes the full MHG shipping pipeline: discover unpushed changes across repos → open PRs →
   review loop (fix until clean) → merge + deploy to dev → UI regression loop (fix until clean).
-version: 1.0.0
+version: 2.0.0
 ---
 
 # mhg.ship — Full Ship Pipeline
@@ -17,12 +17,14 @@ The pipeline has four sequential phases; do not skip or reorder them.
 
 ```
 Phase 1: Push Changes → Open PRs
-         ↓
+              ↓ [verification-before-completion gate]
 Phase 2: PR Review Loop  (repeat until all PRs pass)
-         ↓
+              ↓ [verification-before-completion gate]
 Phase 3: Merge + Deploy to Dev
-         ↓
+              ↓ [verification-before-completion gate]
 Phase 4: UI Regression Loop  (repeat until no issues)
+              ↓ [verification-before-completion gate]
+         DONE
 ```
 
 Load `references/repos.md` before Phase 1 for repo paths, branch rules, and CI details.
@@ -69,7 +71,29 @@ git -C <REPO_PATH> reset --hard origin/develop
 git -C <REPO_PATH> checkout feature/<short-name>
 ```
 
-### 1d. Open PRs (app repos only)
+### 1d. Pre-PR verification gate
+
+> **Invoke `superpowers:verification-before-completion` before opening any PRs.**
+
+For each repo with changes, run the local test suite and type-check. Do not open PRs on failing code.
+
+```bash
+# Backend
+npm --prefix D:\src\MHG\chat-backend test --run
+
+# Frontend / Workbench
+npm --prefix D:\src\MHG\chat-frontend run typecheck
+npm --prefix D:\src\MHG\workbench-frontend run typecheck
+
+# chat-types
+npm --prefix D:\src\MHG\chat-types run build
+```
+
+Evidence required: show test output (pass count + 0 failures) and type-check exit code for each repo before proceeding to 1e.
+
+If any repo has failures, fix them in the current branch. Do NOT open PRs until all repos pass.
+
+### 1e. Open PRs (app repos only)
 
 Use `gh pr create` targeting `develop`:
 
@@ -101,12 +125,14 @@ Collect all PR numbers and URLs before proceeding to Phase 2.
 
 ```
 LOOP:
-  For each open PR (in order of dependency — types first, then backend, then frontends):
+  For each open PR (in dependency order — see below):
     1. Run the code-review:code-review skill on the PR
     2. If issues found:
-       a. Apply fixes in the relevant repo
-       b. Commit the fix
-       c. Push to the PR branch
+       a. Invoke superpowers:receiving-code-review before applying any fix
+       b. Evaluate each issue technically (not performative agreement)
+       c. Apply fixes in the relevant repo
+       d. Commit the fix
+       e. Push to the PR branch
     3. Re-run review on the same PR
   Check: are all PRs now issue-free?
   If YES → exit loop
@@ -117,6 +143,19 @@ LOOP:
 
 Use the `code-review:code-review` skill via the Skill tool for each PR, passing the PR number and repo. Alternatively use `pr-review-toolkit:review-pr` for a multi-agent deep review.
 
+### Applying fixes — receiving-code-review discipline
+
+When the review returns issues, invoke `superpowers:receiving-code-review` before touching any code. Follow its response pattern:
+
+1. **Read** — complete feedback without reacting
+2. **Understand** — restate each issue in your own words
+3. **Verify** — check the flagged code against codebase reality
+4. **Evaluate** — is the fix technically sound for this codebase?
+5. **Implement** — one item at a time, verify each fix before moving to the next
+6. **Confirm** — after fixes, re-run the relevant test/typecheck command to verify no regressions
+
+Push back with technical reasoning if a review issue is incorrect. Never blindly implement suggestions that don't fit the codebase.
+
 ### Dependency order
 
 Always review and fix in this order to avoid type-mismatch errors cascading:
@@ -125,6 +164,8 @@ Always review and fix in this order to avoid type-mismatch errors cascading:
 2. `chat-backend` (depends on chat-types)
 3. `workbench-frontend` (depends on chat-types)
 4. `chat-frontend` (depends on chat-types)
+
+> **Parallelism opportunity**: Once `chat-types` review is clean and merged, `chat-backend`, `workbench-frontend`, and `chat-frontend` have no inter-dependency and can be reviewed concurrently. Invoke `superpowers:dispatching-parallel-agents` if all three have open PRs.
 
 ### Exit condition
 
@@ -155,20 +196,22 @@ gh -R MentalHelpGlobal/<repo> run list \
 
 See `references/repos.md` for workflow file names per repo.
 
-### 3c. Confirm deployment
+### 3c. Deploy verification gate
 
-Verify each deployed service responds correctly:
+> **Invoke `superpowers:verification-before-completion` before proceeding to Phase 4.**
+
+Run health checks and capture the actual response output as evidence:
 
 ```bash
-# Backend health check
+# Backend health check — must show 200 and healthy JSON
 curl -sf https://api.dev.mentalhelp.chat/health
 
-# Frontend — check for non-error HTTP status
-curl -sf -o /dev/null -w "%{http_code}" https://dev.mentalhelp.chat
-curl -sf -o /dev/null -w "%{http_code}" https://workbench.dev.mentalhelp.chat
+# Frontends — must show 200
+curl -sf -o /dev/null -w "chat-frontend: %{http_code}\n" https://dev.mentalhelp.chat
+curl -sf -o /dev/null -w "workbench: %{http_code}\n" https://workbench.dev.mentalhelp.chat
 ```
 
-Only proceed to Phase 4 after all deployed services return 200.
+Evidence required: show the actual curl output (HTTP status + health body) for each service before claiming "deployed successfully". If any service returns non-200, do not proceed to Phase 4 — investigate the deployment failure first.
 
 ---
 
@@ -187,14 +230,28 @@ LOOP:
        - browser_network_requests → flag 4xx / 5xx responses
     3. After all flows, check server logs (Cloud Run)
   Collect all issues found
-  If NO issues → exit loop
+  If NO issues → run verification-before-completion exit gate (see below)
   If issues found:
-    a. Identify the root cause for each issue
-    b. Fix the code in the relevant repo
-    c. Commit + push to develop (infra/type fixes) or open a follow-up PR (app fixes)
-    d. Wait for redeploy (Phase 3b pattern)
-    e. Repeat loop
+    a. Invoke superpowers:systematic-debugging — root cause BEFORE any fix
+    b. Identify the root cause for each issue
+    c. Fix the code in the relevant repo
+    d. Commit + push to develop (infra/type fixes) or open a follow-up PR (app fixes)
+    e. Wait for redeploy (Phase 3b pattern)
+    f. Re-run Phase 3c deploy verification gate
+    g. Repeat loop
 ```
+
+### When issues are found — systematic-debugging discipline
+
+> **Invoke `superpowers:systematic-debugging` for every regression issue before proposing a fix.**
+
+Do not patch symptoms. Follow the four phases:
+1. **Root cause investigation** — reproduce, isolate, trace the call stack
+2. **Hypothesis formation** — form a specific, testable hypothesis
+3. **Targeted fix** — fix the root cause, not the symptom
+4. **Verification** — prove the fix works and no new issues were introduced
+
+"Quick fixes" that skip root cause investigation are prohibited in the regression loop.
 
 ### Playwright MCP tools to use
 
@@ -219,13 +276,31 @@ gcloud logging read \
   --format="table(timestamp,severity,textPayload)"
 ```
 
-### Exit condition
+### Phase 4 exit verification gate
 
-Full regression sweep completes with:
-- Zero JS console errors
-- Zero 4xx/5xx network responses on expected flows
-- Zero untranslated i18n keys visible in UI
-- Zero ERROR-level entries in Cloud Run logs attributable to this deployment
+> **Invoke `superpowers:verification-before-completion` before declaring Phase 4 complete.**
+
+Do not claim "no issues found" without showing fresh evidence. Required evidence before exit:
+
+1. **Console output** — `browser_console_messages` output for the final sweep of each flow showing zero errors
+2. **Network output** — `browser_network_requests` output showing all monitored API endpoints returned expected status codes
+3. **Server logs** — `gcloud logging read` output showing zero ERROR entries attributable to this deployment
+4. **Regression checklist** — every item in `references/regression-targets.md` Regression Sweep Completion Checklist checked
+
+If any evidence is missing or partial, the sweep is not complete.
+
+---
+
+## Superpowers Integration Summary
+
+| Phase | Gate | Superpowers skill |
+|---|---|---|
+| 1 → exit | Before opening PRs | `superpowers:verification-before-completion` |
+| 2 → fix | Applying review feedback | `superpowers:receiving-code-review` |
+| 2 → parallel | After types land, review backend+frontends | `superpowers:dispatching-parallel-agents` |
+| 3 → exit | After health checks, before regression | `superpowers:verification-before-completion` |
+| 4 → issue | When regression finds a bug | `superpowers:systematic-debugging` |
+| 4 → exit | Before declaring regression clean | `superpowers:verification-before-completion` |
 
 ---
 
@@ -235,8 +310,9 @@ Full regression sweep completes with:
 - **No scheduling** — all loops execute synchronously in the current session
 - **Dependency order matters** — always process `chat-types` before `chat-backend` before frontends
 - **Policy on direct-develop commits** — create a feature branch before opening a PR; never push directly to `develop` on app repos
-- **Loop exit requires evidence** — do not claim "no issues" without running a full sweep; show the console/network/log output confirming clean state
+- **Loop exit requires evidence** — do not claim "no issues" without running a full sweep and invoking verification-before-completion; show the console/network/log output confirming clean state
 - **Redeploy confirmation** — after each fix cycle in Phase 4, confirm the new revision is serving before re-running the sweep
+- **Root cause before fix** — invoke systematic-debugging for every regression issue; no shotgun patches
 
 ## References
 

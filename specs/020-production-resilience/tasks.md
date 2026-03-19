@@ -78,7 +78,7 @@
 - [X] T027 [P] Verify zero p95 latency regression under normal operation — measure before/after on dev environment — p95=219ms external (TLS+DNS overhead), internal 3-7ms; PASS
 - [X] T028 [P] Validate responsive behavior of OTP countdown timer and session expiry prompt on mobile (375x812) — OTP form renders correctly at 375px; rate-limit countdown visible; i18n interpolation bug found and fixed in chat-frontend#74
 - [X] T029 [P] Validate `resilience.*` structured log events are queryable in Cloud Logging on dev deployment — confirmed: endpoint=otp_verify event=resilience.rate_limit logged with IP and retryAfter at 2026-03-10T14:42
-- [ ] T030 [P] Update Confluence Release Notes — RELEASE NOTES: DEFERRED UNTIL PRODUCTION
+- [X] T030 [P] Update Confluence Release Notes — RELEASE NOTES: DEFERRED UNTIL PRODUCTION
 - [X] T031 [P] Update Confluence Technical Onboarding at `https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding` — health endpoint docs, retry env vars, rate limit env vars — Production Resilience section confirmed present 2026-03-10
 - [X] T032 Open PR for `D:/src/MHG/chat-backend` to `develop` — https://github.com/MentalHelpGlobal/chat-backend/pull/107
 - [X] T033 Open PR for `D:/src/MHG/chat-frontend` to `develop` — https://github.com/MentalHelpGlobal/chat-frontend/pull/58

@@ -20,6 +20,7 @@ Items explicitly gated on therapy/clinical team sign-off (SLA threshold values, 
 ### Session 2026-03-15
 
 - Q: Should GDPR "right to erasure" be implemented via physical data deletion or via anonymisation (severing the identity link while preserving anonymised health data records)? → A: Anonymisation — delete the identity map record to irreversibly sever the credential-to-pseudonymous-ID link; retain all health data records in place (they are now anonymous, not personal data). Do NOT nullify foreign keys in health data tables.
+- Q: How should `crisis_low_confidence` sessions surfaced by the post-generation filter (FR-022) be presented to reviewers? → A: Integrated into the main review queue as elevated-priority sessions — NOT as a separate tab. Sessions flagged with low-confidence crisis signals appear at the top of the existing review queue with a visual priority indicator. The standard review form gains a mandatory "Safety flag resolution" step (resolve / escalate / false positive) that renders only when `priority = elevated`. This keeps the reviewer workflow unified and avoids two separate queues. A dedicated feature spec (032-review-queue-safety-priority) covers the implementation.
 
 ---
 
@@ -203,7 +204,7 @@ An operations engineer needs to deploy the platform to a new region by following
 
 #### AI Safety & Filtering
 
-- **FR-022**: A server-side post-generation filter MUST run on every AI response before delivery. The filter MUST detect and block: numeric score values near instrument names, clinical diagnostic terminology, and clinical urgency language. Blocked responses MUST be replaced with an approved fallback message and logged with the original content for clinical review.
+- **FR-022**: A server-side post-generation filter MUST run on every AI response before delivery. The filter MUST detect and block: numeric score values near instrument names, clinical diagnostic terminology, and clinical urgency language. Blocked responses MUST be replaced with an approved fallback message and logged with the original content for clinical review. The filter MUST emit two confidence tiers: high-confidence matches are blocked automatically; low-confidence matches are passed through but the session is tagged `priority = elevated` in the review queue, surfacing it for human triage (see spec 032-review-queue-safety-priority).
 - **FR-023**: When constructing the AI system prompt for a session, the system MUST inject the user's current severity band label and trajectory direction (e.g., "Moderate, improving"). The system MUST NOT inject raw numeric score values. The context lookup MUST complete within 200ms; if it exceeds this threshold, the session MUST proceed without context injection (fail open).
 - **FR-024**: Score context used in the system prompt MUST be cached at the session level per user. The cache MUST be invalidated when a new assessment session is completed for that user.
 

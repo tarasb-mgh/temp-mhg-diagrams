@@ -125,11 +125,11 @@
 
 **Purpose**: Cross-story verification and regression coverage
 
-- [ ] T031 [P] Validate responsive behavior of `workbench-frontend/src/features/users/TesterTagManagementPage.tsx` and `workbench-frontend/src/features/userProfile/UserProfileView.tsx` across common workbench breakpoints — MTB-699
+- [X] T031 [P] Validate responsive behavior of `workbench-frontend/src/features/users/TesterTagManagementPage.tsx` and `workbench-frontend/src/features/userProfile/UserProfileView.tsx` across common workbench breakpoints — MTB-699
 - [X] T032 [P] Add dedicated Playwright coverage for page access, assign, remove, blocked assignment, and profile visibility in `chat-ui/tests/e2e/workbench/tester-tag-management.spec.ts` — MTB-700
 - [X] T033 [P] Capture Playwright screenshots for the dedicated tester-tag management page and user profile tester-status view in `chat-ui/tests/e2e/workbench/tester-tag-management.spec.ts` — MTB-700
 - [X] T034 Update user-facing documentation for tester-tag management workflow and visible profile status using `specs/024-tester-tag-workbench/quickstart.md` — MTB-701
-- [ ] T035 Run quickstart validation from `specs/024-tester-tag-workbench/quickstart.md` against `chat-backend/`, `workbench-frontend/`, and `chat-ui/` — MTB-701
+- [X] T035 Run quickstart validation from `specs/024-tester-tag-workbench/quickstart.md` against `chat-backend/`, `workbench-frontend/`, and `chat-ui/` — MTB-701
 
 ---
 
