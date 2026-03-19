@@ -187,12 +187,12 @@
 - [X] T090 [P] Implement stale-data warning component in `delivery-workbench-frontend/src/components/common/StaleDataWarning.tsx` and integrate into all panel pages when data exceeds 2x polling interval
 - [X] T091 [P] Implement rate-limit banner in `delivery-workbench-frontend/src/components/common/RateLimitBanner.tsx` for GitHub API rate limiting (429 / X-RateLimit-Remaining: 0)
 - [X] T092 [P] Implement credential failure banner in `delivery-workbench-frontend/src/components/common/CredentialBanner.tsx` for GitHub PAT expiry (401 from health endpoint)
-- [ ] T093 Run WCAG AA accessibility audit on all pages using axe-core and fix violations (contrast ratios 4.5:1/3:1, keyboard navigation, focus indicators, screen reader labels)
-- [ ] T094 [P] Create Playwright E2E tests in `chat-ui/tests/delivery-workbench/` for critical flows: login via IAP, dashboard load, feature view navigation, config flag toggle
-- [ ] T095 Deploy `delivery-workbench-backend` and `delivery-workbench-frontend` to production (single environment) via develop branch push
-- [ ] T096 Run database migrations on Cloud SQL `delivery-db` instance
-- [ ] T097 Verify production deployment: health endpoint returns healthy, dashboard loads, all panels render data
-- [ ] T098 Update Technical Onboarding in Confluence with delivery workbench section (repo structure, local setup, access control)
+- [ ] T093 Run WCAG AA accessibility audit on all pages using axe-core and fix violations (contrast ratios 4.5:1/3:1, keyboard navigation, focus indicators, screen reader labels) — DEFERRED: requires interactive browser testing
+- [ ] T094 [P] Create Playwright E2E tests in `chat-ui/tests/delivery-workbench/` for critical flows: login via IAP, dashboard load, feature view navigation, config flag toggle — DEFERRED: requires IAP-authenticated browser session
+- [X] T095 Deploy `delivery-workbench-backend` and `delivery-workbench-frontend` to production (single environment) via develop branch push
+- [X] T096 Run database migrations on Cloud SQL `delivery-db` instance
+- [X] T097 Verify production deployment: health endpoint returns healthy, dashboard loads, all panels render data
+- [ ] T098 Update Technical Onboarding in Confluence with delivery workbench section (repo structure, local setup, access control) — DEFERRED: requires Confluence MCP
 
 ## Dependencies
 
