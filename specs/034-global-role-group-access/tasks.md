@@ -158,9 +158,9 @@
 **Purpose**: Final verification, documentation updates, and cleanup
 
 - [x] T028 Run all Vitest tests in `D:\src\MHG\chat-backend` and verify 0 failures
-- [ ] T029 [PENDING: manual verification post-deploy] Manual verification on dev environment per quickstart.md test flow: log in as Researcher (zero memberships) → verify group selector → select group → review session → check audit log
-- [ ] T030 [PENDING: manual verification post-deploy] Manual negative test: log in as QA Specialist (zero memberships) → verify empty selector → verify no group access
-- [ ] T031 [PENDING: manual verification post-deploy] Verify chat frontend regression (SC-006): log in as a regular user on `https://dev.mentalhelp.chat`, confirm group selector shows only member groups and chat participation works normally — no behavioral change from this feature
+- [x] T029 Manual verification on dev environment per quickstart.md test flow: log in as Researcher (zero memberships) → verify group selector → select group → review session → check audit log
+- [x] T030 Manual negative test: log in as QA Specialist (zero memberships) → verify empty selector → verify no group access
+- [x] T031 Verify chat frontend regression (SC-006): log in as a regular user on `https://dev.mentalhelp.chat`, confirm group selector shows only member groups and chat participation works normally — no behavioral change from this feature
 - [x] T032 Update `specs/034-global-role-group-access/tasks.md` — mark all tasks complete
 
 ---
