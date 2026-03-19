@@ -561,16 +561,26 @@ because it is not user-facing and does not require staged rollouts.
 - Principle VI (Accessibility / i18n) applies at a reduced scope:
   WCAG AA compliance MUST be maintained but multi-language translation
   is NOT required (English-only is acceptable for internal tooling)
+- Principle III (Test-Aligned Development) applies with one exemption:
+  **Playwright E2E tests are NOT required** for delivery workbench
+  repositories. The IAP-protected single environment makes automated
+  E2E testing impractical (requires Google OAuth browser flow). Unit
+  tests via Vitest remain required. Manual smoke testing by the tech
+  team substitutes for automated E2E.
 - Principle XII release gates apply with one simplification: since
   there is no dev/prod split, the single environment serves as both
-  the validation and deployment target. Pre-release E2E verification
-  runs against the same environment.
+  the validation and deployment target. The pre-release E2E
+  verification gate is waived (see Principle III exemption above).
+- IAP access is controlled via `roles/iap.httpsResourceAccessor`
+  (not `roles/iap.httpsResourceAccessUser`) at the project level.
 
 **Rationale**: AI development tooling, model configuration, monitoring
 dashboards, and infrastructure management are internal concerns that
 do not require the staged release process of user-facing products. A
 single environment reduces operational overhead while maintaining the
-same code quality and governance standards.
+same code quality and governance standards. E2E tests are excluded
+because IAP authentication requires an interactive Google OAuth flow
+that cannot be automated in Playwright without fragile workarounds.
 
 ### Split-Repository Implementation Procedure
 
@@ -740,4 +750,4 @@ orchestrated through `client-spec`.
 | Non-Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding |
 | Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding |
 
-**Version**: 3.10.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-19
+**Version**: 3.11.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-19
