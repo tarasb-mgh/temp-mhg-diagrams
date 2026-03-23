@@ -56,3 +56,5 @@ transaction.yaml
 
 # Chat export working files
 chats/
+artifacts/
+package-lock.json
