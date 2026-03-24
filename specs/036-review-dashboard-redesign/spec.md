@@ -151,6 +151,46 @@ A supervisor or moderator opens the Team Dashboard page and sees team-wide stati
 - What happens when the loading state is active? Skeleton loaders matching the bento-grid card shapes are displayed instead of a spinner.
 - What happens on hover? Custom compact tooltips (not default recharts oversized tooltips). Consistent size and style across all chart types.
 
+### Dashboard Purpose & Behaviour (defined 2026-03-24)
+
+**Mission**: Help the reviewer answer "How am I performing?" at a glance.
+
+**Default period**: All Time (shows the full picture; user can drill down to week/month/today).
+
+**KPI cards** (top row — 3 cards):
+- Reviews Completed — absolute count + delta arrow (green ▲ / red ▼) showing change vs previous period
+- Average Score — value /10 + delta arrow showing change vs previous period
+- Agreement Rate — percentage + contextual label (Excellent/Moderate/Needs attention) + delta arrow
+
+**Delta logic by period**:
+- All Time: no delta (no "previous" reference)
+- This Month: compare to previous month
+- This Week: compare to previous week
+- Today: compare to yesterday
+
+**Score Distribution** — answers "Am I a harsh or lenient reviewer?"
+- Donut chart showing proportion of scores across 5 ranges
+- Visual emphasis on where the reviewer clusters (the dominant range should be obvious)
+- Hover on segment → tooltip with range name, count, percentage
+
+**Criteria Breakdown** — answers "What do I focus on? What do I miss?"
+- Radar chart with 3-letter axis labels (REL, EMP, SAF, ETH, CLR)
+- Show reviewer's values as filled polygon
+- Show **team average** as dashed outline polygon (comparison overlay)
+- Hover on dot → tooltip with full criterion name, reviewer count, team average
+- Side legend: full criterion names with **percentage** (% of reviews where this criterion had feedback), not raw count
+
+**Activity Trend** (replaces "Weekly Trend") — answers "How is my performance changing?"
+- Multi-line chart showing criteria trends over time
+- Lines: one per criterion (color-coded), plus average score line
+- Time axis step varies by period:
+  - Today: don't show (not enough granularity)
+  - This Week: 1 day per step (Mon–Sun)
+  - This Month: 1 day per step or 1 week per step (auto based on data density)
+  - All Time: 1 week per step (or 1 month if >6 months of data)
+- Show only when ≥2 data points exist for the selected period
+- Each criteria line shows how that criterion's feedback frequency changes over time
+
 ### Design Principles (added 2026-03-24, updated with feedback)
 
 - **Use project design system**: All styling MUST use the shared Tailwind preset tokens (primary, secondary, neutral, accent, success, warning, error colors; shadow-soft; .card class; .badge-* classes). No raw hex colors, no ad-hoc text sizes. Font sizes must use Tailwind scale (text-xs, text-sm, text-base, text-lg, text-xl) — no custom `text-[11px]` or similar.
