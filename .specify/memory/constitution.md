@@ -186,32 +186,33 @@ All user-facing UI MUST use the shared design system defined in
 `chat-frontend-common/tailwind-preset.js` and
 `workbench-frontend/src/index.css`. Ad-hoc styling is prohibited.
 
-- All colors MUST use design system tokens (`primary-*`, `secondary-*`,
-  `neutral-*`, `accent-*`, `success`, `warning`, `error`). Raw hex
-  values (`#059669`), arbitrary Tailwind colors (`text-emerald-600`),
-  and inline `style={{ color: '...' }}` are NOT allowed in component
-  JSX unless rendering data-driven SVG chart elements where Tailwind
-  classes cannot apply
-- Font sizes MUST use the Tailwind type scale (`text-xs`, `text-sm`,
-  `text-base`, `text-lg`, `text-xl`, `text-2xl`, `text-3xl`).
-  Arbitrary values like `text-[11px]`, `text-[10px]`, `fontSize: 9`
-  are NOT allowed
-- Card containers MUST use the `.card` component class (or equivalent
-  Tailwind composition matching its definition) — not ad-hoc border +
-  shadow + rounding combinations
-- Shadows MUST use `shadow-soft`, `shadow-soft-md`, or `shadow-soft-lg`
-  — not raw Tailwind `shadow-sm`, `shadow-lg`, or `ring-1 ring-*`
-- Spacing MUST follow the Tailwind spacing scale — no fractional or
-  arbitrary values (`py-3.5`, `gap-2.5` are acceptable; `p-[13px]`
-  is not)
-- Interactive elements MUST have hover/focus states using design system
-  colors and transitions
+- **What follows the design system** (MUST use tokens/classes):
+  - Colors: project tokens (`primary-*`, `secondary-*`, `neutral-*`,
+    `accent-*`, `success`, `warning`, `error`). Raw hex values,
+    arbitrary Tailwind colors (`text-emerald-600`), and inline
+    `style={{ color: '...' }}` are NOT allowed — except for
+    data-driven SVG chart elements where Tailwind classes cannot apply
+  - Typography: Tailwind type scale only (`text-xs` through `text-3xl`).
+    Arbitrary values like `text-[11px]`, `fontSize: 9` are NOT allowed
+  - Components: cards (`.card` class), buttons (`.btn-*`), badges
+    (`.badge-*`), inputs (`.input`), shadows (`shadow-soft` family)
+  - Spacing for padding/margins within components: Tailwind spacing
+    scale (`p-4`, `gap-3`, `py-2.5` etc.)
+  - Interactive states: hover/focus using design system colors
+  - Typography hierarchy: define once, apply consistently — page
+    titles, section headers, KPI values, labels, data text each have
+    a single designated size/weight/color
+- **What is free to use standard Tailwind / custom CSS**:
+  - Layout: grid columns (`grid-cols-*`), flex, gap, col-span,
+    responsive breakpoints (`lg:`, `sm:`)
+  - Positioning: absolute, relative, sticky, z-index
+  - Sizing: width, height, max-width, aspect-ratio
+  - Display: hidden, block, flex, grid, overflow
+  - Any layout-level utility that doesn't affect visual identity
+    (colors, typography, shadows, component shapes)
 - Before writing any UI component, the developer MUST read the Tailwind
   preset and `index.css` to understand available tokens, component
   classes, and established patterns
-- Typography hierarchy MUST be defined once and applied consistently:
-  page titles, section headers, KPI values, labels, and data text
-  each have a single designated size/weight/color
 
 **Rationale**: Inconsistent styling (mixing raw hex, arbitrary sizes,
 and design system tokens) produces a "draft" look regardless of layout
