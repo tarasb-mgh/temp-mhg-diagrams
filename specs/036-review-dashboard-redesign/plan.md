@@ -10,14 +10,14 @@ Redesign the Review Dashboard and Team Dashboard pages in the workbench frontend
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x, React 18  
-**Primary Dependencies**: Tailwind CSS 3.4, Zustand, i18next, lucide-react, `@mentalhelpglobal/chat-frontend-common`, `@mentalhelpglobal/chat-types`  
+**Primary Dependencies**: Tailwind CSS 3.4, Zustand, i18next, lucide-react, recharts, `@mentalhelpglobal/chat-frontend-common`, `@mentalhelpglobal/chat-types`  
 **Storage**: N/A (frontend-only; backend API unchanged)  
 **Testing**: Vitest + React Testing Library (workbench-frontend), Playwright E2E (chat-ui)  
 **Target Platform**: Web (desktop/tablet/mobile responsive)  
 **Project Type**: Web application (React SPA)  
 **Performance Goals**: Skeleton loaders visible within 200ms of navigation; SVG charts render without jank  
-**Constraints**: No new external charting dependencies (FR-012); all chart components must be reusable UI-kit components in chat-frontend-common  
-**Scale/Scope**: 2 dashboard pages, 4 new UI-kit chart components, 3 locale files, ~15 affected files
+**Constraints**: Use recharts library for all chart visualizations (FR-012). Charts are inline in page components, not in chat-frontend-common  
+**Scale/Scope**: 2 dashboard pages, recharts integration, 3 locale files, ~10 affected files
 
 ## Constitution Check
 
@@ -55,41 +55,31 @@ specs/036-review-dashboard-redesign/
 ### Source Code (affected repositories)
 
 ```text
-chat-frontend-common/
-└── src/
-    └── components/
-        └── charts/
-            ├── DonutChart.tsx       # NEW — reusable donut/ring chart
-            ├── RadarChart.tsx        # NEW — reusable radar/spider chart
-            ├── Sparkline.tsx         # NEW — reusable micro-sparkline
-            ├── DualAxisChart.tsx     # NEW — reusable bar+line dual-axis chart
-            └── index.ts             # NEW — barrel export
-
 workbench-frontend/
+├── package.json                     # UPDATE — add recharts dependency
 └── src/
     ├── locales/
-    │   ├── en.json                  # UPDATE — add ~20 missing translation keys
-    │   ├── uk.json                  # UPDATE — add ~20 missing translation keys
-    │   └── ru.json                  # UPDATE — add ~20 missing translation keys
+    │   ├── en.json                  # UPDATE — add ~21 missing translation keys
+    │   ├── uk.json                  # UPDATE — add ~21 missing translation keys
+    │   └── ru.json                  # UPDATE — add ~21 missing translation keys
     └── features/workbench/
         └── review/
-            ├── ReviewDashboard.tsx   # UPDATE — bento layout, donut, radar, sparklines, empty state
-            ├── TeamDashboard.tsx     # UPDATE — bento layout, donut for queue depth, remove report generator
+            ├── ReviewDashboard.tsx   # UPDATE — bento layout, recharts (PieChart, RadarChart, ComposedChart, AreaChart), empty state, sparklines
+            ├── TeamDashboard.tsx     # UPDATE — bento layout, recharts PieChart for queue depth, remove report generator
             └── components/
-                ├── ScoreDistribution.tsx  # REPLACE — with DonutChart integration
+                ├── ScoreDistribution.tsx  # DELETE — replaced by inline recharts PieChart
                 └── DashboardEmptyState.tsx # NEW — meaningful empty state with CTA
 ```
 
-**Structure Decision**: Chart components live in `chat-frontend-common/src/components/charts/` to be reusable across workbench-frontend, chat-frontend, and delivery-workbench-frontend. Page-level integration and locale files are in `workbench-frontend`.
+**Structure Decision**: All chart visualizations use recharts directly in page components. No separate UI-kit components needed — recharts provides the composable component API. Only `workbench-frontend` is affected; `chat-frontend-common` has no chart-related changes.
 
 ## Cross-Repository Dependencies
 
 | Order | Repository | Changes | Depends On |
 |-------|-----------|---------|------------|
-| 1 | `chat-frontend-common` | New chart UI-kit components (DonutChart, RadarChart, Sparkline, DualAxisChart) | None |
-| 2 | `workbench-frontend` | Dashboard pages, locale files, page components | chat-frontend-common with new chart components |
+| 1 | `workbench-frontend` | Dashboard pages, locale files, recharts integration | None |
 
-**Execution order**: `chat-frontend-common` must be updated and published first; `workbench-frontend` consumes the new version.
+**Execution order**: Single repository — no cross-repo dependency chain.
 
 ## Complexity Tracking
 

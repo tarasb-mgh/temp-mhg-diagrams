@@ -11,7 +11,7 @@
 ### Session 2026-03-23
 
 - Q: Should Team Dashboard be included in scope or handled separately? → A: Full redesign of Team Dashboard is included in this spec alongside Review Dashboard — shared translations, layout, and chart improvements apply to both pages.
-- Q: Should charting be implemented without external dependencies or with a lightweight library? → A: Strictly no external dependencies. All chart components (donut, radar, sparkline, dual-axis trend) must be built as reusable internal UI-kit components using pure CSS/SVG, following 2026 best practices. The goal is to incrementally build a project-owned design system with zero duplication.
+- Q: Should charting be implemented without external dependencies or with a lightweight library? → A: Initially attempted pure CSS/SVG internal UI-kit — produced poor visual quality (broken scaling, unreadable labels, incorrect proportions). **Revised decision**: use recharts (16M+ weekly downloads, ~150kB, SVG-based, React-native API) as the charting library. Proven, well-maintained, responsive out of the box.
 - Q: Should the embedded report generator in Team Dashboard be kept or removed (it duplicates the Reports & Analytics page)? → A: Remove the embedded report generator from Team Dashboard and replace it with a link/button navigating to the dedicated Reports & Analytics page. Eliminates UI duplication.
 - Q: What visualization should replace the stacked bar for Queue Depth on Team Dashboard? → A: Replace with a DonutChart (reusing the same internal UI-kit component as Score Distribution). Queue Depth is part-of-whole data (4 statuses = 100% of queue), which fits the donut pattern and ensures visual consistency across dashboards.
 
@@ -164,14 +164,14 @@ A supervisor or moderator opens the Team Dashboard page and sees team-wide stati
 - **FR-009**: Agreement Rate value MUST be color-coded: green (>=80%), amber (60-79%), red (<60%).
 - **FR-010**: Weekly Trend chart MUST display both review count (bars) and average score (line) with data labels visible without hover interaction.
 - **FR-011**: Loading state MUST display skeleton loaders matching the bento-grid card layout instead of a centered spinner.
-- **FR-012**: All chart visualizations MUST be implemented as reusable internal UI-kit components using pure CSS/SVG — no external charting dependencies. Each chart component (DonutChart, RadarChart, Sparkline, DualAxisTrendChart) MUST be generic, configurable via props, and housed in the project's shared component library for reuse across pages.
+- **FR-012**: All chart visualizations MUST be implemented using the recharts library (PieChart for donut, RadarChart for criteria, ComposedChart for weekly trend, AreaChart for sparklines) with ResponsiveContainer for adaptive sizing. Charts are rendered directly in page components — no separate UI-kit library needed.
 - **FR-013**: All new user-facing text MUST have translation keys added to all three locale files (en.json, uk.json, ru.json).
 - **FR-014**: Team Dashboard MUST display translated status labels for queue depth (Pending Review, In Review, Disputed, Complete) in all supported locales.
 - **FR-015**: Team Dashboard MUST NOT contain an embedded report generator. Instead, it MUST display a link/button navigating to the dedicated Reports & Analytics page.
 - **FR-016**: Team Dashboard MUST use the same bento-grid layout pattern as Review Dashboard — KPI row on top, Queue Depth and Reviewer Workload side by side in the middle, Reports link at bottom — on viewports 1024px and wider.
 - **FR-017**: Team Dashboard MUST show a meaningful empty state when no team review data exists, consistent with the Review Dashboard empty state pattern.
 - **FR-018**: Team Dashboard layout MUST collapse gracefully to a single column on viewports below 640px.
-- **FR-019**: Team Dashboard Queue Depth MUST be displayed as a donut chart (reusing the internal DonutChart UI-kit component) with four status segments, total count in center, and a translated legend below.
+- **FR-019**: Team Dashboard Queue Depth MUST be displayed as a donut chart (recharts PieChart with innerRadius) with four status segments, total count in center, and a translated legend below.
 
 ### Key Entities
 
