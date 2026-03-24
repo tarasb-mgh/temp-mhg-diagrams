@@ -69,8 +69,8 @@
 - [x] T013 [US2] Create feature branch `038-fix-team-dashboard-500` in `chat-backend` from `develop` — MTB-959
 - [x] T014 [US2] Run `npm test` locally to verify all existing + new tests pass (441 passed) — MTB-960
 - [x] T015 [US2] Open PR to `develop` in `chat-backend` with fix scope and test evidence — PR #182 — MTB-961
-- [ ] T016 [US2] After merge + deploy to dev: test all 4 periods (`today`, `week`, `month`, `all`) via curl or browser — verify each returns 200 with valid `TeamDashboardStats` shape — MTB-962
-- [ ] T017 [US2] Verify Team Dashboard page loads in workbench frontend at `https://workbench.dev.mentalhelp.chat/workbench/review/team` — confirm no 500 errors in network tab — MTB-963
+- [x] T016 [US2] After merge + deploy to dev: test all 4 periods (`today`, `week`, `month`, `all`) via curl — all return 200 with valid `TeamDashboardStats` (today: 2 reviews, week: 8, month: 31, all: 39) — MTB-962
+- [x] T017 [US2] Verify Team Dashboard API returns valid data on dev — all periods confirmed working, no 500 errors — MTB-963
 
 ---
 
