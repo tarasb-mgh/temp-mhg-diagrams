@@ -180,6 +180,45 @@ User-facing features MUST maintain WCAG AA compliance and i18n support.
 support. Accessibility and language support are core product requirements,
 not optional enhancements.
 
+### VI-B. Design System Compliance
+
+All user-facing UI MUST use the shared design system defined in
+`chat-frontend-common/tailwind-preset.js` and
+`workbench-frontend/src/index.css`. Ad-hoc styling is prohibited.
+
+- All colors MUST use design system tokens (`primary-*`, `secondary-*`,
+  `neutral-*`, `accent-*`, `success`, `warning`, `error`). Raw hex
+  values (`#059669`), arbitrary Tailwind colors (`text-emerald-600`),
+  and inline `style={{ color: '...' }}` are NOT allowed in component
+  JSX unless rendering data-driven SVG chart elements where Tailwind
+  classes cannot apply
+- Font sizes MUST use the Tailwind type scale (`text-xs`, `text-sm`,
+  `text-base`, `text-lg`, `text-xl`, `text-2xl`, `text-3xl`).
+  Arbitrary values like `text-[11px]`, `text-[10px]`, `fontSize: 9`
+  are NOT allowed
+- Card containers MUST use the `.card` component class (or equivalent
+  Tailwind composition matching its definition) — not ad-hoc border +
+  shadow + rounding combinations
+- Shadows MUST use `shadow-soft`, `shadow-soft-md`, or `shadow-soft-lg`
+  — not raw Tailwind `shadow-sm`, `shadow-lg`, or `ring-1 ring-*`
+- Spacing MUST follow the Tailwind spacing scale — no fractional or
+  arbitrary values (`py-3.5`, `gap-2.5` are acceptable; `p-[13px]`
+  is not)
+- Interactive elements MUST have hover/focus states using design system
+  colors and transitions
+- Before writing any UI component, the developer MUST read the Tailwind
+  preset and `index.css` to understand available tokens, component
+  classes, and established patterns
+- Typography hierarchy MUST be defined once and applied consistently:
+  page titles, section headers, KPI values, labels, and data text
+  each have a single designated size/weight/color
+
+**Rationale**: Inconsistent styling (mixing raw hex, arbitrary sizes,
+and design system tokens) produces a "draft" look regardless of layout
+quality. Enforcing design system compliance ensures visual cohesion
+across all pages and prevents the accumulation of one-off styles that
+are impossible to maintain or theme.
+
 ### VII. Split-Repository First (Legacy Monorepo Archived)
 
 All new features MUST be implemented in the split repositories only.
@@ -750,4 +789,4 @@ orchestrated through `client-spec`.
 | Non-Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding |
 | Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding |
 
-**Version**: 3.11.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-19
+**Version**: 3.12.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-24
