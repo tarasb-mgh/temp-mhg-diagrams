@@ -1,86 +1,74 @@
 # Implementation Plan: Review Dashboard Redesign
 
-**Branch**: `036-review-dashboard-redesign` | **Date**: 2026-03-23 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/036-review-dashboard-redesign/spec.md`
+**Branch**: `036-review-dashboard-redesign` | **Date**: 2026-03-23 (updated 2026-03-24) | **Spec**: [spec.md](./spec.md)
 
 ## Summary
 
-Redesign the Review Dashboard and Team Dashboard pages in the workbench frontend to fix missing i18n translations (21 keys across 3 locales), replace the broken empty state with a meaningful CTA-driven view, modernize chart visualizations (donut chart for score distribution and queue depth, radar chart for criteria breakdown, sparklines in KPI cards, dual-axis weekly trend), adopt a bento-grid layout, and add contextual color coding for Agreement Rate. All chart components are built as reusable internal UI-kit components in `chat-frontend-common` using pure CSS/SVG — no external charting dependencies.
+Redesign Review Dashboard and Team Dashboard pages. Uses recharts for visualizations, project design system for styling. Single-repo change (workbench-frontend only).
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x, React 18  
-**Primary Dependencies**: Tailwind CSS 3.4, Zustand, i18next, lucide-react, recharts, `@mentalhelpglobal/chat-frontend-common`, `@mentalhelpglobal/chat-types`  
-**Storage**: N/A (frontend-only; backend API unchanged)  
-**Testing**: Vitest + React Testing Library (workbench-frontend), Playwright E2E (chat-ui)  
-**Target Platform**: Web (desktop/tablet/mobile responsive)  
-**Project Type**: Web application (React SPA)  
-**Performance Goals**: Skeleton loaders visible within 200ms of navigation; SVG charts render without jank  
-**Constraints**: Use recharts library for all chart visualizations (FR-012). Charts are inline in page components, not in chat-frontend-common  
-**Scale/Scope**: 2 dashboard pages, recharts integration, 3 locale files, ~10 affected files
-
-## Constitution Check
-
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Spec-First | PASS | Spec at specs/036-review-dashboard-redesign/spec.md |
-| II. Multi-Repo | PASS | Targets workbench-frontend + chat-frontend-common (shared UI-kit) |
-| III. Test-Aligned | PASS | Vitest for component tests; Playwright for E2E |
-| IV. Branch Discipline | PASS | Feature branch 036-review-dashboard-redesign across repos |
-| V. Privacy/Security | PASS | No user data changes; display-only |
-| VI. Accessibility/i18n | PASS | i18n keys added for all 3 locales; charts have text labels as redundant encoding |
-| VII. Split-Repo First | PASS | chat-frontend-common for shared components; workbench-frontend for pages |
-| VIII. GCP CLI | N/A | No infrastructure changes |
-| IX. Responsive/PWA | PASS | Bento-grid responsive breakpoints defined (1024px, 640px) |
-| X. Jira Traceability | PASS | Will create Epic and Stories |
-| XI. Documentation | PASS | User Manual update needed post-deploy |
-| XII. Release Engineering | PASS | Standard dev deploy, no special release |
+**Language/Version**: TypeScript 5.x, React 18
+**Primary Dependencies**: Tailwind CSS 3.4, Zustand, i18next, recharts, `@mentalhelpglobal/chat-frontend-common` (v0.5.0, no chart components), `@mentalhelpglobal/chat-types`
+**Storage**: N/A (frontend-only; backend API unchanged for MVP)
+**Testing**: Vitest + React Testing Library, Playwright E2E (chat-ui)
+**Constraints**: Use recharts for charts. Use project design system tokens (Constitution VI-B). Charts inline in page components.
 
 ## Project Structure
 
-### Documentation (this feature)
-
-```text
-specs/036-review-dashboard-redesign/
-├── plan.md              # This file
-├── spec.md              # Feature specification
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-└── tasks.md             # Phase 2 output (via /speckit.tasks)
 ```
-
-### Source Code (affected repositories)
-
-```text
 workbench-frontend/
-├── package.json                     # UPDATE — add recharts dependency
+├── package.json                     # recharts dependency
+├── scripts/dev-setup.sh             # Local dev setup script
+├── .env.development.local           # Local API URL override (gitignored)
+├── .github/workflows/ci.yml         # Optimized CI (artifact-based deploy)
 └── src/
+    ├── index.css                    # Recharts CSS focus overrides
+    ├── config.ts                    # API URL config
+    ├── main.tsx                     # configureApi + auto-login
     ├── locales/
-    │   ├── en.json                  # UPDATE — add ~21 missing translation keys
-    │   ├── uk.json                  # UPDATE — add ~21 missing translation keys
-    │   └── ru.json                  # UPDATE — add ~21 missing translation keys
-    └── features/workbench/
-        └── review/
-            ├── ReviewDashboard.tsx   # UPDATE — bento layout, recharts (PieChart, RadarChart, ComposedChart, AreaChart), empty state, sparklines
-            ├── TeamDashboard.tsx     # UPDATE — bento layout, recharts PieChart for queue depth, remove report generator
-            └── components/
-                ├── ScoreDistribution.tsx  # DELETE — replaced by inline recharts PieChart
-                └── DashboardEmptyState.tsx # NEW — meaningful empty state with CTA
+    │   ├── en.json                  # +21 translation keys
+    │   ├── uk.json                  # +21 translation keys
+    │   └── ru.json                  # +21 translation keys
+    └── features/workbench/review/
+        ├── ReviewDashboard.tsx      # REWRITE — main dashboard component
+        ├── TeamDashboard.tsx        # UPDATE — same design system treatment
+        └── components/
+            └── DashboardEmptyState.tsx  # Empty state with CTA
 ```
-
-**Structure Decision**: All chart visualizations use recharts directly in page components. No separate UI-kit components needed — recharts provides the composable component API. Only `workbench-frontend` is affected; `chat-frontend-common` has no chart-related changes.
 
 ## Cross-Repository Dependencies
 
-| Order | Repository | Changes | Depends On |
-|-------|-----------|---------|------------|
-| 1 | `workbench-frontend` | Dashboard pages, locale files, recharts integration | None |
+None. Single repo (workbench-frontend). chat-frontend-common reverted to clean 0.5.0.
 
-**Execution order**: Single repository — no cross-repo dependency chain.
+## Key Design Decisions
 
-## Complexity Tracking
+1. **No shared chart UI-kit** — charts render directly in page components using recharts. Custom SVG components produced poor quality and were reverted.
+2. **Design system first** — all colors from tailwind-preset.js, all typography from defined hierarchy, all cards use .card class.
+3. **Adaptive bottom section** — Today=Daily Goal Progress, other periods=Activity Trend.
+4. **Radar with short labels** — 3-letter codes (REL, EMP, SAF, ETH, CLR) to fit all locales. Full names in side legend + hover tooltip.
+5. **Legend ↔ Chart linking** — hover on legend row highlights corresponding chart element for interactivity.
+6. **MVP with current API** — delta arrows, team average overlay, per-criterion trends deferred to Phase 2 (requires backend changes).
 
-No constitution violations to justify. The feature uses existing patterns and does not exceed complexity thresholds.
+## Current State (as of 2026-03-24 end of session)
+
+### What works
+- Recharts rendering (donut, radar, bar chart, sparklines)
+- i18n translations (21 keys × 3 locales)
+- Auto-login on localhost
+- CI pipeline optimized
+- Period selector (Today/This Week/This Month/All Time)
+- DashboardEmptyState component
+- Skeleton loaders
+- Daily Goal progress bar (Today)
+- Design system .card class and color tokens
+
+### What needs fixing (next session)
+- Score bar proportions (normalized to max, should be proportional to total)
+- Typography inconsistency (text-lg vs text-sm for same semantic role)
+- Activity Trend hidden when <2 data points (should always show for non-Today)
+- Recharts click outlines still visible in some cases
+- No legend↔chart hover linking
+- TeamDashboard not updated yet
+- Responsive not tested
+- Locale labels not verified at all breakpoints

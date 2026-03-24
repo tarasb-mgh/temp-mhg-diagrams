@@ -1,150 +1,92 @@
 # Research: Review Dashboard Redesign
 
 **Feature**: 036-review-dashboard-redesign
-**Date**: 2026-03-23
+**Date**: 2026-03-23 (updated 2026-03-24)
 
-## R1: SVG Donut Chart Implementation (Pure CSS/SVG)
+## R1: Charting Library
 
-**Decision**: Use SVG `<circle>` elements with `stroke-dasharray` and `stroke-dashoffset` for donut segments.
+**Decision**: Use recharts (~150kB, 16M+ weekly downloads).
 
-**Rationale**: This is the standard zero-dependency approach for donut/ring charts. A single SVG `<circle>` per segment, positioned with cumulative `stroke-dashoffset`, renders proportional arcs. The center text is a positioned `<text>` element. This technique requires no path calculations, no trigonometry, and works reliably across all browsers.
+**Rationale**: Initially attempted pure CSS/SVG custom chart components in chat-frontend-common. Produced poor visual quality — broken scaling, unreadable labels, incorrect proportions. Custom SVG charts require precise geometry math that AI agents cannot visually verify without a browser. Recharts provides production-grade rendering, ResponsiveContainer for adaptive sizing, built-in tooltips, and proper SVG geometry out of the box.
 
-**Alternatives considered**:
-- SVG `<path>` with arc commands: More flexible but requires trigonometric arc calculations; unnecessary complexity for simple proportional segments.
-- CSS `conic-gradient`: Simpler CSS-only approach, but lacks per-segment interactivity, accessibility attributes, and cannot render a true ring with center content.
-- External library (e.g., recharts, nivo): Rejected per FR-012 — no new external dependencies.
-
-**Implementation pattern**:
-- SVG viewBox with fixed aspect ratio (e.g., `0 0 200 200`)
-- Circle radius chosen so `2πr` provides a convenient stroke-dasharray base
-- Each segment is a `<circle>` with `stroke-dasharray="segmentLength circumference"` and `stroke-dashoffset` equal to the cumulative offset
-- Center label via `<text>` element centered in viewBox
-- Legend rendered as HTML below the SVG, not inside it
-- `role="img"` and `aria-label` on the SVG for screen readers
-
-## R2: SVG Radar Chart Implementation (Pure SVG)
-
-**Decision**: Use SVG `<polygon>` for the data shape and `<line>` elements for axes, with `<text>` labels at axis endpoints.
-
-**Rationale**: A radar chart with exactly 5 axes maps to regular pentagon geometry. The axis endpoints are calculated using simple polar-to-cartesian conversion (`x = cx + r * cos(angle)`, `y = cy + r * sin(angle)`) with angles at 72° intervals. The data polygon connects 5 points scaled proportionally along each axis.
-
-**Alternatives considered**:
-- Canvas-based rendering: Not React-friendly, no DOM accessibility, harder to style with Tailwind.
-- Multiple overlapping circles: Visual approximation but not accurate for 5-axis data.
-- External library (e.g., visx, D3): Rejected per FR-012.
-
-**Implementation pattern**:
-- SVG viewBox with fixed aspect ratio (e.g., `0 0 300 300`), center at `(150, 150)`
-- 5 axes drawn as `<line>` from center to edge
-- Concentric guide pentagons (optional, for scale reference) as `<polygon>` with `fill="none"`
-- Data shape as `<polygon>` with semi-transparent fill and colored stroke
-- Axis labels as `<text>` elements positioned slightly beyond axis endpoints
-- Values displayed at data polygon vertices
-- `role="img"` and `aria-label` on the SVG
-
-## R3: SVG Sparkline Implementation
-
-**Decision**: Use SVG `<polyline>` for a simple trend line, matching the existing pattern in `ScoreTrajectoryView.tsx`.
-
-**Rationale**: The workbench-frontend already has a working SVG sparkline pattern in `ScoreTrajectoryView.tsx` that uses `<path>` elements for line charts. The new Sparkline component generalizes this into a reusable UI-kit component with configurable dimensions, color, and data points.
-
-**Alternatives considered**:
-- CSS-only sparklines using gradient backgrounds: Limited control, no per-point precision.
-- Canvas: Not React-friendly for small inline elements.
-
-**Implementation pattern**:
-- Fixed SVG viewBox (e.g., `0 0 60 20`) scaled to container
-- `<polyline>` with normalized data points mapped to viewBox coordinates
-- No axis labels, no grid — pure shape visualization
-- Optional gradient fill below the line for visual weight
-- `preserveAspectRatio="none"` to stretch to container width
-
-## R4: Dual-Axis Trend Chart
-
-**Decision**: Use SVG with `<rect>` elements for bars (left axis) and `<polyline>` for the line (right axis), with `<text>` data labels.
-
-**Rationale**: Combines the bar chart (review count) and line chart (average score) in a single SVG. Each axis has independent scaling. Data labels are `<text>` elements positioned above bars and at line vertices.
-
-**Alternatives considered**:
-- Two separate charts stacked vertically: Loses the visual correlation between volume and quality.
-- Canvas: Not React-friendly.
-
-**Implementation pattern**:
-- SVG viewBox with padding for axis labels
-- Bars as `<rect>` elements with height proportional to left-axis scale (review count)
-- Line as `<polyline>` with Y positions proportional to right-axis scale (average score)
-- `<text>` data labels above each bar and at each line vertex
-- Left axis label for count, right axis label for score (minimal, not full axis ticks)
-- Responsive: viewBox scales with container width
-
-## R5: UI-Kit Component Location
-
-**Decision**: Place all chart components in `chat-frontend-common/src/components/charts/`.
-
-**Rationale**: `chat-frontend-common` is the established shared library consumed by all frontends. It already has a `components/` directory (currently containing `GroupScopeRoute.tsx` and `LanguageSelector.tsx`). Adding a `charts/` subdirectory follows the existing pattern and makes components available to workbench-frontend, chat-frontend, and delivery-workbench-frontend.
-
-**Alternatives considered**:
-- Placing in `workbench-frontend/src/components/`: Would not be reusable across other frontends.
-- Creating a new `chart-components` package: Over-engineering for 4 components; `chat-frontend-common` already serves this purpose.
+**Alternatives rejected**:
+- Custom SVG UI-kit in chat-frontend-common: poor quality, 3 patch releases (0.4.0→0.4.2) to fix sizing issues, still broken
+- Tremor (~200kB): heavier, opinionated SaaS styling
+- Nivo (500kB+): too heavy for our needs
 
 **Implementation notes**:
-- Each component is self-contained (no internal cross-imports between chart components)
-- Props use generic data types (arrays of numbers, labeled segments) — not domain-specific types
-- Tailwind classes for colors, with prop-based overrides
-- Barrel export via `charts/index.ts`
-- Version bump of `chat-frontend-common` required after adding components
+- Charts render directly in page components, NOT in a shared UI-kit library
+- chat-frontend-common was reverted to 0.5.0 (clean, no chart components)
+- recharts added as dependency to workbench-frontend only
 
-## R6: Bento-Grid Layout Pattern
+## R2: Design System Compliance
 
-**Decision**: Use Tailwind CSS Grid with responsive breakpoints.
+**Decision**: All UI must use project design system tokens from `chat-frontend-common/tailwind-preset.js`.
 
-**Rationale**: Tailwind's grid utilities (`grid`, `grid-cols-*`, `col-span-*`) with responsive prefixes (`lg:`, `sm:`) provide the bento-grid layout without custom CSS. This matches the existing Tailwind-first approach in the project.
+**Rationale**: Initial implementation used raw hex colors (#059669, #34d399), arbitrary text sizes (text-[11px], fontSize: 9), and ad-hoc shadows (ring-1 ring-neutral-900/5). This produced an inconsistent "draft" look. Constitution VI-B now mandates design system compliance.
 
-**Implementation pattern**:
-- Outer container: `grid grid-cols-1 lg:grid-cols-2 gap-6`
-- KPI row: `col-span-full` with inner `grid grid-cols-1 sm:grid-cols-3`
-- Charts row: two cards, each `col-span-1` (side by side on lg, stacked on sm)
-- Trend section: `col-span-full`
-- Consistent card styling: `rounded-xl border border-neutral-200 bg-white p-5 shadow-sm`
+**Available tokens**:
+- Colors: primary-* (slate-blue), secondary-* (sage-green), neutral-* (warm gray), accent-* (purple), success (#7a9f86), warning (#c9a86c), error (#c98686)
+- Shadows: shadow-soft, shadow-soft-md, shadow-soft-lg
+- Components: .card (bg-white rounded-2xl shadow-soft border border-neutral-200/60), .btn-*, .badge-*
+- Font: Inter, system-ui
 
-## R7: Skeleton Loader Pattern
+**Score range color palette** (using design system):
+| Range | Color | Token source |
+|-------|-------|-------------|
+| Outstanding 9-10 | #658a72 | secondary-700 |
+| Very Good 7-8 | #8fb39a | secondary-500 |
+| Above Average 5-6 | #c9a86c | warning |
+| Below Average 3-4 | #c4956b | warm orange (near warning) |
+| Unacceptable 1-2 | #c98686 | error |
 
-**Decision**: Use Tailwind's `animate-pulse` with placeholder divs matching card dimensions.
+## R3: Radar Chart Labels
 
-**Rationale**: Skeleton loaders are standard in the 2026 dashboard UX pattern. Tailwind's `animate-pulse` on `bg-neutral-200 rounded-xl` divs provides the shimmer effect without any additional dependencies. The skeleton layout mirrors the bento-grid structure so the transition from loading to loaded is seamless.
+**Decision**: Use 3-letter codes (REL, EMP, SAF, ETH, CLR) as radar axis labels.
 
-**Alternatives considered**:
-- Third-party skeleton library (react-loading-skeleton): Adds dependency; Tailwind approach is sufficient.
-- Spinner (current): Poor UX — no spatial preview of content layout.
+**Rationale**: Full criterion names ("Empathy", "Relevance") truncate at small radar sizes, especially in Ukrainian/Russian where words are longer. 3-letter codes fit in all locales at all sizes. Full names shown in side legend and on hover tooltip.
 
-## R8: Missing i18n Keys Inventory
+## R4: Activity Trend vs Daily Goal
 
-**Decision**: Add 20 translation keys across 3 locale files.
+**Decision**: Bottom section adapts to selected period.
 
-**Keys to add** (under `review` namespace):
+**Rationale**: "Today" has no meaningful time series (no intra-day data points). Instead, show a Daily Goal progress bar that gamifies daily productivity. For other periods, show Activity Trend chart.
 
-| Key path | en | Notes |
-|----------|-----|-------|
-| `review.dashboard.period.today` | Today | Period selector |
-| `review.dashboard.period.week` | This Week | Period selector |
-| `review.dashboard.period.month` | This Month | Period selector |
-| `review.dashboard.period.all` | All Time | Period selector |
-| `review.common.status.pending_review` | Pending Review | Queue depth legend |
-| `review.common.status.in_review` | In Review | Queue depth legend |
-| `review.common.status.disputed` | Disputed | Queue depth legend |
-| `review.common.status.complete` | Complete | Queue depth legend |
-| `review.reports.types.daily_summary` | Daily Summary | Report type selector |
-| `review.reports.types.weekly_performance` | Weekly Performance | Report type selector |
-| `review.reports.types.monthly_quality` | Monthly Quality | Report type selector |
-| `review.reports.types.escalation_report` | Escalation Report | Report type selector |
-| `review.dashboard.emptyState.title` | No reviews yet | Empty state heading |
-| `review.dashboard.emptyState.description` | Start reviewing chat sessions to see your statistics here | Empty state body |
-| `review.dashboard.emptyState.cta` | Start Reviewing | Empty state CTA button |
-| `review.dashboard.teamEmptyState.title` | No team reviews yet | Team empty state heading |
-| `review.dashboard.teamEmptyState.description` | Team review statistics will appear here once reviews are completed | Team empty state body |
-| `review.dashboard.goToReports` | Go to Reports | Team dashboard reports link |
-| `review.dashboard.stats.queueTotal` | Queue Total | Queue depth center label |
-| `review.dashboard.trendChart.reviewCount` | Reviews | Dual-axis left label |
-| `review.dashboard.trendChart.avgScore` | Avg Score | Dual-axis right label |
+**Daily average formula**: totalReviews(allTime) / activeWeeks / 5 (workdays estimate). Computable on frontend from weeklyTrend data.
 
-Ukrainian and Russian translations will be provided alongside English.
+## R5: Local Development Setup
+
+**Decision**: `.env.development.local` + auto-login script + `configureApi({ apiUrl, workbenchApiUrl })`.
+
+**Rationale**: Dev backend is at `api.workbench.dev.mentalhelp.chat` (different from `api.dev.mentalhelp.chat`). Vite caches import.meta.env transforms in memory — `.env.development.local` only takes effect after Vite restart. Auto-login sends OTP programmatically on localhost in dev mode.
+
+**Key files**:
+- `scripts/dev-setup.sh` — creates .env.development.local, obtains OTP token
+- `src/main.tsx` — configureApi with workbenchApiUrl, auto-login block
+- `src/config.ts` — reads VITE_API_URL (no hacks needed when .env.development.local is correct)
+
+## R6: CI Pipeline Optimization
+
+**Decision**: Use checkout-based CI with PKG_TOKEN for cross-repo deps, upload/download artifact for deploy.
+
+**Rationale**: npm registry auth (GITHUB_TOKEN, PKG_TOKEN) was unreliable. Checkout + local build pattern is established and works. Deploy job now downloads pre-built artifact from test job instead of re-building.
+
+**Key change**: Added `tsc --noEmit` typecheck step to CI test job.
+
+## R7: Backend Data Gaps
+
+Current `ReviewerDashboardStats` API limitations for the full spec:
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Reviews count, avg score, agreement rate | Available | Current API |
+| Score distribution (5 buckets) | Available | Current API |
+| Criteria feedback counts | Available | Current API |
+| Weekly trend (reviews + avg score) | Available | Current API |
+| Delta vs previous period | NOT available | Needs backend: return previous period stats alongside current |
+| Team average per criterion | NOT available | Needs backend: aggregate team stats per criterion |
+| Per-criterion per-day trend | NOT available | Needs backend: granular time series per criterion |
+| Daily average | Computable | Frontend calc from weeklyTrend |
+| Criteria as percentages | Computable | Frontend calc: count / totalReviews |
+
+**MVP scope**: implement with current API. Phase 2 = backend extensions for delta, team average, per-criterion trends.

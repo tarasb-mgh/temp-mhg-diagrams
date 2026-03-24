@@ -1,17 +1,9 @@
 # Tasks: Review Dashboard Redesign
 
 **Input**: Design documents from `/specs/036-review-dashboard-redesign/`
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md, quickstart.md
+**Prerequisites**: spec.md (v3), research.md, plan.md
 
-**Tests**: Tests are OPTIONAL per constitution (III). Not explicitly requested in this spec.
-
-**Organization**: Tasks grouped by user story. Simplified after switching from custom UI-kit to recharts.
-
-## Format: `[ID] [P?] [Story] Description`
-
-- **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (e.g., US1, US2)
-- Include exact file paths in descriptions
+**Organization**: Tasks split into completed infrastructure + remaining UI work.
 
 ## Path Conventions
 
@@ -19,109 +11,105 @@
 
 ---
 
-## Phase 1: Setup
+## Completed Tasks
 
-**Purpose**: Branch creation, dependency install, i18n translations
-
-- [x] T001 [P] Create feature branch `036-review-dashboard-redesign` from `develop` in workbench-frontend — MTB-844
-- [x] T002 [P] Add recharts dependency to workbench-frontend/package.json
-- [x] T003 [P] Add missing i18n translation keys (21 keys) to workbench-frontend/src/locales/en.json — MTB-845
-- [x] T004 [P] Add Ukrainian translations for all new keys to workbench-frontend/src/locales/uk.json — MTB-846
-- [x] T005 [P] Add Russian translations for all new keys to workbench-frontend/src/locales/ru.json — MTB-847
-
----
-
-## Phase 2: User Story 1 — Fix Review Dashboard UI Bugs (Priority: P1) 🎯 MVP
-
-**Goal**: Fix missing translations and broken empty state on Review Dashboard
-
-**Independent Test**: Open Review Dashboard, verify period tabs show translated labels, verify empty state shows CTA without zero-value charts
-
-- [x] T006 [US1] Create DashboardEmptyState component with CTA in workbench-frontend/src/features/workbench/review/components/DashboardEmptyState.tsx — MTB-854
-- [x] T007 [US1] Update ReviewDashboard.tsx — empty state when reviewsCompleted=0, skeleton loaders, period translations in workbench-frontend/src/features/workbench/review/ReviewDashboard.tsx — MTB-855
-
-**Checkpoint**: Review Dashboard shows translated period tabs and meaningful empty state
+- [x] T001 Create feature branch in workbench-frontend
+- [x] T002 Add recharts dependency
+- [x] T003 Add 21 i18n keys to en.json — MTB-845
+- [x] T004 Add Ukrainian translations — MTB-846
+- [x] T005 Add Russian translations — MTB-847
+- [x] T006 Create DashboardEmptyState component — MTB-854
+- [x] T007 Add auto-login for localhost dev mode in main.tsx
+- [x] T008 Add dev-setup.sh script for local development
+- [x] T009 Fix configureApi to pass workbenchApiUrl in main.tsx
+- [x] T010 Optimize CI pipeline (artifact-based deploy, typecheck step)
+- [x] T011 Revert chat-frontend-common to 0.5.0 (remove broken custom charts)
+- [x] T012 Remove embedded report generator from TeamDashboard
+- [x] T013 Add CSS to suppress recharts SVG focus outlines
 
 ---
 
-## Phase 3: User Story 7 — Fix Team Dashboard UI Bugs (Priority: P1)
+## Remaining Tasks — Review Dashboard UI
 
-**Goal**: Fix translations, empty state, remove report generator, add queue depth donut
+### Phase 1: Fix known issues from review feedback
 
-- [x] T008 [US7] Update TeamDashboard.tsx — empty state, skeleton loaders, period translations, remove embedded report generator, add "Go to Reports" link, replace queue depth stacked bar with recharts PieChart donut in workbench-frontend/src/features/workbench/review/TeamDashboard.tsx — MTB-856, MTB-857, MTB-858
+- [ ] T014 Fix Score Distribution bar proportions — bars must be proportional to totalReviews (count/total), NOT normalized to max count. Verify with data where Outstanding=8 and total=8 (should be 100%) vs Outstanding=8 and total=15 (should be ~53%)
+- [ ] T015 Fix typography inconsistency — Criteria Breakdown count uses text-lg but Score Distribution count uses text-sm. Both should use Data number token: text-sm font-semibold text-neutral-700 (per spec typography hierarchy)
+- [ ] T016 Show Activity Trend for all non-Today periods — remove `trendData.length >= 2` check; show bar chart even with 1 data point. Only hide for Today (show Daily Goal instead)
+- [ ] T017 Fix recharts focus/click outlines — current CSS may not fully suppress. Test: click donut segment → no blue outline. Click radar → no outline. Tab through page → no SVG focus rings
 
-**Checkpoint**: Both P1 stories complete
+### Phase 2: Interactive charts
 
----
+- [ ] T018 Add legend↔donut hover linking — when user hovers Score Distribution legend row, corresponding donut segment expands (increase outerRadius by 5px) or highlights. Use React state `activeIndex` + recharts `activeIndex` prop on Pie
+- [ ] T019 Add legend↔radar hover linking — when user hovers Criteria Breakdown legend row, corresponding radar dot enlarges. Use `activeIndex` on Radar component
+- [ ] T020 Add donut segment hover tooltip — already partially done; verify tooltip shows "Outstanding: 8 reviews · 53%" format with dark compact style
+- [ ] T021 Add radar dot hover tooltip — already partially done; verify tooltip shows "Empathy: 6 feedbacks · 75% of reviews" format
 
-## Phase 4: User Story 2 — Donut Chart for Score Distribution (Priority: P2)
+### Phase 3: Daily Goal & Trend Polish
 
-**Goal**: Replace horizontal bars with recharts PieChart donut on Review Dashboard
+- [ ] T022 Verify Daily Goal progress bar on Today — test with various review counts (0, 1, 3, 8). Verify percentage calc, color transitions (neutral→warning→success), text labels
+- [ ] T023 Style Activity Trend bar chart — verify it matches design system. Bars use primary-500 color. Last bar full opacity, previous bars 50%. Custom dark tooltip
 
-- [x] T009 [US2] Replace ScoreDistribution with recharts PieChart (innerRadius/outerRadius donut) — delete ScoreDistribution.tsx, integrate PieChart inline in ReviewDashboard.tsx with color-coded segments, center total, legend, tooltip — MTB-859
+### Phase 4: Team Dashboard
 
-**Checkpoint**: Score Distribution renders as donut chart
+- [ ] T024 Rewrite TeamDashboard.tsx with same design system — .card class, typography hierarchy, design system colors. Apply same patterns as Review Dashboard
+- [ ] T025 Queue Depth donut chart with recharts PieChart — 4 segments with translated labels, custom tooltip
+- [ ] T026 Verify Team Dashboard translations (en/uk/ru) and responsive layout
 
----
+### Phase 5: Visual QA
 
-## Phase 5: User Story 3 — Radar Chart for Criteria Breakdown (Priority: P2)
-
-**Goal**: Replace horizontal bars with recharts RadarChart on Review Dashboard
-
-- [x] T010 [US3] Replace criteria breakdown horizontal bars with recharts RadarChart — PolarGrid, PolarAngleAxis, Radar with 5 axes, tooltip, responsive — in ReviewDashboard.tsx — MTB-860
-
-**Checkpoint**: Criteria Breakdown renders as radar chart
-
----
-
-## Phase 6: User Story 4 — Bento-Grid Layout (Priority: P2)
-
-**Goal**: Reorganize both dashboards into bento-grid layout
-
-- [x] T011 [P] [US4] Refactor ReviewDashboard.tsx layout — Tailwind grid grid-cols-1 lg:grid-cols-2, KPI row col-span-full, charts side by side, trend full-width — MTB-861
-- [x] T012 [P] [US4] Refactor TeamDashboard.tsx layout — same bento-grid, KPI row 5-col, queue depth + workload side by side — MTB-862
-
-**Checkpoint**: Both dashboards use bento-grid layout
+- [ ] T027 Test all 4 periods (Today/Week/Month/All Time) with Playwright screenshots
+- [ ] T028 Test all 3 locales (en/uk/ru) — verify labels fit
+- [ ] T029 Test responsive: 1440px, 1024px, 768px, 375px viewports
+- [ ] T030 Test hover interactions on donut, radar, bars — verify tooltips and highlights
 
 ---
 
-## Phase 7: User Story 5 — Sparklines and Dual-Axis Trend (Priority: P3)
+## Key Context for Next Session
 
-**Goal**: Add sparklines to KPI cards, upgrade Weekly Trend to ComposedChart
+### Design system tokens to use
 
-- [x] T013 [US5] Add recharts AreaChart sparklines to Reviews Completed and Average Score KPI cards in ReviewDashboard.tsx — MTB-863
-- [x] T014 [US5] Replace Weekly Trend with recharts ComposedChart (Bar + Line, dual Y-axis) in ReviewDashboard.tsx — MTB-864
+```
+Colors: primary-500 (#7c8db0), secondary-700 (#658a72), secondary-500 (#8fb39a),
+        neutral-* (warm grays), warning (#c9a86c), error (#c98686)
+Cards: .card class (bg-white rounded-2xl shadow-soft border border-neutral-200/60)
+Shadows: shadow-soft, shadow-soft-md, shadow-soft-lg
+```
 
-**Checkpoint**: KPI sparklines and dual-axis trend chart working
+### Typography hierarchy (from spec)
 
----
+```
+Page title:     text-lg font-semibold text-neutral-800
+Section header: text-sm font-semibold uppercase tracking-wider text-neutral-500
+KPI value:      text-2xl font-bold text-neutral-900
+KPI label:      text-xs font-medium uppercase tracking-wider text-neutral-400
+Data number:    text-sm font-semibold text-neutral-700
+Chart label:    text-xs font-medium text-neutral-500
+Body text:      text-sm text-neutral-600
+Caption:        text-xs text-neutral-400
+```
 
-## Phase 8: User Story 6 — Agreement Rate Color Coding (Priority: P3)
+### Files to edit
 
-- [x] T015 [US6] Add color coding to Agreement Rate (ReviewDashboard) and interRaterReliability (TeamDashboard) — MTB-865
+```
+workbench-frontend/src/features/workbench/review/ReviewDashboard.tsx — main component
+workbench-frontend/src/features/workbench/review/TeamDashboard.tsx — team dashboard
+workbench-frontend/src/index.css — recharts CSS overrides
+```
 
-**Checkpoint**: Agreement Rate shows contextual color
+### Local dev setup
 
----
+```bash
+cd workbench-frontend
+./scripts/dev-setup.sh  # creates .env.development.local + gets OTP
+npx vite --port 5174    # MUST restart after dev-setup (Vite caches env)
+# Auto-login happens on page load (localhost + DEV mode)
+```
 
-## Phase 9: Polish & Visual QA
+### API URLs
 
-**Purpose**: Verify visual quality via Playwright, fix issues
-
-- [ ] T016 Visual QA via Playwright — navigate to both dashboards on dev, take screenshots, verify charts render correctly with proper proportions, labels readable, responsive layout works
-- [ ] T017 Run locale verification — switch to uk/ru on both dashboards, verify all 21 keys render correctly
-- [ ] T018 Fix any visual issues found in T016/T017
-
----
-
-## Dependencies & Execution Order
-
-- **Phase 1 (Setup)**: No dependencies — start immediately
-- **Phases 2-8**: Sequential, all in workbench-frontend — no cross-repo deps
-- **Phase 9 (Polish)**: After deployment to dev
-
-### Notes
-
-- Single repo: workbench-frontend only (chat-frontend-common reverted to clean 0.5.0)
-- recharts provides ResponsiveContainer — charts auto-size to container
-- No custom SVG code — all charts via recharts declarative API
+```
+Dev backend (workbench): https://api.workbench.dev.mentalhelp.chat
+Dev backend (chat):      https://api.dev.mentalhelp.chat
+Dashboard endpoint:      GET /api/review/dashboard/me?period=<today|week|month|all>
+```
