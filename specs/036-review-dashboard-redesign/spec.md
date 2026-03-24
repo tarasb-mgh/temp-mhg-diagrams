@@ -180,16 +180,25 @@ A supervisor or moderator opens the Team Dashboard page and sees team-wide stati
 - Hover on dot → tooltip with full criterion name, reviewer count, team average
 - Side legend: full criterion names with **percentage** (% of reviews where this criterion had feedback), not raw count
 
-**Activity Trend** (replaces "Weekly Trend") — answers "How is my performance changing?"
+**Bottom section** — adapts to selected period:
+
+**Today → Daily Goal Progress** — answers "Am I on track today?"
+- Horizontal progress bar showing today's review count vs daily average
+- Daily average = total reviews (all time) / number of active days
+- Display: progress bar filled to percentage, with label showing exact % (e.g., "52% of daily average")
+- Color coding: <50% neutral/gray, 50-99% amber (almost there), 100%+ green (goal met)
+- Show absolute numbers: "3 of ~6 reviews (52%)"
+- Motivational: creates a daily target without hard quotas
+- If exceeded 100%: show green with "142% — above average!" style positive reinforcement
+
+**This Week / This Month / All Time → Activity Trend** — answers "How is my performance changing?"
 - Multi-line chart showing criteria trends over time
 - Lines: one per criterion (color-coded), plus average score line
 - Time axis step varies by period:
-  - Today: don't show (not enough granularity)
   - This Week: 1 day per step (Mon–Sun)
   - This Month: 1 day per step or 1 week per step (auto based on data density)
   - All Time: 1 week per step (or 1 month if >6 months of data)
 - Show only when ≥2 data points exist for the selected period
-- Each criteria line shows how that criterion's feedback frequency changes over time
 
 ### Design Principles (added 2026-03-24, updated with feedback)
 
