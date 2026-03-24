@@ -72,8 +72,8 @@ Two pages in workbench-frontend:
 **This Week / This Month / All Time → Activity Trend** — "How is my performance changing?"
 - Multi-line chart: one line per criterion (color-coded) + average score line
 - Time step: Week=daily, Month=daily or weekly (auto), All Time=weekly or monthly (auto based on data span)
-- Show only when ≥2 data points exist
 - Custom compact dark tooltip on hover
+- **MVP simplification**: if per-criterion trend data is not available from backend, show a simple bar chart of reviews-per-week from weeklyTrend data. The chart MUST always be visible for non-Today periods when data exists — even with 1 data point (show single bar, don't hide). Hiding creates empty page feel.
 
 ---
 
@@ -129,7 +129,12 @@ All UI MUST follow the project design system (Constitution VI-B).
 - Score bars: hover → bg-neutral-50 background, subtle bar highlight
 - Donut segments: hover → tooltip with name + count + percentage
 - Radar dots: hover → enlarged active dot + tooltip with full name + count + team avg
+- **Legend ↔ Chart linking**: hover or click on a legend row MUST highlight the corresponding chart element. For donut: hovered segment expands outward (outerRadius increase) or pulses. For radar: corresponding dot enlarges. This makes charts feel alive and interactive, not static images.
 - No focus/click outlines on SVG charts (tabIndex={-1}, CSS overrides)
+
+### Data Consistency Rules
+- Score Distribution bars: width MUST be proportional to **total reviews** (count/totalReviews), NOT normalized to the maximum count. If all reviews are Outstanding, the Outstanding bar should be 100% and all others 0% — but if Outstanding=8 out of total=15, the bar should be ~53%.
+- Number sizes in legends MUST be consistent across all sections. Both Score Distribution counts and Criteria Breakdown counts use the same typography token (Data number = text-sm font-semibold text-neutral-700). No mixing text-sm in one section and text-lg in another for the same semantic role.
 
 ---
 
@@ -138,7 +143,7 @@ All UI MUST follow the project design system (Constitution VI-B).
 - 0 reviews for selected period → empty state with CTA "Start Reviewing"
 - 1 score range with data → donut shows single full segment (don't hide donut)
 - All criteria = 0 → show radar grid outline with centered "No criteria feedback yet"
-- <2 data points for trend → hide Activity Trend section, Today shows Daily Goal instead
+- Non-Today with trend data → always show Activity Trend (even 1 data point). Today → show Daily Goal instead of trend
 - Daily Goal with 0 all-time reviews → show 0% with encouraging message
 - Loading → skeleton loaders matching card layout shapes
 
