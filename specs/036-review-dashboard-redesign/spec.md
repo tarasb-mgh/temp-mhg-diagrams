@@ -144,10 +144,20 @@ A supervisor or moderator opens the Team Dashboard page and sees team-wide stati
 
 ### Edge Cases
 
-- What happens when a reviewer has reviews in only one score range? The donut chart shows a single full-circle segment.
-- What happens when all criteria feedback counts are zero? The radar chart section is hidden entirely (same behavior as the current criteria breakdown).
-- What happens when weekly trend data has fewer than 2 data points? Sparklines in KPI cards are hidden; the Weekly Trend section shows available data without the average score line.
+- What happens when a reviewer has reviews in only one score range? Show a simple text indicator instead of a full-circle donut — a single segment donut is visually meaningless.
+- What happens when all criteria feedback counts are zero or all equal? Hide the radar chart — it degenerates to a dot or invisible shape. Show a text summary instead.
+- What happens when there are fewer than 3 reviews? Hide Score Distribution and Criteria Breakdown charts entirely — charts with 1-2 data points are misleading. Show a compact text summary of the scores instead.
+- What happens when weekly trend data has fewer than 2 weeks? Hide the Weekly Trend section entirely — a single bar in a chart is visual noise, not information.
 - What happens when the loading state is active? Skeleton loaders matching the bento-grid card shapes are displayed instead of a spinner.
+- What happens on hover? Custom compact tooltips (not default recharts oversized tooltips). Consistent size and style across all chart types.
+
+### Design Principles (added 2026-03-24)
+
+- **Data density over decoration**: Every pixel must convey useful information. Empty charts, single-point trends, and full-circle donuts waste space.
+- **Graceful degradation**: When insufficient data exists for a chart, fall back to a clean text summary — never show a broken/meaningless chart.
+- **Google Analytics aesthetic**: Flat, clean, subtle colors, clear typography. No heavy borders, no visual clutter.
+- **Charts must earn their space**: If a chart doesn't communicate faster than plain text, use plain text instead.
+- **Consistent interactions**: Tooltips, hover states, and transitions must be uniform across all elements.
 
 ## Requirements *(mandatory)*
 
