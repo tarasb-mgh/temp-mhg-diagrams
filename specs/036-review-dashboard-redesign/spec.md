@@ -151,13 +151,17 @@ A supervisor or moderator opens the Team Dashboard page and sees team-wide stati
 - What happens when the loading state is active? Skeleton loaders matching the bento-grid card shapes are displayed instead of a spinner.
 - What happens on hover? Custom compact tooltips (not default recharts oversized tooltips). Consistent size and style across all chart types.
 
-### Design Principles (added 2026-03-24)
+### Design Principles (added 2026-03-24, updated with feedback)
 
+- **Use project design system**: All styling MUST use the shared Tailwind preset tokens (primary, secondary, neutral, accent, success, warning, error colors; shadow-soft; .card class; .badge-* classes). No raw hex colors, no ad-hoc text sizes. Font sizes must use Tailwind scale (text-xs, text-sm, text-base, text-lg, text-xl) — no custom `text-[11px]` or similar.
+- **Consistent typography hierarchy**: Define exactly which size/weight applies to each element type (page title, section header, KPI value, KPI label, chart label, data number) and apply uniformly. This must feel like one system, not assembled from parts.
 - **Data density over decoration**: Every pixel must convey useful information. Empty charts, single-point trends, and full-circle donuts waste space.
-- **Graceful degradation**: When insufficient data exists for a chart, fall back to a clean text summary — never show a broken/meaningless chart.
-- **Google Analytics aesthetic**: Flat, clean, subtle colors, clear typography. No heavy borders, no visual clutter.
-- **Charts must earn their space**: If a chart doesn't communicate faster than plain text, use plain text instead.
-- **Consistent interactions**: Tooltips, hover states, and transitions must be uniform across all elements.
+- **Graceful degradation**: When data is sparse, charts should still render but adapt (e.g., donut shows single segment with count, radar shows shape even if small). Hiding entire sections makes page feel empty.
+- **Interactive charts**: All chart elements must respond to hover (highlight, tooltip with full details). No "dead" charts. Score Distribution donut segments must show tooltips on hover. Radar dots must show criterion name + count on hover.
+- **No focus/click outlines on charts**: SVG elements must not show browser focus rings or recharts selection borders when clicked. Use `tabIndex={-1}`, CSS overrides, and recharts props to suppress.
+- **Labels must fit in all locales**: Verify en/uk/ru labels fit their containers. For radar chart, use short 3-letter codes (REL, EMP, SAF, ETH, CLR) as axis labels, with full names shown on hover tooltip and in side legend.
+- **Fill the viewport**: Dashboard should use available space without large empty areas. Asymmetric grid (e.g., 2:3 column ratio) helps balance visual density.
+- **Professional finish**: No arbitrary sizing. Consistent spacing using Tailwind gap/padding scale. Consistent card treatment (use .card class). Subtle hover states on interactive rows.
 
 ## Requirements *(mandatory)*
 
