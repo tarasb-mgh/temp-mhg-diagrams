@@ -1,79 +1,101 @@
-# Quickstart: Review Dashboard Redesign
+# Quickstart: 036 Review Dashboard Redesign — Next Session
 
-**Feature**: 036-review-dashboard-redesign
+**Read this file first. Do NOT start coding without completing all preparation steps.**
 
-## Prerequisites
+## 1. Read Context (mandatory, in order)
 
-- Node.js 18+ and npm
-- Access to `chat-frontend-common` and `workbench-frontend` repositories
-- Both repos cloned locally and on the `036-review-dashboard-redesign` branch
-
-## Development Setup
-
-### 1. Chat Frontend Common (UI-kit components)
-
-```bash
-cd chat-frontend-common
-git checkout -b 036-review-dashboard-redesign develop
-npm install
-npm run dev  # Starts watch mode for library builds
+```
+Read specs/036-review-dashboard-redesign/spec.md        — full spec v3
+Read specs/036-review-dashboard-redesign/tasks.md       — tasks + "Key Context" section at bottom
+Read specs/036-review-dashboard-redesign/research.md    — decisions + backend gaps
+Read chat-frontend-common/tailwind-preset.js            — design system tokens
+Read workbench-frontend/src/index.css                   — component classes (.card, .btn-*, recharts CSS)
 ```
 
-### 2. Workbench Frontend (dashboard pages)
+## 2. Start Local Dev
 
 ```bash
-cd workbench-frontend
-git checkout -b 036-review-dashboard-redesign develop
-npm install
-npm run dev  # Starts Vite dev server
+cd /Users/malyarevich/dev/workbench-frontend
+git checkout 036-review-dashboard-redesign
+
+# If .env.development.local missing:
+./scripts/dev-setup.sh pavelm@mentalhelp.global
+
+# Start dev server (MUST restart if env changed):
+npx vite --port 5174
+
+# Auto-login happens automatically on localhost (dev mode)
+# Navigate to: http://localhost:5174/workbench/review/dashboard
 ```
 
-### 3. Link local chat-frontend-common (for development)
+## 3. Verify Current State via Playwright
 
-```bash
-cd chat-frontend-common
-npm link
+Take screenshot of current dashboard on all 4 periods:
+- Today, This Week, This Month, All Time
+- Identify what renders, what's broken
 
-cd ../workbench-frontend
-npm link @mentalhelpglobal/chat-frontend-common
+## 4. Fix Tasks (in order)
+
+### T014: Score Distribution bar proportions
+File: `src/features/workbench/review/ReviewDashboard.tsx`
+Issue: bars may show 100% when all reviews in one range. Bars MUST be proportional to totalReviews.
+Fix: verify `pct = (count / totalReviews) * 100` — this should already be correct but test with different data.
+
+### T015: Typography consistency
+File: `src/features/workbench/review/ReviewDashboard.tsx`
+Issue: Criteria Breakdown count = `text-lg font-bold` but Score Distribution count = `text-sm font-semibold`. 
+Fix: Both must use `text-sm font-semibold text-neutral-700` per typography hierarchy.
+
+### T016: Activity Trend always visible
+File: `src/features/workbench/review/ReviewDashboard.tsx`
+Issue: `trendData.length >= 2` check hides chart with 1 data point. Spec says always show for non-Today.
+Fix: change to `trendData.length > 0` (or remove check entirely for non-Today).
+
+### T017: Recharts focus outlines
+Files: `src/index.css`, `ReviewDashboard.tsx`
+Issue: click on donut/radar may still show blue outline.
+Fix: test in browser. If still visible, add `outline: none` to more selectors or use recharts `onMouseDown={(e) => e?.preventDefault?.()}`.
+
+### T018-T019: Legend ↔ Chart hover linking
+File: `src/features/workbench/review/ReviewDashboard.tsx`
+Pattern:
+```tsx
+const [activeScoreIndex, setActiveScoreIndex] = useState<number | undefined>(undefined);
+// On legend row: onMouseEnter={() => setActiveScoreIndex(i)} onMouseLeave={() => setActiveScoreIndex(undefined)}
+// On Pie: activeIndex={activeScoreIndex} activeShape with increased outerRadius
 ```
 
-## Key Files to Edit
+### T020-T021: Verify tooltips
+Test hover on donut segments and radar dots. Tooltips should show dark compact style with name + count + percentage.
 
-### chat-frontend-common
+### T022-T023: Daily Goal + Trend polish
+Switch to Today → verify progress bar. Switch to This Week → verify bar chart.
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/charts/DonutChart.tsx` | CREATE | Reusable donut/ring chart |
-| `src/components/charts/RadarChart.tsx` | CREATE | Reusable radar/spider chart |
-| `src/components/charts/Sparkline.tsx` | CREATE | Reusable micro-sparkline |
-| `src/components/charts/DualAxisChart.tsx` | CREATE | Reusable bar+line dual-axis chart |
-| `src/components/charts/index.ts` | CREATE | Barrel export |
-| `src/index.ts` | UPDATE | Re-export charts module |
+## 5. After Fixes — Visual QA Checklist
 
-### workbench-frontend
+Run through Playwright:
+- [ ] Today: KPI cards + Score Distribution + Criteria Breakdown + Daily Goal
+- [ ] This Week: same + Activity Trend (bar chart)
+- [ ] This Month: same + Activity Trend
+- [ ] All Time: same + Activity Trend
+- [ ] Switch locale to Ukrainian → all labels fit
+- [ ] Switch locale to Russian → all labels fit
+- [ ] Hover donut segment → dark tooltip with name + count + %
+- [ ] Hover radar dot → dark tooltip with full name + count + % of reviews
+- [ ] Hover legend row → corresponding chart element highlights
+- [ ] Click donut/radar → NO blue outline/border
+- [ ] Responsive 1024px → 2-col grid
+- [ ] Responsive 375px → single column, charts readable
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/features/workbench/review/ReviewDashboard.tsx` | UPDATE | Bento layout, integrate charts, empty state, sparklines, color coding |
-| `src/features/workbench/review/TeamDashboard.tsx` | UPDATE | Bento layout, donut for queue depth, remove report generator, add Reports link |
-| `src/features/workbench/review/components/ScoreDistribution.tsx` | REPLACE | Integrate DonutChart from UI-kit |
-| `src/features/workbench/review/components/DashboardEmptyState.tsx` | CREATE | Meaningful empty state with CTA |
-| `src/locales/en.json` | UPDATE | Add ~20 missing translation keys |
-| `src/locales/uk.json` | UPDATE | Add Ukrainian translations |
-| `src/locales/ru.json` | UPDATE | Add Russian translations |
+## 6. Then Team Dashboard (T024-T026)
 
-## Verification
+Apply same patterns to TeamDashboard.tsx. Same .card class, same typography, recharts PieChart for Queue Depth.
 
-### Dev environment
+## Key Rules (from Constitution VI-B)
 
-1. Open `https://workbench.dev.mentalhelp.chat/workbench/review/dashboard`
-2. Verify period selector shows translated labels
-3. If no review data: verify meaningful empty state with CTA
-4. Resize browser to verify responsive bento-grid layout
-5. Open `https://workbench.dev.mentalhelp.chat/workbench/review/team`
-6. Verify donut chart for queue depth, translated labels, no embedded report generator
-
-### Locale verification
-
-Switch language selector to Ukrainian and Russian; verify all labels translate correctly on both dashboard pages.
+- Colors: ONLY design system tokens. No raw hex in JSX (except SVG chart fills where Tailwind can't apply).
+- Typography: ONLY Tailwind scale (text-xs through text-3xl). No text-[11px].
+- Cards: .card class. No ad-hoc border+shadow combos.
+- Shadows: shadow-soft family. No shadow-sm, ring-1.
+- Verify ALL changes visually via Playwright before committing.
+- Commit after each completed task group, not at the end.
