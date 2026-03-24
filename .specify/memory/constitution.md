@@ -341,6 +341,11 @@ visibility and project coordination.
     completion (not batched at the end); transitions each story when
     all its tasks are done; adds progress/result comments throughout
   - `/speckit.analyze`: Adds analysis results as a comment on the Epic
+  - `/speckit.taskstoissues`: Creates Jira Stories and Tasks from
+    `tasks.md` via the Atlassian MCP. This command targets **Jira
+    only** — it MUST NOT create GitHub Issues, GitLab Issues, or
+    issues in any other system. The Git remote URL is irrelevant to
+    this command's behavior.
 - Each Jira Task MUST be transitioned to Done immediately when the
   corresponding `tasks.md` item is marked `[X]` during implementation
   — batch transitions at the end of implementation are prohibited

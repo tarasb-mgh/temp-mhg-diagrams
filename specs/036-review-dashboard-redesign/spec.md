@@ -42,7 +42,7 @@ Two pages in workbench-frontend:
 - This Week: vs previous week
 - Today: vs yesterday
 
-**Agreement Rate thresholds**: ≥80% = success (Excellent), 60-79% = warning (Moderate), <60% = error (Needs attention). Use design system `success`, `warning`, `error` colors.
+**Agreement Rate thresholds**: ≥80% = Excellent, 60-79% = Moderate, <60% = Needs attention. Use design system colors: `secondary-700` for ≥80%, `warning` for 60-79%, `error` for <60%. Labels MUST use i18n keys (not hardcoded English).
 
 ### Row 2: Two cards side by side (asymmetric 2:3 grid on desktop)
 
@@ -65,8 +65,8 @@ Two pages in workbench-frontend:
 
 **Today → Daily Goal Progress** — "Am I on track?"
 - Horizontal progress bar: today's reviews vs daily average
-- Daily average = total reviews (all time) ÷ active days
-- Color: <50% neutral, 50-99% warning, ≥100% success
+- Daily average = sum of all past non-zero days (excluding today) ÷ count of those non-zero days. Today's reviews are measured against this average as 100% baseline. **Note**: current backend API provides only weekly aggregates (`weeklyTrend`), not daily data — frontend uses best-effort approximation until a daily-granularity API is available.
+- Color: <50% `neutral-300`, 50-99% `warning`, ≥100% `secondary-600`
 - Text: "3 of ~6 reviews (52%)" or "8 of ~6 reviews (142% — above average!)"
 
 **This Week / This Month / All Time → Activity Trend** — "How is my performance changing?"
@@ -142,14 +142,14 @@ All UI MUST follow the project design system (Constitution VI-B).
 
 - 0 reviews for selected period → empty state with CTA "Start Reviewing"
 - 1 score range with data → donut shows single full segment (don't hide donut)
-- All criteria = 0 → show radar grid outline with centered "No criteria feedback yet"
+- All criteria = 0 → show radar grid outline with centered translated "No criteria feedback yet" text (i18n key)
 - Non-Today with trend data → always show Activity Trend (even 1 data point). Today → show Daily Goal instead of trend
 - Daily Goal with 0 all-time reviews → show 0% with encouraging message
 - Loading → skeleton loaders matching card layout shapes
 
 ## i18n
 
-21 translation keys across en.json, uk.json, ru.json. All labels verified to fit in all 3 locales.
+26 translation keys across en.json, uk.json, ru.json (21 original + 5 added for agreement rate labels, daily goal header, and no-criteria-feedback text). All labels verified to fit in all 3 locales.
 
 ## Backend Data Gaps (for future iterations)
 
@@ -157,7 +157,7 @@ These features are specified but may require backend API extensions:
 - **Delta vs previous period**: backend currently returns single-period data, not comparison
 - **Team average per criterion**: not in current API; needed for radar overlay
 - **Criteria as percentages**: backend returns raw counts; percentage = count / totalReviews (computable on frontend)
-- **Daily average**: computable from weeklyTrend data on frontend
+- ~~**Daily average (precise)**~~: RESOLVED — `dailyTrend` API added to backend (last 90 days, non-zero days). Frontend uses precise formula when available, falls back to weeklyTrend approximation
 - **Activity Trend per criterion per day**: not in current API; weeklyTrend only has aggregate reviewsCompleted + averageScore
 
 For MVP: implement what's possible with current API. Features requiring backend changes marked as Phase 2.

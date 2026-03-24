@@ -51,6 +51,18 @@ API: `GET /api/review/dashboard/me?period=<DashboardPeriod>`
 | reviewsCompleted | number | Reviews completed that week |
 | averageScore | number | Average score that week |
 
+### DailyTrendPoint
+
+Source: `@mentalhelpglobal/chat-types` — `reviewConfig.ts` (v1.15.1+)
+API: returned as part of `ReviewerDashboardStats`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| date | string | ISO date (YYYY-MM-DD) |
+| reviewsCompleted | number | Reviews completed that day (always > 0) |
+
+Last 90 days, non-zero days only. Used for precise Daily Goal calculation.
+
 ### TeamDashboardStats
 
 Source: `@mentalhelpglobal/chat-types` — `reviewConfig.ts`
@@ -79,61 +91,30 @@ API: `GET /api/review/dashboard/team?period=<DashboardPeriod>`
 
 Type: `'today' | 'week' | 'month' | 'all'`
 
-## New UI-Kit Component Interfaces
+## Recharts Usage (No Custom UI-Kit)
 
-These are the prop interfaces for the new reusable chart components in `chat-frontend-common`.
+Per research decision R1, custom SVG chart components were reverted. All charts use
+recharts library components directly in page components. No shared UI-kit interfaces.
 
-### DonutChart Props
+### Recharts Components Used
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| segments | DonutSegment[] | Yes | Array of segments with label, value, color |
-| centerLabel | string | No | Text displayed in the center (e.g., total count) |
-| centerSubLabel | string | No | Secondary text below center label |
-| size | number | No | Diameter in pixels (default: 180) |
-| strokeWidth | number | No | Ring thickness (default: 28) |
-| className | string | No | Additional CSS classes on container |
+| recharts Component | Dashboard Section | Configuration |
+|--------------------|-------------------|---------------|
+| PieChart + Pie | Score Distribution (donut) | innerRadius for donut hole, activeIndex for hover |
+| RadarChart + Radar + PolarGrid | Criteria Breakdown | 3-letter axis labels (REL, EMP, SAF, ETH, CLR) |
+| BarChart + Bar | Activity Trend (non-Today) | Weekly review counts from weeklyTrend |
+| Sparkline (custom SVG) | KPI cards | Inline SVG path from weeklyTrend data |
+| ResponsiveContainer | All charts | Auto-sizing wrapper |
+| Tooltip | All charts | Custom dark compact renderer |
 
-**DonutSegment**: `{ label: string; value: number; color: string }`
+### Frontend-Computed Values
 
-### RadarChart Props
-
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| axes | RadarAxis[] | Yes | Array of axes with label and value |
-| size | number | No | Chart diameter in pixels (default: 260) |
-| fillColor | string | No | Polygon fill color (default: semi-transparent primary) |
-| strokeColor | string | No | Polygon stroke color (default: primary) |
-| showValues | boolean | No | Display values at vertices (default: true) |
-| className | string | No | Additional CSS classes on container |
-
-**RadarAxis**: `{ label: string; value: number }`
-
-### Sparkline Props
-
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| data | number[] | Yes | Array of data points |
-| width | number | No | SVG width in pixels (default: 60) |
-| height | number | No | SVG height in pixels (default: 20) |
-| color | string | No | Line stroke color (default: sky-500) |
-| showFill | boolean | No | Show gradient fill below line (default: false) |
-| className | string | No | Additional CSS classes |
-
-### DualAxisChart Props
-
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| data | DualAxisDataPoint[] | Yes | Array of data points |
-| barLabel | string | No | Left axis label (bar metric name) |
-| lineLabel | string | No | Right axis label (line metric name) |
-| barColor | string | No | Bar fill color (default: sky-500) |
-| lineColor | string | No | Line stroke color (default: amber-500) |
-| height | number | No | Chart height in pixels (default: 160) |
-| showDataLabels | boolean | No | Show values on chart (default: true) |
-| className | string | No | Additional CSS classes |
-
-**DualAxisDataPoint**: `{ label: string; barValue: number; lineValue: number }`
+| Value | Formula | Source Fields |
+|-------|---------|---------------|
+| Score range percentage | count / totalReviews × 100 | scoreDistribution.* / reviewsCompleted |
+| Criteria percentage | count / totalReviews × 100 | criteriaFeedbackCounts.* / reviewsCompleted |
+| Daily average | sum(weeklyTrend.reviewsCompleted) / activeWeeks / 5 | weeklyTrend[] |
+| Daily goal progress | todayReviews / dailyAverage × 100 | reviewsCompleted + computed dailyAverage |
 
 ## State Transitions
 

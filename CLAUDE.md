@@ -1,4 +1,4 @@
-﻿# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -33,7 +33,7 @@ This is a meta-framework containing workflow tools and templates—not applicati
 /speckit.analyze       # Cross-artifact consistency check (spec, plan, tasks)
 /speckit.checklist     # Generate domain-specific quality checklist
 /speckit.constitution  # Create/update project principles
-/speckit.taskstoissues # Convert tasks.md to GitHub and/or Jira issues
+/speckit.taskstoissues # Convert tasks.md to Jira issues (Jira only — never GitHub)
 ```
 
 ### PowerShell Scripts

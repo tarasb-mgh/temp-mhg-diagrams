@@ -27,9 +27,9 @@ workbench-frontend/
     ├── config.ts                    # API URL config
     ├── main.tsx                     # configureApi + auto-login
     ├── locales/
-    │   ├── en.json                  # +21 translation keys
-    │   ├── uk.json                  # +21 translation keys
-    │   └── ru.json                  # +21 translation keys
+    │   ├── en.json                  # +26 translation keys (21 original + 5 i18n fixes)
+    │   ├── uk.json                  # +26 translation keys
+    │   └── ru.json                  # +26 translation keys
     └── features/workbench/review/
         ├── ReviewDashboard.tsx      # REWRITE — main dashboard component
         ├── TeamDashboard.tsx        # UPDATE — same design system treatment
@@ -39,7 +39,32 @@ workbench-frontend/
 
 ## Cross-Repository Dependencies
 
-None. Single repo (workbench-frontend). chat-frontend-common reverted to clean 0.5.0.
+- **chat-types**: `DailyTrendPoint` type + `dailyTrend` field in `ReviewerDashboardStats` (v1.15.1)
+- **chat-backend**: `dailyTrend` SQL query in `getReviewerStats` + team dashboard hardening
+- **workbench-frontend**: all dashboard UI (primary repo for this feature)
+- chat-frontend-common reverted to clean 0.5.0 (no chart components)
+
+## Constitution Check
+
+*GATE: Pre-design check passed 2026-03-23. Post-design re-check 2026-03-24.*
+
+| Principle | Status | Notes |
+|-----------|--------|-------|
+| I. Spec-First | PASS | spec.md v3 complete before implementation |
+| II. Multi-Repo | PASS | Single repo (workbench-frontend), no cross-repo changes |
+| III. Test-Aligned | PASS | Vitest + RTL available; Playwright QA planned (T028-T031) |
+| IV. Branch Discipline | PASS | Feature branch `036-review-dashboard-redesign` from `develop` |
+| V. Privacy/Security | N/A | No user data changes; read-only dashboard of existing stats |
+| VI. A11y/i18n | PASS | 26 keys × 3 locales (en/uk/ru); 5 added for agreement labels, daily goal header, no-criteria text |
+| VI-B. Design System | PASS | All colors from tailwind-preset.js; typography hierarchy defined; .card class used |
+| VII. Split-Repo First | PASS | workbench-frontend is a split repo |
+| VIII. GCP CLI | N/A | No infrastructure changes |
+| IX. Responsive/PWA | PASS | Responsive grid planned (1440/1024/768/375px); PWA unaffected |
+| X. Jira Traceability | PASS | Epic MTB-832; tasks have Jira keys |
+| XI. Documentation | PENDING | User Manual update needed after implementation |
+| XII. Release Engineering | N/A | No release in scope; dev validation only |
+
+**Violations**: None. No Complexity Tracking entries required.
 
 ## Key Design Decisions
 
@@ -52,23 +77,24 @@ None. Single repo (workbench-frontend). chat-frontend-common reverted to clean 0
 
 ## Current State (as of 2026-03-24 end of session)
 
-### What works
-- Recharts rendering (donut, radar, bar chart, sparklines)
-- i18n translations (21 keys × 3 locales)
-- Auto-login on localhost
-- CI pipeline optimized
-- Period selector (Today/This Week/This Month/All Time)
-- DashboardEmptyState component
-- Skeleton loaders
-- Daily Goal progress bar (Today)
-- Design system .card class and color tokens
+### Completed (T001-T027 + bug fixes + backend)
+- All setup, i18n (26 keys × 3 locales), CI, dev tooling (T001-T013, T013a-T013b)
+- Review Dashboard: data accuracy fixes, typography, Activity Trend visibility, focus outlines (T014-T017)
+- Interactive charts: legend↔donut and legend↔radar hover linking, tooltip verification (T018-T021)
+- Daily Goal & Activity Trend polish, radar pct scale with domain=[0,100] (T022-T023)
+- Team Dashboard: full design system rewrite — .card class, typography, colors, Queue Depth hover linking (T024-T027)
+- ChartTooltip component (design system standard for all charts)
+- Chart CSS classes in index.css (chart-tooltip, chart-legend-row, chart-bar-track/fill, recharts sector opacity)
+- Backend: `dailyTrend` API added to chat-backend (DailyTrendPoint in chat-types)
+- Frontend uses dailyTrend for precise Daily Goal (fallback to weeklyTrend)
 
-### What needs fixing (next session)
-- Score bar proportions (normalized to max, should be proportional to total)
-- Typography inconsistency (text-lg vs text-sm for same semantic role)
-- Activity Trend hidden when <2 data points (should always show for non-Today)
-- Recharts click outlines still visible in some cases
-- No legend↔chart hover linking
-- TeamDashboard not updated yet
-- Responsive not tested
-- Locale labels not verified at all breakpoints
+### Cross-repo changes
+- **chat-types** (branch `036-review-dashboard-redesign`, merged to main): `DailyTrendPoint` type, `dailyTrend` field in `ReviewerDashboardStats`
+- **chat-backend** (PR#183 → develop): daily trend SQL query + team dashboard hardening (merged with 038)
+- **workbench-frontend** (PR#103 → develop): all dashboard UI changes (merged with 039 menu restructure)
+
+### Remaining (T028-T031) — Visual QA
+
+| Phase | Story | Tasks | Description |
+|-------|-------|-------|-------------|
+| 6 | US5 (P5) | T028-T031 | Playwright visual QA across periods/locales/viewports/interactions |
