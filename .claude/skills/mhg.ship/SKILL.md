@@ -28,7 +28,8 @@ Phase 4: UI Regression Loop  (repeat until no issues)
 ```
 
 Load `references/repos.md` before Phase 1 for repo paths, branch rules, and CI details.
-Load `references/regression-targets.md` before Phase 4 for test flows and error-hunting patterns.
+Phase 4 invokes `/mhg.regression smoke` — the comprehensive regression suite (124 tests, 16 modules).
+Load `references/regression-targets.md` for legacy reference only (superseded by `regression-suite/`).
 
 ---
 
@@ -217,29 +218,32 @@ Evidence required: show the actual curl output (HTTP status + health body) for e
 
 ## Phase 4 — UI Regression Loop
 
-**Run sequentially. Loop until no issues found.**
+**Run the comprehensive regression suite. Loop until no issues found.**
 
-Load `references/regression-targets.md` for the full test flow list and error patterns before starting.
+The regression suite is defined in `regression-suite/` (124 YAML test cases across 16 modules).
+The `/mhg.regression` skill handles execution, evidence capture, and result reporting.
 
 ```
 LOOP:
-  Run the regression sweep (see references/regression-targets.md):
-    1. Execute each test flow using Playwright MCP tools
-    2. After each flow, check:
-       - browser_console_messages → flag JS errors, untranslated keys
-       - browser_network_requests → flag 4xx / 5xx responses
-    3. After all flows, check server logs (Cloud Run)
-  Collect all issues found
-  If NO issues → run verification-before-completion exit gate (see below)
-  If issues found:
-    a. Invoke superpowers:systematic-debugging — root cause BEFORE any fix
-    b. Identify the root cause for each issue
-    c. Fix the code in the relevant repo
-    d. Commit + push to develop (infra/type fixes) or open a follow-up PR (app fixes)
-    e. Wait for redeploy (Phase 3b pattern)
-    f. Re-run Phase 3c deploy verification gate
-    g. Repeat loop
+  1. Invoke /mhg.regression smoke
+     - The runner executes all P0 tests via Playwright MCP tools
+     - It handles authentication, dependency chains, evidence capture automatically
+     - Results written to regression-suite/results/{timestamp}.yaml and .md
+  2. Check the runner's verdict:
+     If PASS (100% P0 pass) → run verification-before-completion exit gate (see below)
+     If FAIL (any P0 failure):
+       a. Read the failure details from the results file
+       b. Invoke superpowers:systematic-debugging — root cause BEFORE any fix
+       c. Identify the root cause for each failing test
+       d. Fix the code in the relevant repo
+       e. Commit + push to develop (infra/type fixes) or open a follow-up PR (app fixes)
+       f. Wait for redeploy (Phase 3b pattern)
+       g. Re-run Phase 3c deploy verification gate
+       h. Repeat loop
 ```
+
+> **Note**: `references/regression-targets.md` is superseded by the regression suite but kept for reference.
+> The suite covers all 5 original flows plus 119 additional test cases.
 
 ### When issues are found — systematic-debugging discipline
 
@@ -282,10 +286,9 @@ gcloud logging read \
 
 Do not claim "no issues found" without showing fresh evidence. Required evidence before exit:
 
-1. **Console output** — `browser_console_messages` output for the final sweep of each flow showing zero errors
-2. **Network output** — `browser_network_requests` output showing all monitored API endpoints returned expected status codes
-3. **Server logs** — `gcloud logging read` output showing zero ERROR entries attributable to this deployment
-4. **Regression checklist** — every item in `references/regression-targets.md` Regression Sweep Completion Checklist checked
+1. **Regression results** — the latest `regression-suite/results/{timestamp}.md` showing 100% P0 pass with zero unexpected console/network errors
+2. **Server logs** — `gcloud logging read` output showing zero ERROR entries attributable to this deployment
+3. **Verdict** — the runner's PASS verdict printed at the end of the run
 
 If any evidence is missing or partial, the sweep is not complete.
 

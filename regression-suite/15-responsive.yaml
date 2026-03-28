@@ -1,0 +1,432 @@
+# MHG Workbench Regression Suite — 15 Responsive Layout
+# 7 tests covering mobile, tablet, and desktop viewport behavior
+#
+# Variables resolved from _config.yaml:
+#   ${workbench_url}  — environments.<env>.workbench_url
+#   ${account.<role>}  — accounts.<role>.email / otp_source / otp_pattern
+
+module:
+  id: 15-responsive
+  title: "Responsive Layout"
+  description: >
+    Validates that the workbench UI adapts correctly to mobile (375x812),
+    tablet (768x1024), and desktop (1920x1080) viewports. Checks hamburger
+    menu behavior, sidebar visibility, horizontal overflow, and page
+    accessibility at each breakpoint.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # RL-001  Mobile (375x812): hamburger appears
+  # ---------------------------------------------------------------------------
+  - id: RL-001
+    title: "Mobile (375x812): hamburger appears"
+    priority: P1
+    tags: [responsive, mobile, hamburger, sidebar]
+    role: owner
+    viewport: { width: 375, height: 812 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_resize
+        params:
+          width: 375
+          height: 812
+        assert: "Viewport resized to 375x812 (mobile)"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded at mobile viewport"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], [class*='dashboard' i], nav, main"
+          timeout: 10000
+        assert: "Page content visible at mobile viewport"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Mobile viewport snapshot captured"
+        expect: >
+          Hamburger menu button is visible (typically a three-line icon button).
+          Sidebar is NOT visible or is collapsed. Main content fills the viewport width.
+
+      - action: evidence_capture
+        params:
+          label: "RL-001-mobile-hamburger"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Hamburger menu button is visible at 375x812 viewport"
+      - "Sidebar navigation is NOT visible (or is collapsed) at mobile viewport"
+      - "Page renders without errors"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash during responsive layout rendering"
+      - pattern: "ResizeObserver loop"
+        meaning: "Layout thrashing during resize — may be benign"
+
+  # ---------------------------------------------------------------------------
+  # RL-002  Mobile: hamburger opens sidebar
+  # ---------------------------------------------------------------------------
+  - id: RL-002
+    title: "Mobile: hamburger opens sidebar"
+    priority: P1
+    tags: [responsive, mobile, hamburger, sidebar, overlay]
+    role: owner
+    viewport: { width: 375, height: 812 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "Viewport is at 375x812 (from RL-001)"
+    depends_on: [RL-001]
+    steps:
+      - action: browser_click
+        params:
+          selector: "[data-testid='hamburger'], [aria-label*='menu' i], [aria-label*='navigation' i], button[class*='hamburger' i], button[class*='menu-toggle' i]"
+        assert: "Hamburger button clicked"
+        expect: "Sidebar or navigation drawer slides in as overlay"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i], [class*='drawer' i], [class*='nav-overlay' i]"
+          timeout: 5000
+        assert: "Sidebar/drawer is visible after hamburger click"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Sidebar overlay snapshot captured"
+        expect: >
+          Sidebar or navigation drawer is visible as an overlay on top of
+          the main content. Navigation links are accessible.
+
+      - action: evidence_capture
+        params:
+          label: "RL-002-mobile-sidebar-open"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Clicking the hamburger button opens the sidebar as an overlay"
+      - "Navigation links are visible and accessible in the overlay"
+      - "No layout breakage or overflow when sidebar overlay is open"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash when toggling mobile sidebar"
+
+  # ---------------------------------------------------------------------------
+  # RL-003  Mobile: no horizontal overflow
+  # ---------------------------------------------------------------------------
+  - id: RL-003
+    title: "Mobile: no horizontal overflow"
+    priority: P1
+    tags: [responsive, mobile, overflow, layout]
+    role: owner
+    viewport: { width: 375, height: 812 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "Viewport is at 375x812 (from RL-001)"
+    depends_on: [RL-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Dashboard loaded at mobile viewport"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], [class*='dashboard' i], main"
+          timeout: 10000
+        assert: "Dashboard content visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Dashboard snapshot at mobile viewport"
+        expect: >
+          No horizontal scrollbar is visible. Content does not overflow
+          the viewport width. No elements are cut off or overlapping
+          beyond the right edge.
+
+      - action: evidence_capture
+        params:
+          label: "RL-003-mobile-no-overflow"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "No horizontal scrollbar present at 375x812 viewport"
+      - "All dashboard content fits within the viewport width"
+      - "No elements overflow beyond the right edge of the screen"
+    error_signatures:
+      - pattern: "overflow.*scroll"
+        meaning: "CSS overflow issue causing horizontal scroll"
+
+  # ---------------------------------------------------------------------------
+  # RL-004  Tablet (768x1024): layout adjusts
+  # ---------------------------------------------------------------------------
+  - id: RL-004
+    title: "Tablet (768x1024): layout adjusts"
+    priority: P2
+    tags: [responsive, tablet, layout]
+    role: owner
+    viewport: { width: 768, height: 1024 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_resize
+        params:
+          width: 768
+          height: 1024
+        assert: "Viewport resized to 768x1024 (tablet)"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded at tablet viewport"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], [class*='dashboard' i], nav, main"
+          timeout: 10000
+        assert: "Page content visible at tablet viewport"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Tablet viewport snapshot captured"
+        expect: >
+          Layout renders correctly at 768x1024 without horizontal overflow.
+          Sidebar may be collapsed or visible depending on breakpoint design.
+          Main content area is usable and not cut off.
+
+      - action: evidence_capture
+        params:
+          label: "RL-004-tablet-layout"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Page renders without horizontal overflow at 768x1024"
+      - "Layout adapts to tablet viewport (sidebar collapsed or visible)"
+      - "Dashboard content is fully accessible"
+    error_signatures:
+      - pattern: "ResizeObserver loop"
+        meaning: "Layout thrashing during resize — may be benign"
+      - pattern: "TypeError"
+        meaning: "Crash during tablet layout rendering"
+
+  # ---------------------------------------------------------------------------
+  # RL-005  Desktop (1920x1080): sidebar visible
+  # ---------------------------------------------------------------------------
+  - id: RL-005
+    title: "Desktop (1920x1080): sidebar visible"
+    priority: P2
+    tags: [responsive, desktop, sidebar, layout]
+    role: owner
+    viewport: { width: 1920, height: 1080 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_resize
+        params:
+          width: 1920
+          height: 1080
+        assert: "Viewport resized to 1920x1080 (desktop)"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded at desktop viewport"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible at desktop viewport"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Desktop viewport snapshot captured"
+        expect: >
+          Sidebar is fully expanded and visible. Navigation groups and
+          links are all accessible. Main content area uses the remaining
+          viewport width.
+
+      - action: evidence_capture
+        params:
+          label: "RL-005-desktop-sidebar"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Sidebar is fully expanded and visible at 1920x1080"
+      - "All navigation groups are accessible without hamburger menu"
+      - "Main content area renders alongside the sidebar"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash during desktop layout rendering"
+
+  # ---------------------------------------------------------------------------
+  # RL-006  Mobile: review session no overflow
+  # ---------------------------------------------------------------------------
+  - id: RL-006
+    title: "Mobile: review session no overflow"
+    priority: P2
+    tags: [responsive, mobile, review, session, overflow]
+    role: owner
+    viewport: { width: 375, height: 812 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "At least one reviewable session exists"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_resize
+        params:
+          width: 375
+          height: 812
+        assert: "Viewport resized to 375x812 (mobile)"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/review"
+        assert: "Review queue loaded at mobile viewport"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='review' i], [class*='queue' i], [class*='session' i], main"
+          timeout: 10000
+        assert: "Review queue content visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Review queue snapshot at mobile viewport"
+        expect: "Review queue renders without overflow at mobile viewport"
+
+      - action: browser_click
+        params:
+          selector: "[class*='session' i] a, [class*='session' i] button, tr:first-child td a, [class*='list-item' i]:first-child, [class*='review-item' i]:first-child"
+        assert: "First review session clicked"
+        expect: "Session detail view opens"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='session' i], [class*='detail' i], [class*='review' i], main"
+          timeout: 10000
+        assert: "Session detail view loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Session detail snapshot at mobile viewport"
+        expect: >
+          Session detail renders without horizontal overflow. Chat messages,
+          metadata, and action buttons are accessible within the mobile
+          viewport width.
+
+      - action: evidence_capture
+        params:
+          label: "RL-006-mobile-review-session"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Review queue renders without horizontal overflow at 375x812"
+      - "Session detail view renders without horizontal overflow"
+      - "Chat messages and action buttons are accessible at mobile viewport"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash rendering review session at mobile viewport"
+      - pattern: "overflow"
+        meaning: "CSS overflow issue in review session detail"
+
+  # ---------------------------------------------------------------------------
+  # RL-007  Mobile: survey editor accessible
+  # ---------------------------------------------------------------------------
+  - id: RL-007
+    title: "Mobile: survey editor accessible"
+    priority: P2
+    tags: [responsive, mobile, survey, editor, accessibility]
+    role: owner
+    viewport: { width: 375, height: 812 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_resize
+        params:
+          width: 375
+          height: 812
+        assert: "Viewport resized to 375x812 (mobile)"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/surveys/schemas"
+        assert: "Survey schemas page loaded at mobile viewport"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='survey' i], [class*='schema' i], main, [class*='empty' i]"
+          timeout: 10000
+        assert: "Survey schemas page content visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Survey schemas list snapshot at mobile viewport"
+        expect: >
+          Survey schemas page renders at mobile viewport.
+          If schemas exist, a list or grid of schemas is visible.
+          If no schemas exist, an empty state message is shown.
+
+      - action: browser_click
+        params:
+          selector: "[class*='schema' i] a:first-child, [class*='schema' i] button:first-child, tr:first-child td a, [class*='list-item' i]:first-child, [class*='card' i]:first-child a"
+        assert: "First schema clicked (if available)"
+        expect: "Schema editor opens — or click has no target if list is empty"
+        optional: true
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Survey editor snapshot at mobile viewport"
+        expect: >
+          If a schema was clicked, the editor form renders at mobile viewport.
+          Form fields (title, description, questions) are accessible and not
+          cut off. If no schemas exist, the list page remains visible.
+
+      - action: browser_resize
+        params:
+          width: 1280
+          height: 800
+        assert: "Viewport restored to default (1280x800)"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Page after viewport restore"
+        expect: "Page renders correctly at restored viewport size"
+
+      - action: evidence_capture
+        params:
+          label: "RL-007-mobile-survey-editor"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Survey schemas page renders at 375x812 without overflow"
+      - "If schemas exist, clicking one opens an editor with accessible form fields"
+      - "Form fields are not cut off or overlapping at mobile viewport"
+      - "Viewport restores to default successfully"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash rendering survey editor at mobile viewport"
+      - pattern: "overflow"
+        meaning: "CSS overflow issue in survey editor"

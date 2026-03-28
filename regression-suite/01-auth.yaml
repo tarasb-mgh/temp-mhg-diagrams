@@ -1,0 +1,903 @@
+# MHG Workbench Regression Suite — 01 Authentication & Access Control
+# 11 tests covering OTP login, OAuth, session management, RBAC sidebar visibility
+#
+# Variables resolved from _config.yaml:
+#   ${workbench_url}  — environments.<env>.workbench_url
+#   ${account.<role>}  — accounts.<role>.email / otp_source / otp_pattern
+#   ${otp_code}       — extracted at runtime from browser console
+
+module:
+  id: 01-auth
+  title: "Authentication & Access Control"
+  description: >
+    Validates that OTP login works end-to-end, session lifecycle is correct,
+    role-based sidebar visibility is enforced, and unauthorized users are
+    redirected appropriately.
+  gate: true   # If AUTH-001 fails, abort the entire regression run
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # AUTH-001  OTP login flow — email to dashboard
+  # ---------------------------------------------------------------------------
+  - id: AUTH-001
+    title: "OTP login flow — email to dashboard"
+    priority: P0
+    tags: [auth, otp, login, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "No active session (clean browser state or incognito)"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Page loads without network errors"
+        expect: "Login page is displayed with sign-in prompt"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captures the login page"
+        expect: "Visible elements include email input or 'Sign In to Start' button"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Sign In to Start'), button:has-text('Sign in to Start')"
+        assert: "Click succeeds"
+        expect: "Email input field becomes visible or is already visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Login form is displayed"
+        expect: "Email input field and 'Send Code' button are visible"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[type='email'], input[name='email'], input[placeholder*='email' i]"
+          value: "${account.owner.email}"
+        assert: "Email field populated"
+        expect: "Field shows playwright@mentalhelp.global"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Send Code'), button:has-text('Send code'), button[type='submit']"
+        assert: "Send Code button clicked"
+        expect: "OTP input field appears; OTP is logged to browser console"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          timeout: 8000
+        assert: "OTP input field is visible within timeout"
+
+      - action: browser_console_messages
+        params: {}
+        assert: "Console messages retrieved"
+        extract:
+          variable: otp_code
+          pattern: "Code:\\s+(\\d{6})"
+          group: 1
+        expect: "Six-digit OTP code extracted from console output"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          value: "${otp_code}"
+        assert: "OTP field populated with extracted code"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Verify'), button:has-text('Submit'), button[type='submit']"
+        assert: "Verify button clicked"
+        expect: "Authentication proceeds; dashboard loads"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], [class*='dashboard' i], nav, aside"
+          timeout: 10000
+        assert: "Dashboard or main navigation is visible"
+        expect: "User is authenticated and sees the workbench dashboard"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-login snapshot captured"
+        expect: "Dashboard content visible; sidebar navigation present; no error messages"
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-001-login-complete"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "User is redirected to the dashboard after entering valid OTP"
+      - "No unexpected console errors during login flow"
+      - "No 4xx/5xx network responses (excluding known acceptable patterns)"
+    error_signatures:
+      - pattern: "401.*api/auth/verify"
+        meaning: "OTP verification failed — code may be wrong or expired"
+      - pattern: "TypeError: Cannot read properties"
+        meaning: "Null guard missing in auth flow component"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-002  Google OAuth button presence
+  # ---------------------------------------------------------------------------
+  - id: AUTH-002
+    title: "Google OAuth button presence"
+    priority: P1
+    tags: [auth, oauth, google]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Must be on the login page (not authenticated)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/logout"
+        assert: "Logout endpoint called or redirect to login"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "button:has-text('Sign In'), input[type='email'], [class*='login' i]"
+          timeout: 10000
+        assert: "Login page is displayed after logout"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Login page loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Login page snapshot captured"
+        expect: "Google OAuth button is visible alongside OTP login"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Sign In to Start'), button:has-text('Sign in to Start')"
+        assert: "Sign-in options expanded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of sign-in options"
+        expect: "Google OAuth button visible with text containing 'Google' or Google icon"
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-002-google-oauth-button"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "A button or link containing 'Google' text or Google icon is present on the login page"
+      - "Google OAuth button is clickable (not disabled)"
+    error_signatures:
+      - pattern: "Google.*undefined"
+        meaning: "Google OAuth configuration missing or not loaded"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-003  OTP with invitation code URL param
+  # ---------------------------------------------------------------------------
+  - id: AUTH-003
+    title: "OTP with invitation code URL param"
+    priority: P2
+    tags: [auth, invite, onboarding]
+    role: null  # New user scenario, no existing role
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Not authenticated"
+      - "Valid invite code format (TEST_CODE is placeholder for test)"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}?invite=TEST_CODE"
+        assert: "Page loads with invite query parameter"
+        expect: "Login page displayed with invite code context"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of login page with invite param"
+        expect: "Invitation code field is pre-filled or invite context is shown"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Sign In to Start'), button:has-text('Sign in to Start')"
+        assert: "Sign-in flow expanded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of sign-in form with invite context"
+        expect: >
+          An input field for invitation code is visible and pre-populated with
+          'TEST_CODE', or the invite code is referenced in the page content
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-003-invite-code"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Invite code from URL param is reflected in the sign-in form (pre-filled or displayed)"
+      - "No JavaScript errors related to parsing the invite query parameter"
+    error_signatures:
+      - pattern: "invite.*undefined"
+        meaning: "Invite code query param not parsed correctly"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-004  Failed login — invalid OTP code
+  # ---------------------------------------------------------------------------
+  - id: AUTH-004
+    title: "Failed login — invalid OTP code"
+    priority: P1
+    tags: [auth, otp, negative, error-handling]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Not authenticated"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Login page loaded"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Sign In to Start'), button:has-text('Sign in to Start')"
+        assert: "Sign-in expanded"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[type='email'], input[name='email'], input[placeholder*='email' i]"
+          value: "${account.owner.email}"
+        assert: "Email entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Send Code'), button:has-text('Send code'), button[type='submit']"
+        assert: "OTP sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          timeout: 8000
+        assert: "OTP input visible"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          value: "000000"
+        assert: "Invalid OTP '000000' entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Verify'), button:has-text('Submit'), button[type='submit']"
+        assert: "Verify clicked with wrong code"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='error' i], [role='alert'], [data-testid*='error' i], p:has-text('invalid'), p:has-text('Invalid'), div:has-text('incorrect')"
+          timeout: 5000
+        assert: "Error message appears"
+        expect: "Error message indicates invalid or incorrect OTP code"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Error state captured"
+        expect: "Visible error message; user remains on OTP entry screen; not redirected to dashboard"
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-004-invalid-otp"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "User-visible error message displayed for invalid OTP"
+      - "User is NOT redirected to dashboard"
+      - "No unhandled JavaScript exceptions (expected 401 from API is acceptable)"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Unhandled error in OTP verification error path"
+      - pattern: "Uncaught Error"
+        meaning: "Crash in auth error handling"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-005  Pending user sees approval message
+  # ---------------------------------------------------------------------------
+  - id: AUTH-005
+    title: "Pending user sees approval message"
+    priority: P1
+    tags: [auth, rbac, approval, onboarding]
+    role: null  # Pending user — not yet approved
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "A pending user account exists that has not been approved"
+      - "Pending user email is known (e.g., e2e-pending@test.local)"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Login page loaded"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Sign In to Start'), button:has-text('Sign in to Start')"
+        assert: "Sign-in expanded"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[type='email'], input[name='email'], input[placeholder*='email' i]"
+          value: "e2e-pending@test.local"
+        assert: "Pending user email entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Send Code'), button:has-text('Send code'), button[type='submit']"
+        assert: "OTP requested"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          timeout: 8000
+        assert: "OTP input visible"
+
+      - action: browser_console_messages
+        params: {}
+        extract:
+          variable: otp_code
+          pattern: "Code:\\s+(\\d{6})"
+          group: 1
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          value: "${otp_code}"
+        assert: "OTP entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Verify'), button:has-text('Submit'), button[type='submit']"
+        assert: "OTP submitted"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='pending' i], [class*='approval' i], *:has-text('awaiting approval'), *:has-text('pending approval'), *:has-text('Awaiting Approval')"
+          timeout: 10000
+        assert: "Approval-pending message or page appears"
+        expect: "User sees a message indicating their account is awaiting approval"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Pending approval page captured"
+        expect: >
+          Page shows an approval-pending message. User is NOT shown the
+          dashboard or any workbench functionality.
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-005-pending-approval"
+          include: [screenshot, console]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Pending user sees a clear 'awaiting approval' message after login"
+      - "Pending user does NOT see the dashboard or sidebar navigation"
+      - "No unhandled errors"
+    error_signatures:
+      - pattern: "403.*api/"
+        meaning: "Backend correctly returned 403 for unapproved user"
+      - pattern: "TypeError"
+        meaning: "Pending user state not handled in frontend"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-006  Logout clears session, redirects to login
+  # ---------------------------------------------------------------------------
+  - id: AUTH-006
+    title: "Logout clears session, redirects to login"
+    priority: P0
+    tags: [auth, logout, session, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is currently authenticated (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        assert: "Confirm currently on dashboard (authenticated state)"
+        expect: "Sidebar navigation and dashboard content visible"
+
+      - action: browser_click
+        params:
+          selector: "button[aria-label*='logout' i], button[aria-label*='sign out' i], [data-testid='logout'], button:has-text('Logout'), button:has-text('Sign Out'), [class*='logout' i]"
+        assert: "Logout button clicked"
+        expect: "Session termination initiated"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "button:has-text('Sign In'), input[type='email'], [class*='login' i]"
+          timeout: 10000
+        assert: "Redirected to login page"
+        expect: "Login page is displayed"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-logout snapshot"
+        expect: "Login page visible; no dashboard elements present"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Attempt to access workbench after logout"
+        expect: "Should redirect back to login since session is cleared"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "button:has-text('Sign In'), input[type='email'], [class*='login' i]"
+          timeout: 10000
+        assert: "Still on login page — session was properly cleared"
+        expect: "User cannot access workbench without re-authenticating"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Session cleared verification"
+        expect: "Login page shown, confirming session is fully cleared"
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-006-logout"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "After clicking logout, user is redirected to login page"
+      - "Navigating to workbench URL after logout does NOT show dashboard"
+      - "No unhandled errors during logout"
+    error_signatures:
+      - pattern: "401.*api/auth/logout"
+        meaning: "Expected — logout endpoint returns 401 when session already cleared"
+      - pattern: "TypeError"
+        meaning: "Crash during logout flow"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-007  Session persists across page reload
+  # ---------------------------------------------------------------------------
+  - id: AUTH-007
+    title: "Session persists across page reload"
+    priority: P1
+    tags: [auth, session, persistence]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is currently authenticated (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        assert: "Confirm authenticated state before reload"
+        expect: "Dashboard or sidebar is visible"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Force full page reload by navigating to workbench URL"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Page reloaded and dashboard still visible"
+        expect: "User remains authenticated after reload — session persisted"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-reload snapshot"
+        expect: "Dashboard content and sidebar visible — same as pre-reload"
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-007-session-persist"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "After page reload, user remains on the dashboard (not redirected to login)"
+      - "Sidebar and dashboard content render correctly after reload"
+    error_signatures:
+      - pattern: "401.*api/auth/refresh"
+        meaning: "Token refresh failed — session may not have persisted"
+      - pattern: "Uncaught Error"
+        meaning: "Crash on re-hydration after reload"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-008  Owner sees full sidebar
+  # ---------------------------------------------------------------------------
+  - id: AUTH-008
+    title: "Owner sees full sidebar navigation"
+    priority: P0
+    tags: [auth, rbac, sidebar, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        assert: "Capture sidebar state"
+        expect: "Sidebar is visible in the snapshot"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text=Reviews, aside >> text=Reviews, [class*='sidebar'] >> text=Reviews"
+        assert: "Reviews group clicked to expand"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Reviews group expanded"
+        expect: >
+          Reviews group contains 7 items: Review Queue, Review Dashboard,
+          Reports, Team Dashboard, Escalations, Review Tags, Review Settings
+
+      - action: browser_click
+        params:
+          selector: "nav >> text=Surveys, aside >> text=Surveys, [class*='sidebar'] >> text=Surveys"
+        assert: "Surveys group clicked to expand"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Surveys group expanded"
+        expect: "Surveys group contains 2 items: Survey Templates/Schemas, Survey Instances"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text='People & Access', aside >> text='People & Access', [class*='sidebar'] >> text='People & Access'"
+        assert: "People & Access group clicked to expand"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "People & Access group expanded"
+        expect: "People & Access group contains 5 items: Users, Groups, Approvals, Tester Tags, Privacy"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text=Security, aside >> text=Security, [class*='sidebar'] >> text=Security"
+        assert: "Security group clicked to expand"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Security group expanded"
+        expect: >
+          Security group contains 5 items: Dashboard, Principal Groups,
+          Permissions, Assignments, Effective Permissions
+
+      - action: browser_click
+        params:
+          selector: "nav >> text='Group Resources', aside >> text='Group Resources', [class*='sidebar'] >> text='Group Resources'"
+        assert: "Group Resources group clicked to expand"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Group Resources group expanded"
+        expect: "Group Resources contains 4 items: Group Dashboard, Group Users, Group Chats, Group Surveys"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Full sidebar snapshot for Settings and Dashboard presence"
+        expect: >
+          All top-level navigation groups are visible: Dashboard, Reviews,
+          Surveys, People & Access, Security, Group Resources, Settings
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-008-owner-full-sidebar"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Dashboard link is present in sidebar"
+      - "Reviews group present with 7 sub-items"
+      - "Surveys group present with 2 sub-items"
+      - "People & Access group present with 5 sub-items"
+      - "Security group present with 5 sub-items"
+      - "Group Resources group present with 4 sub-items"
+      - "Settings link is present in sidebar"
+    error_signatures:
+      - pattern: "403.*api/permissions"
+        meaning: "Permission fetch failed — sidebar may render incomplete"
+      - pattern: "undefined.*sidebar"
+        meaning: "Sidebar data not loaded correctly"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-009  Regular user redirected from workbench
+  # ---------------------------------------------------------------------------
+  - id: AUTH-009
+    title: "Regular user redirected from workbench"
+    priority: P1
+    tags: [auth, rbac, redirect, negative]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "e2e-user@test.local account exists with 'user' role"
+      - "User role should NOT have workbench access"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Navigate to workbench as unauthenticated user"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Sign In to Start'), button:has-text('Sign in to Start')"
+        assert: "Sign-in expanded"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[type='email'], input[name='email'], input[placeholder*='email' i]"
+          value: "${account.user.email}"
+        assert: "User email entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Send Code'), button:has-text('Send code'), button[type='submit']"
+        assert: "OTP requested"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          timeout: 8000
+        assert: "OTP input visible"
+
+      - action: browser_console_messages
+        params: {}
+        extract:
+          variable: otp_code
+          pattern: "Code:\\s+(\\d{6})"
+          group: 1
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          value: "${otp_code}"
+        assert: "OTP entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Verify'), button:has-text('Submit'), button[type='submit']"
+        assert: "OTP submitted"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='denied' i], [class*='unauthorized' i], [class*='redirect' i], *:has-text('not authorized'), *:has-text('access denied'), *:has-text('permission')"
+          timeout: 10000
+        assert: "User is redirected away from workbench or shown access denied"
+        expect: "Regular user cannot access workbench — sees denial or is redirected"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Access denial state captured"
+        expect: "User does NOT see the workbench dashboard or sidebar"
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-009-user-redirect"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Regular 'user' role does NOT see the workbench dashboard"
+      - "User is either redirected to a different page or shown an access-denied message"
+    error_signatures:
+      - pattern: "403"
+        meaning: "Expected — backend correctly denying workbench access for user role"
+      - pattern: "TypeError"
+        meaning: "Unhandled redirect or missing permission guard"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-010  Moderator sees subset of sidebar
+  # ---------------------------------------------------------------------------
+  - id: AUTH-010
+    title: "Moderator sees subset of sidebar"
+    priority: P2
+    tags: [auth, rbac, sidebar, moderator]
+    role: moderator
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "e2e-moderator@test.local account exists with 'moderator' role"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Login page loaded"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Sign In to Start'), button:has-text('Sign in to Start')"
+        assert: "Sign-in expanded"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[type='email'], input[name='email'], input[placeholder*='email' i]"
+          value: "${account.moderator.email}"
+        assert: "Moderator email entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Send Code'), button:has-text('Send code'), button[type='submit']"
+        assert: "OTP requested"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          timeout: 8000
+        assert: "OTP input visible"
+
+      - action: browser_console_messages
+        params: {}
+        extract:
+          variable: otp_code
+          pattern: "Code:\\s+(\\d{6})"
+          group: 1
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          value: "${otp_code}"
+        assert: "OTP entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Verify'), button:has-text('Submit'), button[type='submit']"
+        assert: "OTP submitted"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Dashboard loaded for moderator"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Moderator sidebar captured"
+        expect: >
+          Moderator sees Reviews and People & Access groups in the sidebar
+          but does NOT see the Security group
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-010-moderator-sidebar"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Reviews group is visible in sidebar"
+      - "People & Access group is visible in sidebar"
+      - "Security group is NOT visible in sidebar"
+    error_signatures:
+      - pattern: "403.*api/permissions"
+        meaning: "Permission fetch failed for moderator role"
+      - pattern: "Security"
+        meaning: "Security section visible to moderator — RBAC violation"
+
+  # ---------------------------------------------------------------------------
+  # AUTH-011  Permission-denied redirect on direct URL
+  # ---------------------------------------------------------------------------
+  - id: AUTH-011
+    title: "Permission-denied redirect on direct URL"
+    priority: P2
+    tags: [auth, rbac, redirect, negative]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "e2e-user@test.local account exists with 'user' role"
+      - "User role does NOT have access to /workbench/review"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Login page loaded"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Sign In to Start'), button:has-text('Sign in to Start')"
+        assert: "Sign-in expanded"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[type='email'], input[name='email'], input[placeholder*='email' i]"
+          value: "${account.user.email}"
+        assert: "User email entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Send Code'), button:has-text('Send code'), button[type='submit']"
+        assert: "OTP requested"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          timeout: 8000
+        assert: "OTP input visible"
+
+      - action: browser_console_messages
+        params: {}
+        extract:
+          variable: otp_code
+          pattern: "Code:\\s+(\\d{6})"
+          group: 1
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          value: "${otp_code}"
+        assert: "OTP entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Verify'), button:has-text('Submit'), button[type='submit']"
+        assert: "OTP submitted"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i], [class*='denied' i], *:has-text('not authorized')"
+          timeout: 10000
+        assert: "Post-login state reached"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/review"
+        assert: "Directly navigating to /review as regular user"
+        expect: "User should be redirected or see access denied"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='denied' i], [class*='unauthorized' i], *:has-text('not authorized'), *:has-text('access denied'), *:has-text('permission')"
+          timeout: 10000
+        assert: "Access denied or redirect detected"
+        expect: "User is redirected away from /review or shown permission error"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Permission denied state captured"
+        expect: "User does NOT see the review queue content"
+
+      - action: evidence_capture
+        params:
+          label: "AUTH-011-direct-url-denied"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Navigating directly to /review as a regular user results in redirect or access-denied message"
+      - "Review queue content is NOT displayed"
+    error_signatures:
+      - pattern: "403"
+        meaning: "Expected — backend correctly denying review access for user role"
+      - pattern: "TypeError"
+        meaning: "Permission guard crash on direct URL access"

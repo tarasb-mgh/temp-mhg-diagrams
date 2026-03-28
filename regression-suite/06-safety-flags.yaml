@@ -1,0 +1,602 @@
+# MHG Workbench Regression Suite — Module 06: Safety Flags & Escalation
+# 6 tests | Role: owner | Depends on: AUTH-001
+
+module:
+  id: 06-safety-flags
+  title: "Safety Flags & Escalation"
+  description: >
+    Validates safety flag handling in the review queue: elevated session
+    ordering, badge visibility, safety flag resolution workflow, submit
+    validation, disposition submission, and i18n label correctness.
+    NOTE: Elevated sessions may not exist in the dev environment. Tests
+    that require elevated sessions should handle gracefully with a skip
+    and documented reason rather than a hard failure.
+  test_count: 6
+  default_role: owner
+  default_viewport:
+    width: 1280
+    height: 800
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # SF-001: Elevated session appears above normal
+  # ---------------------------------------------------------------------------
+  - id: SF-001
+    title: "Elevated session appears above normal sessions in queue"
+    priority: P1
+    tags: [safety, escalation, queue, ordering]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+      - "Elevated (safety-flagged) sessions may not exist in dev — test handles gracefully"
+    depends_on: [AUTH-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page begins loading"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-queue'], .review-queue, main"
+          timeout: 10000
+        expect: "Review queue container is present in the DOM"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Snapshot captured — review queue Pending tab is visible. Examine the
+          queue list for session cards. Look for any sessions marked with an
+          elevated/priority indicator such as: a coloured badge (amber/orange),
+          an "Elevated" label, a priority icon, or a safety flag marker.
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          If elevated sessions exist: verify they appear BEFORE (above) normal
+          sessions in the queue list. The first session(s) in the list should
+          carry the elevated indicator, followed by normal sessions.
+          If NO elevated sessions exist: document this as SKIPPED with reason
+          "No elevated sessions currently present in dev environment". This is
+          an acceptable outcome — do not mark as a failure.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "SF-001 Elevated session ordering"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Review queue loads without HTTP 4xx/5xx errors"
+      - "If elevated sessions exist: they appear before normal sessions"
+      - "If no elevated sessions exist: test documented as SKIPPED (not FAIL)"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Queue data not loaded — API may have returned empty or null"
+      - pattern: "404.*/api/.*review"
+        meaning: "Review queue API endpoint missing or route not registered"
+      - pattern: "403"
+        meaning: "Owner role lacks permission to view review queue"
+
+  # ---------------------------------------------------------------------------
+  # SF-002: Amber Elevated badge visible
+  # ---------------------------------------------------------------------------
+  - id: SF-002
+    title: "Amber Elevated badge visible on elevated session cards"
+    priority: P1
+    tags: [safety, escalation, badge, ui]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+      - "SF-001 must have identified elevated sessions. If SF-001 was SKIPPED, skip this test too"
+    depends_on: [SF-001]
+
+    steps:
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Re-examine the queue snapshot from SF-001 context (or re-navigate if
+          needed). If SF-001 was SKIPPED due to no elevated sessions, SKIP
+          this test with reason "No elevated sessions — dependency SF-001 skipped".
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loaded (or still on page from SF-001)"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-queue'], .review-queue, main"
+          timeout: 10000
+        expect: "Review queue is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          On the elevated session card(s), verify an amber/orange "Elevated"
+          badge is visible. The badge should have a distinct colour (amber,
+          orange, or yellow — not grey/default) and display text such as
+          "Elevated", "Priority", or a safety flag label. Verify the badge
+          contrasts visually with normal session cards which should lack this
+          indicator.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "SF-002 Amber Elevated badge"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Amber/orange 'Elevated' badge is visible on elevated session cards"
+      - "Badge has distinct colour distinguishing it from normal sessions"
+      - "If no elevated sessions exist: test documented as SKIPPED"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Session card data not loaded correctly"
+      - pattern: "[object Object]"
+        meaning: "Badge label rendered as object instead of string"
+      - pattern: "[a-z]+\\.[a-z]+\\.[a-z]+"
+        meaning: "Literal i18n key visible instead of translated badge text"
+
+  # ---------------------------------------------------------------------------
+  # SF-003: Safety Flag Resolution only for elevated sessions
+  # ---------------------------------------------------------------------------
+  - id: SF-003
+    title: "Safety Flag Resolution section visible only for elevated sessions"
+    priority: P1
+    tags: [safety, escalation, resolution, review]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+      - "SF-001 must have identified elevated sessions. If SF-001 was SKIPPED, skip this test too"
+      - "At least one normal (non-elevated) session must also exist for comparison"
+    depends_on: [SF-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loaded"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-queue'], .review-queue, main"
+          timeout: 10000
+        expect: "Review queue is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          If SF-001 was SKIPPED, SKIP this test with reason
+          "No elevated sessions — dependency SF-001 skipped".
+          Otherwise, identify an elevated session card in the queue.
+
+      - action: browser_click
+        params:
+          selector: "first elevated session card in the queue"
+        assert: "Clicked into the elevated session — session detail view loading"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-session'], .review-session, main"
+          timeout: 10000
+        expect: "Review session detail view is loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify that a "Safety Flag Resolution" section is visible in the
+          review session view. Look for a section header, fieldset, or panel
+          containing text like "Safety Flag Resolution", "Safety Resolution",
+          "Flag Resolution", or a disposition selector.
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Navigated back to review queue"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-queue'], .review-queue, main"
+          timeout: 10000
+        expect: "Review queue is visible again"
+
+      - action: browser_click
+        params:
+          selector: "first normal (non-elevated) session card in the queue"
+        assert: "Clicked into a normal session — session detail view loading"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-session'], .review-session, main"
+          timeout: 10000
+        expect: "Normal review session detail view is loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify that the "Safety Flag Resolution" section is NOT visible in
+          the normal session view. The section should be absent — no
+          disposition selector, no safety flag header, no resolution panel.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "SF-003 Safety Flag Resolution presence check"
+        assert: "Screenshot and DOM snapshot saved as evidence for both sessions"
+
+    pass_criteria:
+      - "Elevated session shows 'Safety Flag Resolution' section"
+      - "Normal session does NOT show 'Safety Flag Resolution' section"
+      - "If no elevated sessions exist: test documented as SKIPPED"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Session detail data not loaded — API may have returned null"
+      - pattern: "404.*/api/.*review"
+        meaning: "Review session API endpoint missing"
+      - pattern: "403"
+        meaning: "Permission denied accessing session detail"
+
+  # ---------------------------------------------------------------------------
+  # SF-004: Submit blocked without disposition
+  # ---------------------------------------------------------------------------
+  - id: SF-004
+    title: "Submit Review blocked without selecting a disposition"
+    priority: P1
+    tags: [safety, escalation, validation, submit]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+      - "SF-003 must have confirmed Safety Flag Resolution section is visible"
+      - "Currently viewing an elevated session (or will navigate to one)"
+    depends_on: [SF-003]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loaded"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-queue'], .review-queue, main"
+          timeout: 10000
+        expect: "Review queue is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          If SF-001/SF-003 were SKIPPED, SKIP this test with reason
+          "No elevated sessions — dependency chain skipped".
+
+      - action: browser_click
+        params:
+          selector: "first elevated session card in the queue"
+        assert: "Clicked into the elevated session"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-session'], .review-session, main"
+          timeout: 10000
+        expect: "Elevated review session detail view is loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Confirm the Safety Flag Resolution section is visible and no
+          disposition is currently selected (dropdown/radio is in default/empty
+          state).
+
+      - action: browser_click
+        params:
+          selector: "Submit Review button, e.g. button containing text 'Submit', [data-testid='submit-review']"
+        assert: "Clicked Submit Review without selecting a disposition"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify that a validation message or error indicator appears, blocking
+          the submission. Look for: inline validation text (red/error colour),
+          a toast/snackbar message, a required-field highlight on the
+          disposition selector, or the form remaining in its current state
+          without navigating away. The submit must be blocked.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "SF-004 Submit blocked without disposition"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Submit Review is blocked when no disposition is selected"
+      - "A validation message or required-field indicator is displayed"
+      - "Page does not navigate away or submit the review"
+      - "If no elevated sessions exist: test documented as SKIPPED"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Form state handling error"
+      - pattern: "status >= 500"
+        meaning: "Server accepted submission without validation — backend bug"
+      - pattern: "status == 200"
+        meaning: "Review submitted successfully despite missing disposition — validation gap"
+
+  # ---------------------------------------------------------------------------
+  # SF-005: Submit with Resolve disposition returns 200
+  # ---------------------------------------------------------------------------
+  - id: SF-005
+    title: "Submit with Resolve disposition returns 200"
+    priority: P1
+    tags: [safety, escalation, resolution, submit, api]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+      - "SF-004 must have confirmed validation works (elevated session open)"
+      - "Currently viewing an elevated session with Safety Flag Resolution visible"
+      - "WARNING: This test submits a review — it modifies data in dev"
+    depends_on: [SF-004]
+
+    steps:
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          If dependency chain (SF-001 through SF-004) was SKIPPED, SKIP this
+          test with reason "No elevated sessions — dependency chain skipped".
+          Otherwise confirm we are on the elevated session detail page with
+          the Safety Flag Resolution section visible.
+
+      - action: browser_click
+        params:
+          selector: "Disposition dropdown or radio for 'Resolve', e.g. select option, radio button, or dropdown item with text 'Resolve'"
+        assert: "Selected 'Resolve' as the safety flag disposition"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Confirm 'Resolve' disposition is now selected in the UI"
+
+      - action: browser_click
+        params:
+          selector: "Resolution notes textarea or input field"
+        assert: "Focused on the notes field"
+
+      - action: browser_click
+        params:
+          selector: "Resolution notes textarea or input field"
+        assert: "Notes field is active"
+
+      - action: browser_wait_for
+        params:
+          selector: "textarea, input[type='text']"
+          timeout: 3000
+        expect: "Notes input is available"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Ready to type resolution note"
+
+      # Note: the agent should type a resolution note into the field
+      # using the appropriate MCP tool (browser_fill_form or browser_type)
+      # with text like "Regression test — resolved by automated safety check"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "Begin monitoring network requests before submit"
+
+      - action: browser_click
+        params:
+          selector: "Submit Review button, e.g. button containing text 'Submit', [data-testid='submit-review']"
+        assert: "Clicked Submit Review with Resolve disposition selected"
+
+      - action: browser_wait_for
+        params:
+          timeout: 5000
+        expect: "Waiting for submission to complete"
+
+      - action: browser_network_requests
+        params: {}
+        assert: >
+          Verify the POST request for review submission returned HTTP 200 (OK)
+          or 201 (Created). Check network requests for a POST to an endpoint
+          matching /api/review or /api/session or similar. The response status
+          must be 2xx.
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify a success indicator is shown: a success toast, redirect to
+          the queue, a "Review submitted" message, or the session disappearing
+          from the pending list.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "SF-005 Submit with Resolve disposition"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Resolve disposition is selectable and selected"
+      - "POST request returns HTTP 2xx (200 or 201)"
+      - "Success feedback is displayed to the user"
+      - "If no elevated sessions exist: test documented as SKIPPED"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Server error during review submission — backend crash"
+      - pattern: "status == 400"
+        meaning: "Bad request — payload missing required fields"
+      - pattern: "status == 403"
+        meaning: "Permission denied — owner cannot submit reviews"
+      - pattern: "status == 422"
+        meaning: "Validation error — disposition or note format rejected"
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Client-side error during form submission"
+
+  # ---------------------------------------------------------------------------
+  # SF-006: Safety flag labels translated in UK and RU
+  # ---------------------------------------------------------------------------
+  - id: SF-006
+    title: "Safety flag labels translated in Ukrainian and Russian"
+    priority: P1
+    tags: [safety, escalation, i18n, translation, uk, ru]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+      - "SF-001 must have identified elevated sessions. If SF-001 was SKIPPED, skip this test too"
+      - "Locale switcher must be accessible (see I18N module for locale switching pattern)"
+    depends_on: [SF-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loaded"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-queue'], .review-queue, main"
+          timeout: 10000
+        expect: "Review queue is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          If SF-001 was SKIPPED, SKIP this test with reason
+          "No elevated sessions — dependency SF-001 skipped".
+          Otherwise confirm elevated session cards are visible in the queue.
+
+      # --- Switch to Ukrainian ---
+      - action: browser_click
+        params:
+          selector: "Language/locale switcher button or dropdown"
+        assert: "Locale switcher opened"
+
+      - action: browser_click
+        params:
+          selector: "Ukrainian option — look for text containing 'Українська' or flag emoji"
+        assert: "Switched language to Ukrainian"
+
+      - action: browser_wait_for
+        params:
+          timeout: 3000
+        expect: "UI re-rendered in Ukrainian locale"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Examine elevated session cards and any safety-related labels in the
+          queue. Verify that NO literal i18n keys are visible (patterns like
+          "safety.flag.elevated", "review.escalation", or dot-separated
+          lowercase strings). All safety flag labels, badges, and status text
+          must display translated Ukrainian text.
+
+      # --- Switch to Russian ---
+      - action: browser_click
+        params:
+          selector: "Language/locale switcher button or dropdown"
+        assert: "Locale switcher opened"
+
+      - action: browser_click
+        params:
+          selector: "Russian option — look for text containing 'Русский' or flag emoji"
+        assert: "Switched language to Russian"
+
+      - action: browser_wait_for
+        params:
+          timeout: 3000
+        expect: "UI re-rendered in Russian locale"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Examine elevated session cards and any safety-related labels in the
+          queue. Verify that NO literal i18n keys are visible. All safety flag
+          labels, badges, and status text must display translated Russian text.
+
+      # --- Switch back to English ---
+      - action: browser_click
+        params:
+          selector: "Language/locale switcher button or dropdown"
+        assert: "Locale switcher opened"
+
+      - action: browser_click
+        params:
+          selector: "English option — look for text containing 'English' or flag emoji"
+        assert: "Switched language back to English"
+
+      - action: browser_wait_for
+        params:
+          timeout: 3000
+        expect: "UI re-rendered in English locale"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Confirmed UI is back in English. Safety labels display in English."
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "SF-006 Safety flag i18n UK and RU"
+        assert: "Screenshots saved for Ukrainian, Russian, and English states as evidence"
+
+    pass_criteria:
+      - "Ukrainian locale: all safety flag labels are translated (no literal i18n keys)"
+      - "Russian locale: all safety flag labels are translated (no literal i18n keys)"
+      - "Language successfully switched back to English after test"
+      - "If no elevated sessions exist: test documented as SKIPPED"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "[a-z]+\\.[a-z]+\\.[a-z]+"
+        meaning: "Literal i18n key visible — missing translation for safety labels"
+      - pattern: "[object Object]"
+        meaning: "Translation object rendered as string instead of resolved value"
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Translation lookup failed — key path does not exist in locale file"
+      - pattern: "404.*/locales/"
+        meaning: "Locale file failed to load — missing translation bundle"

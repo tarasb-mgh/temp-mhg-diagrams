@@ -1,4 +1,7 @@
-# MHG UI Regression Targets
+# MHG UI Regression Targets (Legacy Reference)
+
+> **SUPERSEDED**: This file is superseded by `regression-suite/` (124 YAML test cases across 16 modules).
+> Use `/mhg.regression smoke` for automated regression. This file is kept for historical reference only.
 
 Full test flow list and error-hunting patterns for the Phase 4 regression sweep.
 Run flows in order. After each flow, capture console + network state.

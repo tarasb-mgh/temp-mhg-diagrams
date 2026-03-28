@@ -1,0 +1,193 @@
+# MHG Workbench Regression Suite — Global Configuration
+# This file is read by the executing AI agent before running any test module.
+
+environments:
+  dev:
+    chat_url: "https://dev.mentalhelp.chat"
+    workbench_url: "https://workbench.dev.mentalhelp.chat"
+    api_url: "https://api.dev.mentalhelp.chat"
+  prod:
+    chat_url: "https://mentalhelp.chat"
+    workbench_url: "https://workbench.mentalhelp.chat"
+    api_url: "https://api.mentalhelp.chat"
+
+# Which environment to target by default
+default_environment: dev
+
+# Account definitions — keyed by role name used in test YAML files
+accounts:
+  owner:
+    email: "playwright@mentalhelp.global"
+    otp_source: "browser_console"        # Dev env logs OTP to console
+    otp_pattern: "Code:\\s+(\\d{6})"     # Regex to extract OTP from console output
+    expected_role_label:
+      en: "Owner"
+      uk: "Власник"
+      ru: "Владелец"
+  moderator:
+    email: "e2e-moderator@test.local"
+    otp_source: "browser_console"
+    otp_pattern: "Code:\\s+(\\d{6})"
+    expected_role_label:
+      en: "Moderator"
+  researcher:
+    email: "e2e-researcher@test.local"
+    otp_source: "browser_console"
+    otp_pattern: "Code:\\s+(\\d{6})"
+    expected_role_label:
+      en: "Researcher"
+  qa:
+    email: "e2e-qa@test.local"
+    otp_source: "browser_console"
+    otp_pattern: "Code:\\s+(\\d{6})"
+    expected_role_label:
+      en: "QA Specialist"
+  user:
+    email: "e2e-user@test.local"
+    otp_source: "browser_console"
+    otp_pattern: "Code:\\s+(\\d{6})"
+    expected_role_label:
+      en: "User"
+  group_admin:
+    email: "e2e-group-admin@test.local"
+    otp_source: "browser_console"
+    otp_pattern: "Code:\\s+(\\d{6})"
+    expected_role_label:
+      en: "Group Admin"
+
+# Default browser viewport
+default_viewport:
+  width: 1280
+  height: 800
+
+# Supported locales for i18n tests
+locales:
+  - code: en
+    selector_label: "🇬🇧 English"
+  - code: uk
+    selector_label: "🇺🇦 Українська"
+  - code: ru
+    selector_label: "🇷🇺 Русский"
+
+# Timeouts in milliseconds
+timeouts:
+  page_load: 10000
+  api_response: 5000
+  otp_extraction: 8000
+  animation: 1000
+  post_action_settle: 500
+
+# Execution modes — the agent selects one at invocation time
+execution_modes:
+  smoke:
+    description: "P0 tests only — critical path"
+    filter: { priority: [P0] }
+    estimated_minutes: 10
+  standard:
+    description: "P0 + P1 tests — recommended for post-deploy"
+    filter: { priority: [P0, P1] }
+    estimated_minutes: 30
+  full:
+    description: "All priorities — comprehensive regression"
+    filter: { priority: [P0, P1, P2, P3] }
+    estimated_minutes: 60
+  module:
+    description: "Single module by name (e.g., module:03-review-queue)"
+    filter: { module: "<specified>" }
+
+# Module execution order — AUTH-001 is the gate; if it fails, abort.
+execution_order:
+  - 01-auth           # Gate: must pass AUTH-001
+  - 02-navigation     # Verify shell works
+  - 14-i18n           # Locale switching early, reset to EN after
+  - 03-review-queue
+  - 04-review-session
+  - 05-review-dashboards
+  - 06-safety-flags
+  - 07-survey-schemas
+  - 08-survey-instances
+  - 09-user-management
+  - 10-group-management
+  - 11-privacy-gdpr
+  - 12-security-admin
+  - 13-settings
+  - 15-responsive      # Viewport changes last to avoid side effects
+  - 16-cross-cutting   # Aggregation checks run last
+
+# Console messages to IGNORE (not flagged as errors)
+known_acceptable_console:
+  - pattern: "401.*api/auth/refresh"
+    reason: "Expected token refresh failure before authentication"
+  - pattern: "401.*api/auth/logout"
+    reason: "Expected when no active session"
+  - pattern: "404.*vite\\.svg"
+    reason: "Known missing dev favicon"
+  - pattern: "Banner not shown.*beforeinstallprompt"
+    reason: "PWA install banner suppression is normal"
+  - pattern: "ResizeObserver loop"
+    reason: "Benign browser warning, not an app error"
+  - pattern: "Download the React DevTools"
+    reason: "React dev mode advisory"
+  - pattern: "Third-party cookie"
+    reason: "Browser cookie policy warning"
+
+# Network requests to IGNORE when status >= 400
+known_acceptable_network:
+  - endpoint: "/api/auth/refresh"
+    status: 401
+    condition: "before_auth"
+    reason: "Token refresh before login"
+  - endpoint: "/api/auth/logout"
+    status: 401
+    condition: "before_auth"
+    reason: "Cleanup call when no session"
+  - endpoint: "/favicon.ico"
+    status: 404
+    reason: "Missing favicon in dev"
+
+# Known expected test issues (document, don't fail)
+known_issues:
+  - id: KI-001
+    description: "gradeDescription.buttonAriaLabel appears as literal i18n key in review session rating"
+    affects_tests: [RS-003, I18N-005]
+    source: "regression-snapshot.md"
+  - id: KI-002
+    description: "Security section sidebar labels remain in English when locale is UK or RU"
+    affects_tests: [I18N-001, I18N-002, SA-001]
+    source: "uk-sidebar-check.md"
+
+# Global error signatures to hunt after every test
+error_signatures:
+  console:
+    - pattern: "TypeError: Cannot read properties of undefined"
+      severity: critical
+      meaning: "Null guard missing — component accessing undefined data"
+    - pattern: "TypeError: Cannot read properties of null"
+      severity: critical
+      meaning: "Null guard missing — component accessing null data"
+    - pattern: "Uncaught Error"
+      severity: critical
+      meaning: "Unhandled JS exception — likely crash"
+    - pattern: "Failed to load resource: net::ERR_"
+      severity: high
+      meaning: "Network or CORS failure"
+    - pattern: "Warning: Each child in a list should have a unique"
+      severity: low
+      meaning: "React key prop missing — cosmetic but noisy"
+    - pattern: "[object Object]"
+      severity: medium
+      meaning: "Object rendered as string — missing serialization"
+  network:
+    - pattern: "status >= 500"
+      severity: critical
+      meaning: "Server error — backend crash or unhandled exception"
+    - pattern: "status == 403"
+      severity: high
+      meaning: "Permission denied — wrong role or missing permission"
+    - pattern: "status == 404 AND /api/"
+      severity: high
+      meaning: "Missing endpoint — route not registered or wrong URL"
+  ui:
+    - pattern: "[a-z]+\\.[a-z]+(\\.[a-z]+)+"
+      severity: medium
+      meaning: "Literal i18n key visible in UI — missing translation"

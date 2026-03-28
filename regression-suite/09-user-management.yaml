@@ -1,0 +1,457 @@
+# MHG Workbench Regression Suite — 09 User Management
+# 8 tests covering user list, search, profile, approvals, tester tags, and block/unblock.
+#
+# All tests assume owner role and depend on AUTH-001 for an active session.
+
+module:
+  id: 09-user-management
+  title: "User Management"
+  description: >
+    Validates that the user management pages render correctly: user list with
+    search, role and status badges, user profile detail, approvals workflow,
+    tester tag assignment, and block/unblock controls.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # UM-001  User list loads with search
+  # ---------------------------------------------------------------------------
+  - id: UM-001
+    title: "User list loads with search"
+    priority: P0
+    tags: [users, list, search, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/users"
+        assert: "Users page loaded"
+        expect: "User management page renders"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='user-list' i], [class*='userList' i], [data-testid*='user' i]"
+          timeout: 10000
+        assert: "User table or list is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "User list snapshot captured"
+        expect: "User table/list is visible with at least one user row and a search input field"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[type='search'], input[placeholder*='search' i], input[placeholder*='Search' i], input[aria-label*='search' i]"
+          timeout: 5000
+        assert: "Search input field is visible"
+
+      - action: evidence_capture
+        params:
+          label: "UM-001-user-list-with-search"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "User table or list is rendered with at least one user row"
+      - "Search input field is visible and interactive"
+      - "No unexpected console errors or 5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/users"
+        meaning: "User list fetch failed — permission denied"
+      - pattern: "TypeError"
+        meaning: "Null guard missing in user list component"
+
+  # ---------------------------------------------------------------------------
+  # UM-002  Search filters by name/email
+  # ---------------------------------------------------------------------------
+  - id: UM-002
+    title: "Search filters by name/email"
+    priority: P1
+    tags: [users, search, filter]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "User list page is loaded (via UM-001)"
+    depends_on: [AUTH-001, UM-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/users"
+        assert: "Users page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[type='search'], input[placeholder*='search' i], input[placeholder*='Search' i], input[aria-label*='search' i]"
+          timeout: 10000
+        assert: "Search input is visible"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[type='search'], input[placeholder*='search' i], input[placeholder*='Search' i], input[aria-label*='search' i]"
+          value: "test"
+        assert: "Search term 'test' entered"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='user-list' i], [class*='userList' i], [data-testid*='user' i]"
+          timeout: 5000
+        assert: "List updates after search input"
+        expect: "Filtered results shown — fewer rows or rows matching the search term"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Filtered user list snapshot captured"
+        expect: "User list shows filtered results matching the search term"
+
+      - action: evidence_capture
+        params:
+          label: "UM-002-search-filter"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Typing in the search field triggers list filtering"
+      - "Displayed results are consistent with the search term"
+      - "No JavaScript errors during search interaction"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Search handler or filter logic has a null reference"
+      - pattern: "5\\d{2}.*api/users"
+        meaning: "Server error on user search endpoint"
+
+  # ---------------------------------------------------------------------------
+  # UM-003  User row shows role + status badges
+  # ---------------------------------------------------------------------------
+  - id: UM-003
+    title: "User row shows role + status badges"
+    priority: P1
+    tags: [users, badges, role, status]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "User list page is loaded (via UM-001)"
+    depends_on: [AUTH-001, UM-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/users"
+        assert: "Users page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='user-list' i], [class*='userList' i], [data-testid*='user' i]"
+          timeout: 10000
+        assert: "User list is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "User list snapshot with badges"
+        expect: >
+          At least one user row shows a role badge (Owner, Moderator, User, etc.)
+          and a status badge (Active, Blocked, Pending, etc.)
+
+      - action: evidence_capture
+        params:
+          label: "UM-003-role-status-badges"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "At least one user row displays a role badge (e.g., Owner, Moderator)"
+      - "At least one user row displays a status badge (e.g., Active, Blocked)"
+      - "Badges are visually distinct and readable"
+    error_signatures:
+      - pattern: "undefined.*role"
+        meaning: "Role data missing from user list response"
+      - pattern: "undefined.*status"
+        meaning: "Status data missing from user list response"
+
+  # ---------------------------------------------------------------------------
+  # UM-004  Click user opens profile
+  # ---------------------------------------------------------------------------
+  - id: UM-004
+    title: "Click user opens profile"
+    priority: P1
+    tags: [users, profile, detail]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "User list page is loaded (via UM-001)"
+    depends_on: [AUTH-001, UM-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/users"
+        assert: "Users page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='user-list' i], [class*='userList' i], [data-testid*='user' i]"
+          timeout: 10000
+        assert: "User list is visible"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='user-list' i] > *:first-child, [class*='userList' i] > *:first-child"
+        assert: "First user row clicked"
+        expect: "Navigation to user profile detail page"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='profile' i], [class*='user-detail' i], [class*='userDetail' i], [data-testid*='user-profile' i]"
+          timeout: 10000
+        assert: "User profile page is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "User profile snapshot captured"
+        expect: "User profile detail renders with email, role, creation date, or other user attributes"
+
+      - action: evidence_capture
+        params:
+          label: "UM-004-user-profile"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Clicking a user row navigates to or opens a user profile view"
+      - "Profile shows user details such as email, role, or creation date"
+      - "No unhandled JavaScript errors during navigation"
+    error_signatures:
+      - pattern: "404.*api/users/"
+        meaning: "User detail endpoint not found"
+      - pattern: "TypeError"
+        meaning: "Crash rendering user profile component"
+
+  # ---------------------------------------------------------------------------
+  # UM-005  Approvals page loads
+  # ---------------------------------------------------------------------------
+  - id: UM-005
+    title: "Approvals page loads"
+    priority: P1
+    tags: [users, approvals, pending]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/approvals"
+        assert: "Approvals page loaded"
+        expect: "Approvals page renders"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='approval' i], [class*='pending' i], [data-testid*='approval' i], *:has-text('No pending'), *:has-text('Pending Users')"
+          timeout: 10000
+        assert: "Approvals content is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Approvals page snapshot captured"
+        expect: "Page renders with pending users list or an empty state message"
+
+      - action: evidence_capture
+        params:
+          label: "UM-005-approvals-page"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Approvals page renders without errors"
+      - "Page shows either a list of pending users or a clear empty state"
+      - "No 5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/approvals"
+        meaning: "Approvals endpoint permission denied"
+      - pattern: "TypeError"
+        meaning: "Crash in approvals page component"
+
+  # ---------------------------------------------------------------------------
+  # UM-006  Approve pending user
+  # ---------------------------------------------------------------------------
+  - id: UM-006
+    title: "Approve pending user"
+    priority: P2
+    tags: [users, approvals, action]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "Approvals page loaded (via UM-005)"
+    depends_on: [AUTH-001, UM-005]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/approvals"
+        assert: "Approvals page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='approval' i], [class*='pending' i], [data-testid*='approval' i], *:has-text('No pending'), *:has-text('Pending Users')"
+          timeout: 10000
+        assert: "Approvals content is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Approvals page state captured"
+        expect: >
+          If pending users exist, an Approve button is visible on at least one row.
+          If no pending users, an empty state message is shown.
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Approve'), button[aria-label*='approve' i]"
+        assert: "Approve button clicked (skip if no pending users)"
+        expect: "Approval action triggers success feedback or toast message"
+        skip_if_not_found: true
+        skip_reason: "No pending users available for approval"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-approval state captured"
+        expect: "Success message or updated list after approval, or unchanged empty state if skipped"
+
+      - action: evidence_capture
+        params:
+          label: "UM-006-approve-user"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "If pending users exist: clicking Approve triggers a success response"
+      - "If no pending users: test passes with skip reason documented"
+      - "No unhandled errors during the approval action"
+    error_signatures:
+      - pattern: "5\\d{2}.*api/approvals"
+        meaning: "Server error on approval endpoint"
+      - pattern: "TypeError"
+        meaning: "Crash in approval action handler"
+
+  # ---------------------------------------------------------------------------
+  # UM-007  Tester Tags page loads
+  # ---------------------------------------------------------------------------
+  - id: UM-007
+    title: "Tester Tags page loads"
+    priority: P2
+    tags: [users, tester-tags]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/users/tester-tags"
+        assert: "Tester Tags page loaded"
+        expect: "Tester tag assignment page renders"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='tester' i], [class*='tag' i], [data-testid*='tester' i], *:has-text('Tester'), *:has-text('Tags')"
+          timeout: 10000
+        assert: "Tester tags content is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Tester Tags page snapshot captured"
+        expect: "Tester tag assignment UI renders with tag management controls"
+
+      - action: evidence_capture
+        params:
+          label: "UM-007-tester-tags"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Tester Tags page renders without errors"
+      - "Tag assignment UI is visible with management controls"
+      - "No 5xx network responses"
+    error_signatures:
+      - pattern: "404.*tester-tags"
+        meaning: "Tester tags route or endpoint not found"
+      - pattern: "TypeError"
+        meaning: "Crash in tester tags component"
+
+  # ---------------------------------------------------------------------------
+  # UM-008  Block/unblock user
+  # ---------------------------------------------------------------------------
+  - id: UM-008
+    title: "Block/unblock user button presence"
+    priority: P2
+    tags: [users, block, safety]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "User profile page accessible (via UM-004)"
+    depends_on: [AUTH-001, UM-004]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/users"
+        assert: "Users page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='user-list' i], [class*='userList' i], [data-testid*='user' i]"
+          timeout: 10000
+        assert: "User list is visible"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='user-list' i] > *:first-child, [class*='userList' i] > *:first-child"
+        assert: "First user row clicked"
+        expect: "Navigation to user profile detail page"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='profile' i], [class*='user-detail' i], [class*='userDetail' i], [data-testid*='user-profile' i]"
+          timeout: 10000
+        assert: "User profile page is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "User profile with block button snapshot"
+        expect: >
+          Block or Unblock button is visible on the user profile page.
+          DO NOT click the button — only verify its presence.
+
+      - action: evidence_capture
+        params:
+          label: "UM-008-block-button-presence"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Block or Unblock button is present on the user profile page"
+      - "Button is NOT clicked — only presence is verified"
+      - "No unhandled errors on the profile page"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash rendering block/unblock control"
+      - pattern: "undefined.*block"
+        meaning: "Block status data missing from user profile"

@@ -1,0 +1,588 @@
+# MHG Workbench Regression Suite — 14 Internationalization
+# 6 tests covering locale switching, sidebar label accuracy, and literal key detection
+#
+# Variables resolved from _config.yaml:
+#   ${workbench_url}  — environments.<env>.workbench_url
+#   ${account.<role>}  — accounts.<role>.email / otp_source / otp_pattern
+
+module:
+  id: 14-i18n
+  title: "Internationalization"
+  description: >
+    Validates that locale switching works correctly, sidebar labels are properly
+    translated for Ukrainian and Russian, review queue and dashboard metrics
+    are translated, and no literal i18n dot-notation keys leak into the UI.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # I18N-001  Ukrainian: all sidebar labels correct
+  # ---------------------------------------------------------------------------
+  - id: I18N-001
+    title: "Ukrainian: all sidebar labels correct"
+    priority: P0
+    tags: [i18n, locale, ukrainian, sidebar, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "Language selector is accessible from the UI"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        assert: "Confirm authenticated state before locale switch"
+        expect: "Dashboard or sidebar is visible in current locale"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('EN'), button:has-text('English')"
+        assert: "Language selector opened"
+        expect: "Language options are displayed"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Language selector dropdown visible"
+        expect: "Available locale options shown including Ukrainian"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='uk'], li:has-text('Ukrainian'), li:has-text('Українська'), option:has-text('Ukrainian'), option:has-text('Українська')"
+        assert: "Ukrainian locale selected"
+        expect: "UI switches to Ukrainian"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 5000
+        assert: "Sidebar visible after locale switch"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Sidebar snapshot in Ukrainian locale"
+        expect: >
+          Sidebar labels are in Ukrainian. Verify presence of:
+          "Панель керування" (Dashboard), "Рецензування" (Reviews),
+          "Черга рецензій" (Review Queue), "Дашборд рецензій" (Review Dashboard),
+          "Звіти" (Reports), "Дашборд команди" (Team Dashboard),
+          "Ескалації" (Escalations), "Теги рецензій" (Review Tags),
+          "Налаштування рецензій" (Review Settings), "Опитування" (Surveys),
+          "Шаблони опитувань" (Survey Templates),
+          "Екземпляри опитувань" (Survey Instances),
+          "Люди та доступ" (People & Access), "Налаштування" (Settings)
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Full sidebar scan for literal i18n keys"
+        check: no_literal_i18n_keys
+        expect: >
+          No dot-notation literal keys (e.g., sidebar.dashboard, nav.reviews)
+          appear in place of translated labels
+
+      - action: evidence_capture
+        params:
+          label: "I18N-001-ukrainian-sidebar"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "All 14 sidebar labels are displayed in Ukrainian"
+      - "No English labels remain in the sidebar after switching to Ukrainian"
+      - "No literal i18n keys (dot-notation strings) visible in sidebar"
+      - "No console errors related to missing translation keys"
+    error_signatures:
+      - pattern: "missing.*translation"
+        meaning: "Translation key not found for Ukrainian locale"
+      - pattern: "sidebar\\.[a-z]+"
+        meaning: "Literal i18n key leaked into the UI"
+
+  # ---------------------------------------------------------------------------
+  # I18N-002  Russian: all sidebar labels correct
+  # ---------------------------------------------------------------------------
+  - id: I18N-002
+    title: "Russian: all sidebar labels correct"
+    priority: P0
+    tags: [i18n, locale, russian, sidebar, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "UI is currently in Ukrainian locale (from I18N-001)"
+    depends_on: [I18N-001]
+    steps:
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('UK'), button:has-text('Українська')"
+        assert: "Language selector opened"
+        expect: "Language options are displayed"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='ru'], li:has-text('Russian'), li:has-text('Русский'), option:has-text('Russian'), option:has-text('Русский')"
+        assert: "Russian locale selected"
+        expect: "UI switches to Russian"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 5000
+        assert: "Sidebar visible after locale switch"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Sidebar snapshot in Russian locale"
+        expect: >
+          Sidebar labels are in Russian. Verify presence of:
+          "Панель управления" (Dashboard), "Рецензирование" (Reviews),
+          "Очередь рецензий" (Review Queue), "Дашборд рецензий" (Review Dashboard),
+          "Отчёты" (Reports), "Дашборд команды" (Team Dashboard),
+          "Эскалации" (Escalations), "Теги рецензий" (Review Tags),
+          "Настройки рецензий" (Review Settings), "Опросы" (Surveys),
+          "Люди и доступ" (People & Access), "Настройки" (Settings)
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Full sidebar scan for literal i18n keys"
+        check: no_literal_i18n_keys
+        expect: >
+          No dot-notation literal keys appear in place of translated labels
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('RU'), button:has-text('Русский')"
+        assert: "Language selector opened to switch back to English"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='en'], li:has-text('English'), option:has-text('English')"
+        assert: "English locale selected"
+        expect: "UI switches back to English"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 5000
+        assert: "Sidebar visible after switching back to English"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Sidebar restored to English"
+        expect: "All sidebar labels are back in English"
+
+      - action: evidence_capture
+        params:
+          label: "I18N-002-russian-sidebar"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "All 12 sidebar labels are displayed in Russian"
+      - "No Ukrainian or English labels remain in the sidebar after switching to Russian"
+      - "No literal i18n keys (dot-notation strings) visible in sidebar"
+      - "After switching back to English, all labels are in English"
+      - "No console errors related to missing translation keys"
+    error_signatures:
+      - pattern: "missing.*translation"
+        meaning: "Translation key not found for Russian locale"
+      - pattern: "sidebar\\.[a-z]+"
+        meaning: "Literal i18n key leaked into the UI"
+
+  # ---------------------------------------------------------------------------
+  # I18N-003  Review queue tabs translated (all 3 locales)
+  # ---------------------------------------------------------------------------
+  - id: I18N-003
+    title: "Review queue tabs translated (all 3 locales)"
+    priority: P1
+    tags: [i18n, locale, review-queue, tabs]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "UI is in English locale"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/review"
+        assert: "Review queue page loaded"
+        expect: "Review queue with tab bar is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Review queue tabs in English"
+        expect: "Tab labels are in English and not literal i18n keys"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('EN'), button:has-text('English')"
+        assert: "Language selector opened"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='uk'], li:has-text('Ukrainian'), li:has-text('Українська'), option:has-text('Ukrainian'), option:has-text('Українська')"
+        assert: "Ukrainian locale selected"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[role='tablist'], [class*='tab' i]"
+          timeout: 5000
+        assert: "Tab bar visible after locale switch"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Review queue tabs in Ukrainian"
+        expect: "Tab labels are translated to Ukrainian (not literal keys)"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('UK'), button:has-text('Українська')"
+        assert: "Language selector opened"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='ru'], li:has-text('Russian'), li:has-text('Русский'), option:has-text('Russian'), option:has-text('Русский')"
+        assert: "Russian locale selected"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[role='tablist'], [class*='tab' i]"
+          timeout: 5000
+        assert: "Tab bar visible after locale switch"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Review queue tabs in Russian"
+        expect: "Tab labels are translated to Russian (not literal keys)"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('RU'), button:has-text('Русский')"
+        assert: "Language selector opened to switch back"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='en'], li:has-text('English'), option:has-text('English')"
+        assert: "English locale restored"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Review queue tabs back in English"
+        expect: "Tab labels restored to English"
+
+      - action: evidence_capture
+        params:
+          label: "I18N-003-review-tabs-all-locales"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Review queue tab labels are translated in all three locales (EN, UK, RU)"
+      - "No literal i18n keys appear in tab labels in any locale"
+      - "Locale switches back to English successfully"
+    error_signatures:
+      - pattern: "missing.*translation"
+        meaning: "Translation key not found for review queue tabs"
+      - pattern: "[a-z]+\\.[a-z]+\\.[a-z]+"
+        meaning: "Literal i18n key in tab label"
+
+  # ---------------------------------------------------------------------------
+  # I18N-004  Dashboard metrics translated (all 3 locales)
+  # ---------------------------------------------------------------------------
+  - id: I18N-004
+    title: "Dashboard metrics translated (all 3 locales)"
+    priority: P1
+    tags: [i18n, locale, dashboard, metrics]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "UI is in English locale"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Dashboard page loaded"
+        expect: "Dashboard with metric cards is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Dashboard metrics in English"
+        expect: "Metric card labels are in English and not literal i18n keys"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('EN'), button:has-text('English')"
+        assert: "Language selector opened"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='uk'], li:has-text('Ukrainian'), li:has-text('Українська'), option:has-text('Ukrainian'), option:has-text('Українська')"
+        assert: "Ukrainian locale selected"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='metric' i], [class*='card' i], [class*='dashboard' i]"
+          timeout: 5000
+        assert: "Dashboard content visible after locale switch"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Dashboard metrics in Ukrainian"
+        expect: "Metric card labels are translated to Ukrainian"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('UK'), button:has-text('Українська')"
+        assert: "Language selector opened"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='ru'], li:has-text('Russian'), li:has-text('Русский'), option:has-text('Russian'), option:has-text('Русский')"
+        assert: "Russian locale selected"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='metric' i], [class*='card' i], [class*='dashboard' i]"
+          timeout: 5000
+        assert: "Dashboard content visible after locale switch"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Dashboard metrics in Russian"
+        expect: "Metric card labels are translated to Russian"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('RU'), button:has-text('Русский')"
+        assert: "Language selector opened to switch back"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='en'], li:has-text('English'), option:has-text('English')"
+        assert: "English locale restored"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Dashboard metrics back in English"
+        expect: "Metric card labels restored to English"
+
+      - action: evidence_capture
+        params:
+          label: "I18N-004-dashboard-metrics-all-locales"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Dashboard metric card labels are translated in all three locales (EN, UK, RU)"
+      - "No literal i18n keys appear in metric labels in any locale"
+      - "Locale switches back to English successfully"
+    error_signatures:
+      - pattern: "missing.*translation"
+        meaning: "Translation key not found for dashboard metrics"
+      - pattern: "[a-z]+\\.[a-z]+\\.[a-z]+"
+        meaning: "Literal i18n key in metric label"
+
+  # ---------------------------------------------------------------------------
+  # I18N-005  No dot-notation literal keys in any locale
+  # ---------------------------------------------------------------------------
+  - id: I18N-005
+    title: "No dot-notation literal keys in any locale"
+    priority: P0
+    tags: [i18n, locale, literal-keys, quality]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "UI is in English locale"
+    depends_on: [AUTH-001]
+    known_issues:
+      - id: KI-001
+        description: "gradeDescription.buttonAriaLabel is a known literal key that has not been translated"
+        severity: low
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Dashboard loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "English locale full page snapshot"
+        check: no_literal_i18n_keys
+        expect: >
+          Scan visible text for patterns matching [a-z]+\.[a-z]+(\.[a-z]+)+.
+          Exclude URLs, email addresses, and file paths.
+          Known issue: gradeDescription.buttonAriaLabel is expected (KI-001).
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('EN'), button:has-text('English')"
+        assert: "Language selector opened"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='uk'], li:has-text('Ukrainian'), li:has-text('Українська'), option:has-text('Ukrainian'), option:has-text('Українська')"
+        assert: "Ukrainian locale selected"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 5000
+        assert: "Page rendered in Ukrainian"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Ukrainian locale full page snapshot"
+        check: no_literal_i18n_keys
+        expect: >
+          Scan visible text for dot-notation patterns.
+          Exclude URLs, emails, file paths.
+          Known issue: gradeDescription.buttonAriaLabel is expected (KI-001).
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('UK'), button:has-text('Українська')"
+        assert: "Language selector opened"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='ru'], li:has-text('Russian'), li:has-text('Русский'), option:has-text('Russian'), option:has-text('Русский')"
+        assert: "Russian locale selected"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 5000
+        assert: "Page rendered in Russian"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Russian locale full page snapshot"
+        check: no_literal_i18n_keys
+        expect: >
+          Scan visible text for dot-notation patterns.
+          Exclude URLs, emails, file paths.
+          Known issue: gradeDescription.buttonAriaLabel is expected (KI-001).
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('RU'), button:has-text('Русский')"
+        assert: "Language selector opened to switch back"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='en'], li:has-text('English'), option:has-text('English')"
+        assert: "English locale restored"
+
+      - action: evidence_capture
+        params:
+          label: "I18N-005-no-literal-keys"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "No dot-notation literal i18n keys visible in English locale (excluding KI-001)"
+      - "No dot-notation literal i18n keys visible in Ukrainian locale (excluding KI-001)"
+      - "No dot-notation literal i18n keys visible in Russian locale (excluding KI-001)"
+      - "URLs, email addresses, and file paths are excluded from literal key detection"
+    error_signatures:
+      - pattern: "[a-z]+\\.[a-z]+\\.[a-z]+"
+        meaning: "Potential literal i18n key found in UI — verify it is not a URL/email/path"
+      - pattern: "missing.*translation"
+        meaning: "Translation system reported a missing key"
+
+  # ---------------------------------------------------------------------------
+  # I18N-006  Security section English-only documented
+  # ---------------------------------------------------------------------------
+  - id: I18N-006
+    title: "Security section English-only documented"
+    priority: P3
+    tags: [i18n, locale, ukrainian, security, known-issue]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "UI is in English locale"
+    depends_on: [AUTH-001]
+    known_issues:
+      - id: KI-002
+        description: "Security section labels remain in English when locale is switched to Ukrainian or Russian"
+        severity: low
+    steps:
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('EN'), button:has-text('English')"
+        assert: "Language selector opened"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='uk'], li:has-text('Ukrainian'), li:has-text('Українська'), option:has-text('Ukrainian'), option:has-text('Українська')"
+        assert: "Ukrainian locale selected"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 5000
+        assert: "Sidebar visible in Ukrainian"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text=Security, aside >> text=Security, [class*='sidebar'] >> text=Security"
+        assert: "Security group clicked to expand"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Security section snapshot in Ukrainian locale"
+        expect: >
+          Document that Security section labels remain in English.
+          This is a known issue (KI-002). Labels such as Dashboard,
+          Principal Groups, Permissions, Assignments, Effective Permissions
+          are expected to still be in English.
+
+      - action: browser_click
+        params:
+          selector: "[data-testid='language-selector'], [aria-label*='language' i], [aria-label*='locale' i], button:has-text('UK'), button:has-text('Українська')"
+        assert: "Language selector opened to switch back"
+
+      - action: browser_click
+        params:
+          selector: "[data-value='en'], li:has-text('English'), option:has-text('English')"
+        assert: "English locale restored"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 5000
+        assert: "Sidebar visible after switching back to English"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Sidebar restored to English"
+        expect: "All sidebar labels are back in English"
+
+      - action: evidence_capture
+        params:
+          label: "I18N-006-security-english-only"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Security section labels are documented as remaining in English (KI-002)"
+      - "Switching back to English restores all labels correctly"
+      - "No unhandled errors during locale switching"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash during locale switch in Security section"

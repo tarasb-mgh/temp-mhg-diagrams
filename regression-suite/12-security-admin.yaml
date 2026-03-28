@@ -1,0 +1,392 @@
+# MHG Workbench Regression Suite — 12 Security Administration
+# 7 tests covering security dashboard, principal groups, permissions, assignments,
+# effective permissions view, role-based visibility, and feature flag controls
+#
+# Variables resolved from _config.yaml:
+#   ${workbench_url}  — environments.<env>.workbench_url
+#   ${account.<role>}  — accounts.<role>.email / otp_source / otp_pattern
+#   ${otp_code}       — extracted at runtime from browser console
+
+module:
+  id: 12-security-admin
+  title: "Security Administration"
+  description: >
+    Validates that the Security section pages load correctly for owner role,
+    that non-owner roles cannot see the Security navigation group, and that
+    the Dynamic Permissions feature flag toggle is present on the dashboard.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # SA-001  Security Dashboard loads
+  # ---------------------------------------------------------------------------
+  - id: SA-001
+    title: "Security Dashboard loads"
+    priority: P1
+    tags: [security, dashboard, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/security"
+        assert: "Page loads without network errors"
+        expect: "Security dashboard page is displayed"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='security-dashboard'], [class*='security' i], [class*='dashboard' i], main, [role='main']"
+          timeout: 10000
+        assert: "Security dashboard content is visible within timeout"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Security dashboard snapshot captured"
+        expect: "Security dashboard renders with feature flags section or similar controls"
+
+      - action: evidence_capture
+        params:
+          label: "SA-001-security-dashboard"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Security dashboard page renders without errors"
+      - "Feature flags section or similar controls are visible"
+      - "No unexpected console errors or 4xx/5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/"
+        meaning: "Permission denied — owner may not have security access"
+      - pattern: "TypeError"
+        meaning: "Null guard missing in security dashboard component"
+
+  # ---------------------------------------------------------------------------
+  # SA-002  Principal Groups page loads
+  # ---------------------------------------------------------------------------
+  - id: SA-002
+    title: "Principal Groups page loads"
+    priority: P1
+    tags: [security, groups, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/security/groups"
+        assert: "Page loads without network errors"
+        expect: "Principal Groups page is displayed"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='principal-groups'], [class*='groups' i], table, [role='table'], [class*='list' i], main, [role='main']"
+          timeout: 10000
+        assert: "Principal Groups content is visible within timeout"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Principal Groups page snapshot captured"
+        expect: "Principal groups list renders with group names or empty state"
+
+      - action: evidence_capture
+        params:
+          label: "SA-002-principal-groups"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Principal Groups page renders without errors"
+      - "Groups list or empty state is visible"
+      - "No unexpected console errors or 4xx/5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/"
+        meaning: "Permission denied fetching principal groups"
+      - pattern: "TypeError"
+        meaning: "Null guard missing in principal groups component"
+
+  # ---------------------------------------------------------------------------
+  # SA-003  Permissions browser loads
+  # ---------------------------------------------------------------------------
+  - id: SA-003
+    title: "Permissions browser loads"
+    priority: P1
+    tags: [security, permissions, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/security/permissions"
+        assert: "Page loads without network errors"
+        expect: "Permissions browser page is displayed"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='permissions'], [class*='permissions' i], table, [role='table'], [class*='list' i], main, [role='main']"
+          timeout: 10000
+        assert: "Permissions content is visible within timeout"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Permissions browser snapshot captured"
+        expect: "Permissions list or table renders with permission entries or empty state"
+
+      - action: evidence_capture
+        params:
+          label: "SA-003-permissions-browser"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Permissions browser page renders without errors"
+      - "Permissions list or table is visible"
+      - "No unexpected console errors or 4xx/5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/"
+        meaning: "Permission denied fetching permissions list"
+      - pattern: "TypeError"
+        meaning: "Null guard missing in permissions browser component"
+
+  # ---------------------------------------------------------------------------
+  # SA-004  Assignments page loads
+  # ---------------------------------------------------------------------------
+  - id: SA-004
+    title: "Assignments page loads"
+    priority: P1
+    tags: [security, assignments, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/security/assignments"
+        assert: "Page loads without network errors"
+        expect: "Assignments page is displayed"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='assignments'], [class*='assignment' i], table, [role='table'], [class*='list' i], main, [role='main']"
+          timeout: 10000
+        assert: "Assignments content is visible within timeout"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Assignments page snapshot captured"
+        expect: "User-to-group assignment UI renders with assignment entries or empty state"
+
+      - action: evidence_capture
+        params:
+          label: "SA-004-assignments"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Assignments page renders without errors"
+      - "User-to-group assignment UI is visible"
+      - "No unexpected console errors or 4xx/5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/"
+        meaning: "Permission denied fetching assignments"
+      - pattern: "TypeError"
+        meaning: "Null guard missing in assignments component"
+
+  # ---------------------------------------------------------------------------
+  # SA-005  Effective Permissions page loads
+  # ---------------------------------------------------------------------------
+  - id: SA-005
+    title: "Effective Permissions page loads"
+    priority: P1
+    tags: [security, effective-permissions, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/security/effective"
+        assert: "Page loads without network errors"
+        expect: "Effective Permissions page is displayed"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='effective-permissions'], [class*='effective' i], [class*='permissions' i], table, [role='table'], main, [role='main']"
+          timeout: 10000
+        assert: "Effective Permissions content is visible within timeout"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Effective Permissions page snapshot captured"
+        expect: "Effective permissions view renders with computed permission entries or empty state"
+
+      - action: evidence_capture
+        params:
+          label: "SA-005-effective-permissions"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Effective Permissions page renders without errors"
+      - "Effective permissions view is visible"
+      - "No unexpected console errors or 4xx/5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/"
+        meaning: "Permission denied fetching effective permissions"
+      - pattern: "TypeError"
+        meaning: "Null guard missing in effective permissions component"
+
+  # ---------------------------------------------------------------------------
+  # SA-006  Security section hidden for non-owner
+  # ---------------------------------------------------------------------------
+  - id: SA-006
+    title: "Security section hidden for non-owner"
+    priority: P2
+    tags: [security, rbac, sidebar, negative]
+    role: moderator
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "e2e-moderator@test.local account exists with 'moderator' role"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Login page loaded"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Sign In to Start'), button:has-text('Sign in to Start')"
+        assert: "Sign-in expanded"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[type='email'], input[name='email'], input[placeholder*='email' i]"
+          value: "${account.moderator.email}"
+        assert: "Moderator email entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Send Code'), button:has-text('Send code'), button[type='submit']"
+        assert: "OTP requested"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          timeout: 8000
+        assert: "OTP input visible"
+
+      - action: browser_console_messages
+        params: {}
+        extract:
+          variable: otp_code
+          pattern: "Code:\\s+(\\d{6})"
+          group: 1
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='otp'], input[aria-label*='code' i], input[placeholder*='code' i], input[type='tel']"
+          value: "${otp_code}"
+        assert: "OTP entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Verify'), button:has-text('Submit'), button[type='submit']"
+        assert: "OTP submitted"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Dashboard loaded for moderator"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Moderator sidebar captured"
+        expect: >
+          Sidebar is visible. The Security navigation group is NOT present.
+          Moderator should see Reviews and People & Access but NOT Security.
+
+      - action: evidence_capture
+        params:
+          label: "SA-006-security-hidden-moderator"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Moderator can log in and see the workbench sidebar"
+      - "Security navigation group is NOT visible in the sidebar"
+      - "No unhandled errors during login or sidebar rendering"
+    error_signatures:
+      - pattern: "Security"
+        meaning: "Security section visible to moderator — RBAC violation"
+      - pattern: "403.*api/permissions"
+        meaning: "Permission fetch failed for moderator role"
+
+  # ---------------------------------------------------------------------------
+  # SA-007  Feature flag toggle present
+  # ---------------------------------------------------------------------------
+  - id: SA-007
+    title: "Feature flag toggle present"
+    priority: P2
+    tags: [security, feature-flag, dashboard]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "Security dashboard is accessible (SA-001 passed)"
+    depends_on: [SA-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/security"
+        assert: "Security dashboard loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='security-dashboard'], [class*='security' i], [class*='dashboard' i], main, [role='main']"
+          timeout: 10000
+        assert: "Security dashboard content is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Security dashboard snapshot captured"
+        expect: >
+          A 'Dynamic Permissions' toggle, checkbox, or switch is visible on the
+          security dashboard. Do NOT toggle or click it — only verify presence.
+
+      - action: evidence_capture
+        params:
+          label: "SA-007-feature-flag-toggle"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "A 'Dynamic Permissions' toggle, checkbox, or switch element is present on the security dashboard"
+      - "The toggle is NOT clicked or changed — presence-only verification"
+      - "No unexpected console errors"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Feature flag component failed to render"
+      - pattern: "undefined.*feature"
+        meaning: "Feature flags data not loaded"

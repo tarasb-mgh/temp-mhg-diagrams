@@ -1,0 +1,470 @@
+# MHG Workbench Regression Suite — 10 Group Management
+# 8 tests covering group list, group detail, members, invitation codes,
+# surveys navigation, group dashboard, and group users.
+#
+# All tests assume owner role and depend on AUTH-001 for an active session.
+
+module:
+  id: 10-group-management
+  title: "Group Management"
+  description: >
+    Validates that group management pages render correctly: groups list,
+    group detail with members, invitation codes, survey navigation,
+    group dashboard, and group-scoped user list.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # GM-001  Groups list loads
+  # ---------------------------------------------------------------------------
+  - id: GM-001
+    title: "Groups list loads"
+    priority: P0
+    tags: [groups, list, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/groups"
+        assert: "Groups page loaded"
+        expect: "Group management page renders"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='group-list' i], [class*='groupList' i], [data-testid*='group' i]"
+          timeout: 10000
+        assert: "Groups table or list is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Groups list snapshot captured"
+        expect: "Groups list/table is visible with at least one group row"
+
+      - action: evidence_capture
+        params:
+          label: "GM-001-groups-list"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Groups table or list is rendered with at least one group"
+      - "No unexpected console errors or 5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/groups"
+        meaning: "Groups list fetch failed — permission denied"
+      - pattern: "TypeError"
+        meaning: "Null guard missing in groups list component"
+
+  # ---------------------------------------------------------------------------
+  # GM-002  Group detail shows members
+  # ---------------------------------------------------------------------------
+  - id: GM-002
+    title: "Group detail shows members"
+    priority: P1
+    tags: [groups, detail, members]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "Groups list page is loaded (via GM-001)"
+    depends_on: [AUTH-001, GM-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/groups"
+        assert: "Groups page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='group-list' i], [class*='groupList' i], [data-testid*='group' i]"
+          timeout: 10000
+        assert: "Groups list is visible"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='group-list' i] > *:first-child, [class*='groupList' i] > *:first-child"
+        assert: "First group row clicked"
+        expect: "Navigation to group detail page"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='member' i], [class*='group-detail' i], [class*='groupDetail' i], [data-testid*='group-detail' i], table"
+          timeout: 10000
+        assert: "Group detail page is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Group detail snapshot captured"
+        expect: "Group detail page renders with a member list visible"
+
+      - action: evidence_capture
+        params:
+          label: "GM-002-group-detail-members"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Clicking a group navigates to group detail view"
+      - "Member list is visible within the group detail"
+      - "No unhandled JavaScript errors during navigation"
+    error_signatures:
+      - pattern: "404.*api/groups/"
+        meaning: "Group detail endpoint not found"
+      - pattern: "TypeError"
+        meaning: "Crash rendering group detail component"
+
+  # ---------------------------------------------------------------------------
+  # GM-003  Members list shows roles + remove
+  # ---------------------------------------------------------------------------
+  - id: GM-003
+    title: "Members list shows roles + remove buttons"
+    priority: P1
+    tags: [groups, members, roles, actions]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "Group detail page is loaded (via GM-002)"
+    depends_on: [AUTH-001, GM-002]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/groups"
+        assert: "Groups page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='group-list' i], [class*='groupList' i], [data-testid*='group' i]"
+          timeout: 10000
+        assert: "Groups list is visible"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='group-list' i] > *:first-child, [class*='groupList' i] > *:first-child"
+        assert: "First group clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='member' i], [class*='group-detail' i], [class*='groupDetail' i], [data-testid*='group-detail' i], table"
+          timeout: 10000
+        assert: "Group detail loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Members list snapshot with roles and actions"
+        expect: >
+          Member rows show role labels (e.g., Owner, Member, Moderator)
+          and have remove or action buttons visible
+
+      - action: evidence_capture
+        params:
+          label: "GM-003-member-roles-actions"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "At least one member row displays a role label"
+      - "Remove or action buttons are present on member rows"
+    error_signatures:
+      - pattern: "undefined.*role"
+        meaning: "Role data missing from members response"
+      - pattern: "TypeError"
+        meaning: "Crash rendering member row actions"
+
+  # ---------------------------------------------------------------------------
+  # GM-004  Invitation codes section visible
+  # ---------------------------------------------------------------------------
+  - id: GM-004
+    title: "Invitation codes section visible"
+    priority: P1
+    tags: [groups, invitations, codes]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "Group detail page is loaded (via GM-002)"
+    depends_on: [AUTH-001, GM-002]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/groups"
+        assert: "Groups page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='group-list' i], [class*='groupList' i], [data-testid*='group' i]"
+          timeout: 10000
+        assert: "Groups list is visible"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='group-list' i] > *:first-child, [class*='groupList' i] > *:first-child"
+        assert: "First group clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='member' i], [class*='group-detail' i], [class*='groupDetail' i], [data-testid*='group-detail' i]"
+          timeout: 10000
+        assert: "Group detail loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Group detail snapshot for invitation codes"
+        expect: >
+          Invitation codes section is visible with create controls
+          (e.g., a 'Create Invitation' or 'Generate Code' button)
+
+      - action: evidence_capture
+        params:
+          label: "GM-004-invitation-codes"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Invitation codes section is visible in group detail"
+      - "Create or generate invitation controls are present"
+    error_signatures:
+      - pattern: "undefined.*invitation"
+        meaning: "Invitation data not loaded for group"
+      - pattern: "TypeError"
+        meaning: "Crash rendering invitation codes section"
+
+  # ---------------------------------------------------------------------------
+  # GM-005  Require approval checkbox on invite
+  # ---------------------------------------------------------------------------
+  - id: GM-005
+    title: "Require approval checkbox on invite creation"
+    priority: P2
+    tags: [groups, invitations, approval]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "Invitation codes section accessible (via GM-004)"
+    depends_on: [AUTH-001, GM-004]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/groups"
+        assert: "Groups page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='group-list' i], [class*='groupList' i], [data-testid*='group' i]"
+          timeout: 10000
+        assert: "Groups list is visible"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='group-list' i] > *:first-child, [class*='groupList' i] > *:first-child"
+        assert: "First group clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='member' i], [class*='group-detail' i], [class*='groupDetail' i], [data-testid*='group-detail' i]"
+          timeout: 10000
+        assert: "Group detail loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Invitation creation area snapshot"
+        expect: >
+          A 'require approval' checkbox or toggle is visible within the
+          invitation creation controls
+
+      - action: evidence_capture
+        params:
+          label: "GM-005-require-approval-checkbox"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "'Require approval' checkbox or toggle is present in the invitation creation area"
+    error_signatures:
+      - pattern: "undefined.*approval"
+        meaning: "Approval option not rendered in invitation form"
+
+  # ---------------------------------------------------------------------------
+  # GM-006  Surveys button navigates to group surveys
+  # ---------------------------------------------------------------------------
+  - id: GM-006
+    title: "Surveys button navigates to group surveys"
+    priority: P1
+    tags: [groups, surveys, navigation]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "Group detail page is loaded (via GM-002)"
+    depends_on: [AUTH-001, GM-002]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/groups"
+        assert: "Groups page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='group-list' i], [class*='groupList' i], [data-testid*='group' i]"
+          timeout: 10000
+        assert: "Groups list is visible"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='group-list' i] > *:first-child, [class*='groupList' i] > *:first-child"
+        assert: "First group clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='member' i], [class*='group-detail' i], [class*='groupDetail' i], [data-testid*='group-detail' i]"
+          timeout: 10000
+        assert: "Group detail loaded"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Surveys'), a:has-text('Surveys'), [data-testid*='survey' i]:has-text('Surveys'), [role='tab']:has-text('Surveys')"
+        assert: "Surveys button or tab clicked"
+        expect: "Navigation to group surveys page"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='survey' i], [data-testid*='survey' i], table, *:has-text('Survey')"
+          timeout: 10000
+        assert: "Group surveys page is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Group surveys page snapshot"
+        expect: "Group surveys page renders with survey list or empty state"
+
+      - action: evidence_capture
+        params:
+          label: "GM-006-group-surveys"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Clicking Surveys button/tab navigates to group surveys page"
+      - "Group surveys page renders without errors"
+    error_signatures:
+      - pattern: "404.*surveys"
+        meaning: "Group surveys route or endpoint not found"
+      - pattern: "TypeError"
+        meaning: "Crash during navigation to group surveys"
+
+  # ---------------------------------------------------------------------------
+  # GM-007  Group Dashboard loads
+  # ---------------------------------------------------------------------------
+  - id: GM-007
+    title: "Group Dashboard loads"
+    priority: P1
+    tags: [groups, dashboard, group-scope]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "A group is selected via the scope selector"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/group"
+        assert: "Group Dashboard page loaded"
+        expect: "Group dashboard renders with group-specific data"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='dashboard' i], [class*='group-dashboard' i], [data-testid*='dashboard' i], [data-testid*='group' i]"
+          timeout: 10000
+        assert: "Group dashboard content is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Group Dashboard snapshot captured"
+        expect: "Group dashboard renders with group-specific data, charts, or summary information"
+
+      - action: evidence_capture
+        params:
+          label: "GM-007-group-dashboard"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Group Dashboard page renders without errors"
+      - "Dashboard shows group-specific data or content"
+      - "No 5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/group"
+        meaning: "Group dashboard data fetch failed — permission denied"
+      - pattern: "TypeError"
+        meaning: "Crash rendering group dashboard component"
+      - pattern: "No group selected"
+        meaning: "Group scope not set — scope selector may need interaction first"
+
+  # ---------------------------------------------------------------------------
+  # GM-008  Group Users page loads
+  # ---------------------------------------------------------------------------
+  - id: GM-008
+    title: "Group Users page loads"
+    priority: P2
+    tags: [groups, users, group-scope]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+      - "A group is selected via the scope selector"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/group/users"
+        assert: "Group Users page loaded"
+        expect: "Group-scoped user list renders"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='user-list' i], [class*='userList' i], [data-testid*='user' i], [class*='group-users' i]"
+          timeout: 10000
+        assert: "Group-scoped user list is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Group Users page snapshot captured"
+        expect: "Group-scoped user list renders with users belonging to the selected group"
+
+      - action: evidence_capture
+        params:
+          label: "GM-008-group-users"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Group Users page renders without errors"
+      - "User list shows users scoped to the selected group"
+      - "No 5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/group/users"
+        meaning: "Group users fetch failed — permission denied"
+      - pattern: "TypeError"
+        meaning: "Crash rendering group users component"
+      - pattern: "No group selected"
+        meaning: "Group scope not set — scope selector may need interaction first"

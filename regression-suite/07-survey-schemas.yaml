@@ -1,0 +1,546 @@
+# MHG Workbench Regression Suite — 07 Survey Schema Management
+# 9 tests covering schema CRUD, editor, publishing, preview, clone, archive
+#
+# Variables resolved from _config.yaml:
+#   ${workbench_url}  — environments.<env>.workbench_url
+#   ${account.<role>}  — accounts.<role>.email / otp_source / otp_pattern
+
+module:
+  id: 07-survey-schemas
+  title: "Survey Schema Management"
+  description: >
+    Validates that survey schemas can be listed, created, edited, saved,
+    published, previewed, cloned, and archived/restored through the
+    workbench survey schema management UI.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # SS-001  Schema list page loads
+  # ---------------------------------------------------------------------------
+  - id: SS-001
+    title: "Schema list page loads"
+    priority: P0
+    tags: [survey, schema, list, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Page loads without network errors"
+        expect: "Survey schemas page is displayed"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i], [data-testid*='schema' i], *:has-text('Create'), *:has-text('New Schema')"
+          timeout: 10000
+        assert: "Schema list or empty state is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of schema list page captured"
+        expect: "Table or list of schemas is visible, or empty state with a 'Create' or 'New Schema' CTA"
+
+      - action: evidence_capture
+        params:
+          label: "SS-001-schema-list"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Schema list page loads at /workbench/surveys/schemas"
+      - "Either a table/list of schemas or an empty state with create CTA is visible"
+      - "No unexpected console errors or 4xx/5xx network responses"
+    error_signatures:
+      - pattern: "404.*surveys/schemas"
+        meaning: "Schema list route not found — routing may be misconfigured"
+      - pattern: "403.*api/"
+        meaning: "Permission denied fetching schemas"
+
+  # ---------------------------------------------------------------------------
+  # SS-002  New Schema opens editor
+  # ---------------------------------------------------------------------------
+  - id: SS-002
+    title: "New Schema opens editor"
+    priority: P1
+    tags: [survey, schema, editor, create]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "User is on the schema list page"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i], *:has-text('Create'), *:has-text('New Schema')"
+          timeout: 10000
+        assert: "Schema list or empty state visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('New Schema'), button:has-text('Create'), a:has-text('New Schema'), a:has-text('Create')"
+        assert: "New Schema button clicked"
+        expect: "Schema editor form appears"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i], [class*='editor' i]"
+          timeout: 10000
+        assert: "Editor form is visible with title field"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Schema editor snapshot captured"
+        expect: "Editor form is displayed with a title input field and schema editing controls"
+
+      - action: evidence_capture
+        params:
+          label: "SS-002-new-schema-editor"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Clicking 'New Schema' or 'Create' opens an editor form"
+      - "Editor form includes a title input field"
+      - "No unexpected errors during navigation to editor"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Editor component failed to initialize"
+      - pattern: "404.*schemas/new"
+        meaning: "New schema route not configured"
+
+  # ---------------------------------------------------------------------------
+  # SS-003  Add question with type selector
+  # ---------------------------------------------------------------------------
+  - id: SS-003
+    title: "Add question with type selector"
+    priority: P1
+    tags: [survey, schema, question, editor]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is in the schema editor (via SS-002)"
+    depends_on: [SS-002]
+    steps:
+      - action: browser_click
+        params:
+          selector: "button:has-text('Add Question'), button:has-text('Add Field'), button:has-text('Add Item'), [data-testid*='add-question' i]"
+        assert: "Add Question button clicked"
+        expect: "Question type selector appears"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='type' i], [class*='selector' i], select, [role='listbox'], [data-testid*='question-type' i], *:has-text('free_text'), *:has-text('Free Text'), *:has-text('rating'), *:has-text('Rating')"
+          timeout: 8000
+        assert: "Question type selector is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Question type selector snapshot captured"
+        expect: >
+          Question type selector is visible with options including free_text,
+          rating_scale, single_choice, multi_choice, or equivalent labels
+
+      - action: evidence_capture
+        params:
+          label: "SS-003-add-question-type"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Clicking 'Add Question' reveals a question type selector"
+      - "Type options include at least free text, rating scale, single choice, and multi choice"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Question component failed to render"
+      - pattern: "undefined.*type"
+        meaning: "Question types not loaded from configuration"
+
+  # ---------------------------------------------------------------------------
+  # SS-004  Save draft schema
+  # ---------------------------------------------------------------------------
+  - id: SS-004
+    title: "Save draft schema"
+    priority: P1
+    tags: [survey, schema, save, draft]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is in the schema editor (via SS-002)"
+    depends_on: [SS-002]
+    steps:
+      - action: browser_fill_form
+        params:
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i]"
+          value: "Regression Test Schema"
+        assert: "Schema title filled with 'Regression Test Schema'"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Save'), button:has-text('Draft'), button:has-text('Save Draft'), button[type='submit']"
+        assert: "Save/Draft button clicked"
+        expect: "Schema save request sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='success' i], [class*='toast' i], [role='alert'], *:has-text('saved'), *:has-text('Saved'), *:has-text('created'), *:has-text('Created')"
+          timeout: 10000
+        assert: "Success notification or confirmation visible"
+        expect: "Save succeeds with a success notification or redirect to schema detail"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-save snapshot captured"
+        expect: "Success notification visible or schema detail page displayed with title 'Regression Test Schema'"
+
+      - action: evidence_capture
+        params:
+          label: "SS-004-save-draft"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Schema is saved successfully (network 200/201 or success notification)"
+      - "Schema title 'Regression Test Schema' is persisted"
+      - "No unexpected errors during save"
+    error_signatures:
+      - pattern: "400.*api/"
+        meaning: "Validation error on schema save request"
+      - pattern: "500.*api/"
+        meaning: "Server error during schema creation"
+
+  # ---------------------------------------------------------------------------
+  # SS-005  Publish schema
+  # ---------------------------------------------------------------------------
+  - id: SS-005
+    title: "Publish schema"
+    priority: P1
+    tags: [survey, schema, publish]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "A draft schema exists (via SS-004)"
+    depends_on: [SS-004]
+    steps:
+      - action: browser_click
+        params:
+          selector: "button:has-text('Publish'), button:has-text('Activate'), [data-testid*='publish' i]"
+        assert: "Publish button clicked"
+        expect: "Confirmation dialog appears or publish proceeds"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[role='dialog'], [class*='modal' i], [class*='confirm' i], *:has-text('Confirm'), *:has-text('Are you sure'), [class*='success' i], *:has-text('published'), *:has-text('Published')"
+          timeout: 8000
+        assert: "Confirmation dialog or success state visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Publish confirmation snapshot captured"
+        expect: "Confirmation dialog is displayed asking to confirm publish, or schema is already published"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Confirm'), button:has-text('Yes'), button:has-text('Publish'), button:has-text('OK')"
+        assert: "Confirmation button clicked"
+        expect: "Schema publish proceeds"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='success' i], [class*='toast' i], *:has-text('published'), *:has-text('Published'), *:has-text('active'), *:has-text('Active')"
+          timeout: 10000
+        assert: "Publish success confirmation visible"
+        expect: "Schema status changes to published/active"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-publish snapshot captured"
+        expect: "Schema shows published/active status"
+
+      - action: evidence_capture
+        params:
+          label: "SS-005-publish-schema"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Publish button triggers a confirmation dialog"
+      - "After confirmation, schema status changes to published/active"
+      - "No unexpected errors during publish flow"
+    error_signatures:
+      - pattern: "400.*publish"
+        meaning: "Schema validation failed — may be missing required fields"
+      - pattern: "409"
+        meaning: "Schema already published or conflict during publish"
+
+  # ---------------------------------------------------------------------------
+  # SS-006  Visibility condition editor
+  # ---------------------------------------------------------------------------
+  - id: SS-006
+    title: "Visibility condition editor"
+    priority: P2
+    tags: [survey, schema, visibility, conditions]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is in the schema editor with at least 2 questions (via SS-003)"
+    depends_on: [SS-003]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        assert: "Capture editor state with multiple questions"
+        expect: "At least 2 questions are visible in the editor"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid*='visibility' i], [class*='visibility' i], button:has-text('Condition'), button:has-text('Visibility'), label:has-text('Visibility'), [aria-label*='visibility' i], input[type='checkbox'][name*='visibility' i]"
+        assert: "Visibility condition toggle or button clicked on second question"
+        expect: "Visibility condition editor or toggle becomes active"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Visibility condition editor snapshot captured"
+        expect: "Visibility condition UI is visible — toggle, dropdown, or rule builder for conditional question display"
+
+      - action: evidence_capture
+        params:
+          label: "SS-006-visibility-conditions"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Visibility condition toggle or editor is present on questions after the first"
+      - "Clicking the toggle reveals condition configuration UI"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Visibility condition component failed to render"
+      - pattern: "undefined.*condition"
+        meaning: "Condition data not loaded for question"
+
+  # ---------------------------------------------------------------------------
+  # SS-007  Schema preview renders
+  # ---------------------------------------------------------------------------
+  - id: SS-007
+    title: "Schema preview renders"
+    priority: P1
+    tags: [survey, schema, preview]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "A saved schema exists (via SS-004)"
+    depends_on: [SS-004]
+    steps:
+      - action: browser_click
+        params:
+          selector: "button:has-text('Preview'), a:has-text('Preview'), [data-testid*='preview' i]"
+        assert: "Preview button clicked"
+        expect: "Preview modal or panel opens"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[role='dialog'], [class*='modal' i], [class*='preview' i], [data-testid*='preview' i]"
+          timeout: 8000
+        assert: "Preview modal or panel is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Schema preview snapshot captured"
+        expect: "Preview modal or panel shows the survey questions rendered in a respondent-facing layout"
+
+      - action: evidence_capture
+        params:
+          label: "SS-007-schema-preview"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Clicking Preview opens a modal or panel"
+      - "Preview displays the survey questions in rendered form"
+      - "No unexpected errors during preview render"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Preview component failed to render questions"
+      - pattern: "undefined.*questions"
+        meaning: "Questions data not passed to preview component"
+
+  # ---------------------------------------------------------------------------
+  # SS-008  Clone schema
+  # ---------------------------------------------------------------------------
+  - id: SS-008
+    title: "Clone schema"
+    priority: P2
+    tags: [survey, schema, clone]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "At least one schema exists in the list (via SS-001)"
+    depends_on: [SS-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i]"
+          timeout: 10000
+        assert: "Schema list visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Pre-clone schema list captured"
+        expect: "At least one schema is visible in the list"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Clone'), button:has-text('Duplicate'), button:has-text('Copy'), [data-testid*='clone' i], [aria-label*='clone' i], [aria-label*='duplicate' i]"
+        assert: "Clone action clicked on a schema"
+        expect: "Schema clone initiated"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='success' i], [class*='toast' i], *:has-text('cloned'), *:has-text('Cloned'), *:has-text('copied'), *:has-text('Copied'), *:has-text('duplicated')"
+          timeout: 10000
+        assert: "Clone success confirmation visible"
+        expect: "A copy of the schema is created and appears in the list or user is redirected to the clone"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-clone snapshot captured"
+        expect: "Cloned schema appears in the list or editor opens for the cloned schema"
+
+      - action: evidence_capture
+        params:
+          label: "SS-008-clone-schema"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Clone action creates a copy of the schema"
+      - "Cloned schema is visible in the list or editor"
+      - "No unexpected errors during clone"
+    error_signatures:
+      - pattern: "500.*clone"
+        meaning: "Server error during schema cloning"
+      - pattern: "404"
+        meaning: "Source schema not found for cloning"
+
+  # ---------------------------------------------------------------------------
+  # SS-009  Archive and restore schema
+  # ---------------------------------------------------------------------------
+  - id: SS-009
+    title: "Archive and restore schema"
+    priority: P2
+    tags: [survey, schema, archive, restore]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "At least one schema exists in the list (via SS-001)"
+    depends_on: [SS-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i]"
+          timeout: 10000
+        assert: "Schema list visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Pre-archive schema list captured"
+        expect: "At least one schema visible in the active list"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Archive'), [data-testid*='archive' i], [aria-label*='archive' i], button:has-text('Deactivate')"
+        assert: "Archive action clicked on a schema"
+        expect: "Schema is archived"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='success' i], [class*='toast' i], *:has-text('archived'), *:has-text('Archived'), *:has-text('deactivated')"
+          timeout: 10000
+        assert: "Archive success confirmation visible"
+        expect: "Schema moved to archived state"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-archive snapshot captured"
+        expect: "Archived schema is no longer in the active list or is marked as archived"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Archived'), a:has-text('Archived'), [data-testid*='archived-tab' i], [role='tab']:has-text('Archived')"
+        assert: "Navigate to archived schemas view"
+        expect: "Archived schemas list is displayed"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Archived schemas list captured"
+        expect: "Previously archived schema is visible in the archived list"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Restore'), button:has-text('Unarchive'), button:has-text('Reactivate'), [data-testid*='restore' i], [aria-label*='restore' i]"
+        assert: "Restore action clicked on the archived schema"
+        expect: "Schema is restored to active state"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='success' i], [class*='toast' i], *:has-text('restored'), *:has-text('Restored'), *:has-text('reactivated')"
+          timeout: 10000
+        assert: "Restore success confirmation visible"
+        expect: "Schema restored to active state"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-restore snapshot captured"
+        expect: "Schema returns to the active list"
+
+      - action: evidence_capture
+        params:
+          label: "SS-009-archive-restore"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Archive action removes schema from active list"
+      - "Archived schema appears in archived view"
+      - "Restore action returns schema to active list"
+      - "No unexpected errors during archive/restore cycle"
+    error_signatures:
+      - pattern: "500.*archive"
+        meaning: "Server error during archive operation"
+      - pattern: "500.*restore"
+        meaning: "Server error during restore operation"
+      - pattern: "404"
+        meaning: "Schema not found for archive/restore"

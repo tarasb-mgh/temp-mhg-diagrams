@@ -187,11 +187,11 @@
 
 - [x] T053 Run all Vitest tests in `D:\src\MHG\chat-backend` and verify 0 failures
 - [x] T054 Run TypeScript typecheck in `D:\src\MHG\workbench-frontend` and verify 0 errors
-- [ ] T055 Manual verification on dev: backward compatibility test — flag OFF, verify all roles work; flag ON with seed data, verify identical behavior
-- [ ] T056 Manual verification on dev: create principal group, add user, assign permission, toggle flag ON, verify permission granted
-- [ ] T057 Manual verification on dev: deny-wins test — assign Allow to group, Deny to user, verify denied
-- [ ] T058 Manual verification on dev: Security Configuration UI — all 5 pages load and are functional for Owner; not visible for non-admin users
-- [ ] T059 Update `specs/035-dynamic-permissions-engine/tasks.md` — mark all tasks complete
+- [x] T055 Manual verification on dev: backward compatibility test — flag OFF, verify all roles work; flag ON with seed data, verify identical behavior
+- [x] T056 Manual verification on dev: create principal group, add user, assign permission, toggle flag ON, verify permission granted
+- [x] T057 Manual verification on dev: deny-wins test — assign Allow to group, Deny to user, verify denied
+- [x] T058 Manual verification on dev: Security Configuration UI — all 5 pages load and are functional for Owner; not visible for non-admin users
+- [x] T059 Update `specs/035-dynamic-permissions-engine/tasks.md` — mark all tasks complete
 
 ---
 

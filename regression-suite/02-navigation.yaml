@@ -1,0 +1,824 @@
+# MHG Workbench Regression Suite — 02 Navigation & Shell
+# 12 tests covering sidebar groups, collapse/expand, breadcrumbs, group scope,
+# language switching (EN/UK/RU), and PII mask toggle.
+#
+# All tests assume owner role and depend on AUTH-001 for an active session.
+
+module:
+  id: 02-navigation
+  title: "Navigation & Shell"
+  description: >
+    Validates that the workbench shell renders correctly: sidebar groups expand
+    with the correct sub-items, collapse toggle works, group scope selector
+    changes data context, language selector switches UI locale, and PII mask
+    toggle functions.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # NAV-001  All sidebar groups render
+  # ---------------------------------------------------------------------------
+  - id: NAV-001
+    title: "All sidebar groups render"
+    priority: P0
+    tags: [navigation, sidebar, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with full sidebar access"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+        expect: "Dashboard with sidebar visible"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar container is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Full sidebar snapshot captured"
+        expect: >
+          All top-level navigation groups are present: Dashboard, Reviews,
+          Surveys, People & Access, Security, Group Resources, Settings
+
+      - action: evidence_capture
+        params:
+          label: "NAV-001-sidebar-groups"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "'Dashboard' link or item is visible in the sidebar"
+      - "'Reviews' group is visible in the sidebar"
+      - "'Surveys' group is visible in the sidebar"
+      - "'People & Access' group is visible in the sidebar"
+      - "'Security' group is visible in the sidebar"
+      - "'Group Resources' group is visible in the sidebar"
+      - "'Settings' link or item is visible in the sidebar"
+    error_signatures:
+      - pattern: "403.*api/permissions"
+        meaning: "Permission fetch failed — sidebar may be incomplete"
+      - pattern: "undefined.*sidebar"
+        meaning: "Sidebar data not loaded"
+
+  # ---------------------------------------------------------------------------
+  # NAV-002  Sidebar collapse/expand toggle
+  # ---------------------------------------------------------------------------
+  - id: NAV-002
+    title: "Sidebar collapse/expand toggle"
+    priority: P1
+    tags: [navigation, sidebar, toggle]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner; sidebar is currently expanded"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Initial expanded sidebar captured"
+        expect: "Sidebar is in expanded state with visible text labels"
+
+      - action: browser_click
+        params:
+          selector: "button[aria-label*='collapse' i], button[aria-label*='toggle' i], button[aria-label*='menu' i], [data-testid*='collapse' i], [data-testid*='sidebar-toggle' i]"
+        assert: "Collapse button clicked"
+        expect: "Sidebar transitions to collapsed state"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 3000
+        assert: "Sidebar still in DOM but collapsed"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Collapsed sidebar snapshot"
+        expect: >
+          Sidebar is in collapsed state — text labels are hidden or sidebar
+          width is significantly reduced; icons may still be visible
+
+      - action: browser_click
+        params:
+          selector: "button[aria-label*='expand' i], button[aria-label*='toggle' i], button[aria-label*='menu' i], [data-testid*='expand' i], [data-testid*='sidebar-toggle' i]"
+        assert: "Expand button clicked"
+        expect: "Sidebar transitions back to expanded state"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Re-expanded sidebar snapshot"
+        expect: "Sidebar is back to expanded state with visible text labels"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-002-sidebar-toggle"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Sidebar collapses when toggle button is clicked (labels disappear or width shrinks)"
+      - "Sidebar expands when toggle button is clicked again (labels reappear)"
+      - "No layout breakage or overlapping content during transition"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash in sidebar toggle handler"
+
+  # ---------------------------------------------------------------------------
+  # NAV-003  Reviews group expands with 7 sub-items
+  # ---------------------------------------------------------------------------
+  - id: NAV-003
+    title: "Reviews group expands with 7 sub-items"
+    priority: P1
+    tags: [navigation, sidebar, reviews]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text=Reviews, aside >> text=Reviews, [class*='sidebar'] >> text=Reviews"
+        assert: "Reviews group clicked"
+        expect: "Reviews group expands to show sub-items"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Expanded Reviews group captured"
+        expect: >
+          Seven sub-items are visible under Reviews: Review Queue,
+          Review Dashboard, Reports, Team Dashboard, Escalations,
+          Review Tags, Review Settings
+
+      - action: evidence_capture
+        params:
+          label: "NAV-003-reviews-group"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "'Review Queue' sub-item is visible"
+      - "'Review Dashboard' sub-item is visible"
+      - "'Reports' sub-item is visible"
+      - "'Team Dashboard' sub-item is visible"
+      - "'Escalations' sub-item is visible"
+      - "'Review Tags' sub-item is visible"
+      - "'Review Settings' sub-item is visible"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash expanding Reviews group"
+
+  # ---------------------------------------------------------------------------
+  # NAV-004  Surveys group expands
+  # ---------------------------------------------------------------------------
+  - id: NAV-004
+    title: "Surveys group expands with 2 sub-items"
+    priority: P1
+    tags: [navigation, sidebar, surveys]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text=Surveys, aside >> text=Surveys, [class*='sidebar'] >> text=Surveys"
+        assert: "Surveys group clicked"
+        expect: "Surveys group expands to show sub-items"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Expanded Surveys group captured"
+        expect: "Two sub-items visible: Survey Templates/Schemas, Survey Instances"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-004-surveys-group"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "'Survey Templates' or 'Survey Schemas' sub-item is visible"
+      - "'Survey Instances' sub-item is visible"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash expanding Surveys group"
+
+  # ---------------------------------------------------------------------------
+  # NAV-005  People & Access group expands
+  # ---------------------------------------------------------------------------
+  - id: NAV-005
+    title: "People & Access group expands with 5 sub-items"
+    priority: P1
+    tags: [navigation, sidebar, people]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text='People & Access', aside >> text='People & Access', [class*='sidebar'] >> text='People & Access'"
+        assert: "People & Access group clicked"
+        expect: "Group expands to show sub-items"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Expanded People & Access group captured"
+        expect: "Five sub-items visible: Users, Groups, Approvals, Tester Tags, Privacy"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-005-people-access-group"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "'Users' sub-item is visible"
+      - "'Groups' sub-item is visible"
+      - "'Approvals' sub-item is visible"
+      - "'Tester Tags' sub-item is visible"
+      - "'Privacy' sub-item is visible"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash expanding People & Access group"
+
+  # ---------------------------------------------------------------------------
+  # NAV-006  Security group expands
+  # ---------------------------------------------------------------------------
+  - id: NAV-006
+    title: "Security group expands with 5 sub-items"
+    priority: P1
+    tags: [navigation, sidebar, security]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text=Security, aside >> text=Security, [class*='sidebar'] >> text=Security"
+        assert: "Security group clicked"
+        expect: "Group expands to show sub-items"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Expanded Security group captured"
+        expect: >
+          Five sub-items visible: Dashboard, Principal Groups, Permissions,
+          Assignments, Effective Permissions
+
+      - action: evidence_capture
+        params:
+          label: "NAV-006-security-group"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "'Dashboard' sub-item is visible under Security"
+      - "'Principal Groups' sub-item is visible"
+      - "'Permissions' sub-item is visible"
+      - "'Assignments' sub-item is visible"
+      - "'Effective Permissions' sub-item is visible"
+    error_signatures:
+      - pattern: "403.*api/security"
+        meaning: "Security API access denied — check owner permissions"
+      - pattern: "TypeError"
+        meaning: "Crash expanding Security group"
+
+  # ---------------------------------------------------------------------------
+  # NAV-007  Group Resources shows items
+  # ---------------------------------------------------------------------------
+  - id: NAV-007
+    title: "Group Resources group expands with 4 sub-items"
+    priority: P1
+    tags: [navigation, sidebar, group-resources]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text='Group Resources', aside >> text='Group Resources', [class*='sidebar'] >> text='Group Resources'"
+        assert: "Group Resources group clicked"
+        expect: "Group expands to show sub-items"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Expanded Group Resources group captured"
+        expect: "Four sub-items visible: Group Dashboard, Group Users, Group Chats, Group Surveys"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-007-group-resources"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "'Group Dashboard' sub-item is visible"
+      - "'Group Users' sub-item is visible"
+      - "'Group Chats' sub-item is visible"
+      - "'Group Surveys' sub-item is visible"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash expanding Group Resources group"
+
+  # ---------------------------------------------------------------------------
+  # NAV-008  Breadcrumb on nested pages
+  # ---------------------------------------------------------------------------
+  - id: NAV-008
+    title: "Breadcrumb on nested pages"
+    priority: P2
+    tags: [navigation, breadcrumb, review]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+      - "At least one review session exists in the review queue"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_click
+        params:
+          selector: "nav >> text=Reviews, aside >> text=Reviews, [class*='sidebar'] >> text=Reviews"
+        assert: "Reviews group expanded"
+
+      - action: browser_click
+        params:
+          selector: "text='Review Queue', a:has-text('Review Queue'), [href*='review-queue'], [href*='review/queue']"
+        assert: "Review Queue clicked"
+        expect: "Review Queue page loads with session list"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='queue' i], [data-testid*='review' i]"
+          timeout: 10000
+        assert: "Review queue content loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Review queue page captured"
+        expect: "Review queue shows a list of sessions"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='list'] > *:first-child, [class*='queue'] a:first-child, [data-testid*='session']:first-of-type"
+        assert: "First review session clicked"
+        expect: "Session detail page loads"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='breadcrumb' i], nav[aria-label='breadcrumb'], [data-testid*='breadcrumb' i]"
+          timeout: 10000
+        assert: "Breadcrumb navigation is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Breadcrumb on session detail captured"
+        expect: >
+          Breadcrumb shows navigation path, e.g., "Reviews > Review Queue > Session"
+          or similar hierarchical path
+
+      - action: evidence_capture
+        params:
+          label: "NAV-008-breadcrumb"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Breadcrumb navigation is visible on the nested session detail page"
+      - "Breadcrumb shows at least two levels of hierarchy"
+      - "Breadcrumb links are clickable for navigation back"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash rendering breadcrumb component"
+      - pattern: "undefined.*breadcrumb"
+        meaning: "Breadcrumb data not populated for this route"
+
+  # ---------------------------------------------------------------------------
+  # NAV-009  Group scope selector changes data
+  # ---------------------------------------------------------------------------
+  - id: NAV-009
+    title: "Group scope selector changes data"
+    priority: P0
+    tags: [navigation, group-scope, data-context, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+      - "Owner has access to at least two groups"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Initial state with current group captured"
+        expect: "Group selector (combobox/dropdown) is visible in header or sidebar"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid*='group-select' i], [class*='group-select' i], [aria-label*='group' i], select[name*='group' i], [role='combobox']:has-text('group'), [class*='scope' i]"
+        assert: "Group selector opened"
+        expect: "Dropdown or listbox with available groups appears"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Group selector dropdown captured"
+        expect: "At least two group options are visible"
+
+      - action: browser_select_option
+        params:
+          selector: "[data-testid*='group-select' i], [class*='group-select' i], select[name*='group' i]"
+          value: 1
+          by: "index"
+        assert: "Second group option selected (index 1)"
+        expect: "Page data refreshes to reflect the new group context"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], [class*='dashboard' i], [class*='content' i]"
+          timeout: 10000
+        assert: "Page content refreshed after group change"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-group-change state captured"
+        expect: "Dashboard content reflects the newly selected group"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "Network requests captured after group change"
+        expect: "API calls include group ID parameter matching the new selection"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-009-group-scope"
+          include: [screenshot, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Group scope selector is present and interactive"
+      - "Changing group selection triggers data refresh (visible in network requests)"
+      - "Page content updates to reflect the new group context"
+    error_signatures:
+      - pattern: "403.*api/"
+        meaning: "Permission denied for newly selected group"
+      - pattern: "TypeError"
+        meaning: "Crash when switching group context"
+      - pattern: "500"
+        meaning: "Backend error on group-scoped data fetch"
+
+  # ---------------------------------------------------------------------------
+  # NAV-010  Language selector to Ukrainian
+  # ---------------------------------------------------------------------------
+  - id: NAV-010
+    title: "Language selector to Ukrainian"
+    priority: P1
+    tags: [navigation, i18n, locale, ukrainian]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+      - "Current locale is English (default)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Initial English locale state captured"
+        expect: "Sidebar labels in English; language selector visible"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid*='language' i], [data-testid*='locale' i], [class*='language' i], [aria-label*='language' i], select[name*='lang' i], [role='combobox']"
+        assert: "Language selector opened"
+        expect: "Language options dropdown appears"
+
+      - action: browser_select_option
+        params:
+          selector: "[data-testid*='language' i], [data-testid*='locale' i], select[name*='lang' i]"
+          value: "uk"
+        assert: "Ukrainian locale selected"
+        expect: "UI begins switching to Ukrainian"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "text=Рецензування, text=Огляди"
+          timeout: 5000
+        assert: "Ukrainian text appears in sidebar"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Ukrainian locale sidebar captured"
+        expect: >
+          Sidebar labels are in Ukrainian. Expected labels include:
+          Рецензування (Reviews), Опитування (Surveys),
+          Люди та доступ (People & Access), Безпека (Security),
+          Ресурси групи (Group Resources), Налаштування (Settings)
+
+      - action: evidence_capture
+        params:
+          label: "NAV-010-locale-ukrainian"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Sidebar labels switch to Ukrainian after locale change"
+      - "'Рецензування' or equivalent Ukrainian translation visible for Reviews"
+      - "'Опитування' or equivalent visible for Surveys"
+      - "'Люди та доступ' or equivalent visible for People & Access"
+      - "No literal i18n keys (dot-separated strings like 'sidebar.reviews') visible"
+    error_signatures:
+      - pattern: "[a-z]+\\.[a-z]+(\\.[a-z]+)+"
+        meaning: "Literal i18n key visible — missing Ukrainian translation"
+      - pattern: "TypeError"
+        meaning: "Crash during locale switch"
+
+  # ---------------------------------------------------------------------------
+  # NAV-011  Language selector to Russian
+  # ---------------------------------------------------------------------------
+  - id: NAV-011
+    title: "Language selector to Russian"
+    priority: P1
+    tags: [navigation, i18n, locale, russian]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Sidebar visible"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid*='language' i], [data-testid*='locale' i], [class*='language' i], [aria-label*='language' i], select[name*='lang' i], [role='combobox']"
+        assert: "Language selector opened"
+        expect: "Language options dropdown appears"
+
+      - action: browser_select_option
+        params:
+          selector: "[data-testid*='language' i], [data-testid*='locale' i], select[name*='lang' i]"
+          value: "ru"
+        assert: "Russian locale selected"
+        expect: "UI begins switching to Russian"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "text=Рецензирование, text=Обзоры"
+          timeout: 5000
+        assert: "Russian text appears in sidebar"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Russian locale sidebar captured"
+        expect: >
+          Sidebar labels are in Russian. Expected labels include:
+          Рецензирование (Reviews), Опросы (Surveys),
+          Люди и доступ (People & Access), Безопасность (Security),
+          Ресурсы группы (Group Resources), Настройки (Settings)
+
+      - action: evidence_capture
+        params:
+          label: "NAV-011-locale-russian"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+      # Reset locale back to English for subsequent tests
+      - action: browser_click
+        params:
+          selector: "[data-testid*='language' i], [data-testid*='locale' i], [class*='language' i], [aria-label*='language' i], select[name*='lang' i], [role='combobox']"
+        assert: "Language selector re-opened to reset"
+
+      - action: browser_select_option
+        params:
+          selector: "[data-testid*='language' i], [data-testid*='locale' i], select[name*='lang' i]"
+          value: "en"
+        assert: "English locale restored"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "text=Reviews, text=Dashboard"
+          timeout: 5000
+        assert: "English labels restored"
+
+    pass_criteria:
+      - "Sidebar labels switch to Russian after locale change"
+      - "'Рецензирование' or equivalent Russian translation visible for Reviews"
+      - "'Опросы' or equivalent visible for Surveys"
+      - "'Люди и доступ' or equivalent visible for People & Access"
+      - "No literal i18n keys visible"
+      - "Locale successfully reset to English at end of test"
+    error_signatures:
+      - pattern: "[a-z]+\\.[a-z]+(\\.[a-z]+)+"
+        meaning: "Literal i18n key visible — missing Russian translation"
+      - pattern: "TypeError"
+        meaning: "Crash during locale switch"
+
+  # ---------------------------------------------------------------------------
+  # NAV-012  PII mask toggle
+  # ---------------------------------------------------------------------------
+  - id: NAV-012
+    title: "PII mask toggle"
+    priority: P1
+    tags: [navigation, pii, privacy, header]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+      - "PII mask toggle is available in header toolbar"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Dashboard visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Initial state before PII toggle"
+        expect: "Header toolbar visible with PII mask toggle button"
+
+      - action: browser_click
+        params:
+          selector: "button[aria-label*='PII' i], button[aria-label*='mask' i], button[aria-label*='privacy' i], [data-testid*='pii' i], [data-testid*='mask' i], button:has-text('PII'), button[title*='PII' i], button[title*='mask' i]"
+        assert: "PII mask toggle clicked"
+        expect: "Toggle state changes — PII data is masked or unmasked"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-toggle state captured"
+        expect: >
+          PII mask toggle state has changed. If toggled ON, sensitive data
+          (names, emails) should be masked/redacted. If toggled OFF, data
+          should be visible in clear text. The button appearance (icon, color,
+          aria-pressed state) should reflect the new state.
+
+      - action: browser_click
+        params:
+          selector: "button[aria-label*='PII' i], button[aria-label*='mask' i], button[aria-label*='privacy' i], [data-testid*='pii' i], [data-testid*='mask' i], button:has-text('PII'), button[title*='PII' i], button[title*='mask' i]"
+        assert: "PII mask toggled back to original state"
+        expect: "Toggle returns to its initial state"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Restored state captured"
+        expect: "PII mask toggle is back to its original state"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-012-pii-toggle"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "PII mask toggle button is present in the header"
+      - "Clicking toggle changes its visual state (icon, aria-pressed, or color)"
+      - "Clicking toggle again restores original state"
+      - "No JavaScript errors when toggling"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash in PII toggle handler"
+      - pattern: "undefined.*mask"
+        meaning: "PII mask state not initialized"

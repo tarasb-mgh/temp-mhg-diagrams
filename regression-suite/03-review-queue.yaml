@@ -1,0 +1,784 @@
+# MHG Workbench Regression Suite — Module 03: Review Queue
+# 14 tests | Role: owner | Depends on: AUTH-001
+# Validates review queue tabs, session cards, pagination, filtering, and sorting.
+
+module:
+  id: "03-review-queue"
+  title: "Review Queue"
+  description: "Verify the review queue loads correctly with all tabs, displays session cards, supports pagination, filtering, and sorting."
+  role: owner
+  depends_on: [AUTH-001]
+  viewport: default
+
+tests:
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-001  Queue loads with all 7 tabs
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-001
+    title: "Queue loads with all 7 tabs"
+    priority: P0
+    tags: [review-queue, tabs, smoke]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Page loads without error"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Tab container is present in the DOM"
+      - action: browser_snapshot
+        params: {}
+        expect: "Accessibility snapshot contains tab elements"
+        extract:
+          tab_labels: "All visible tab text values"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-001-all-tabs.png"
+        assert: "Screenshot captured for evidence"
+      - action: evidence_capture
+        params:
+          description: "Verify 7 tabs are visible"
+          check: "Tab labels include: Pending, Flagged, In Progress, Completed, Excluded, Supervision, Awaiting"
+    pass_criteria:
+      - "Page loads at /workbench/review without console errors"
+      - "All 7 tabs are visible: Pending, Flagged, In Progress, Completed, Excluded, Supervision, Awaiting"
+      - "One tab is active/selected by default"
+    error_signatures:
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Tab data not loaded — API may have returned empty or undefined"
+      - pattern: "status == 403"
+        meaning: "Owner role lacks review queue permission"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-002  Pending tab shows session cards
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-002
+    title: "Pending tab shows session cards"
+    priority: P0
+    tags: [review-queue, session-cards, smoke]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded (RQ-001 passed)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Tab container visible"
+      - action: browser_snapshot
+        params: {}
+        expect: "Pending tab is active or selectable"
+      - action: browser_click
+        params:
+          selector: "text=Pending"
+        assert: "Pending tab clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards or list items appear"
+      - action: browser_snapshot
+        params: {}
+        expect: "Session cards visible with message count indicators"
+        extract:
+          session_card_count: "Number of session cards/items visible"
+          first_card_text: "Text content of the first session card"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-002-pending-cards.png"
+        assert: "Screenshot captured"
+      - action: evidence_capture
+        params:
+          description: "Verify session cards with message counts"
+          check: "At least one session card is visible; cards show a message count indicator"
+    pass_criteria:
+      - "Pending tab is active or becomes active on click"
+      - "At least one session card is rendered"
+      - "Session cards display a message count indicator (number badge or text)"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend failed to return pending sessions"
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Session list data is undefined — API response may be malformed"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-003  Session card click opens detail
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-003
+    title: "Session card click opens detail"
+    priority: P0
+    tags: [review-queue, session-detail, smoke]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Pending tab shows at least one session card (RQ-002 passed)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards are visible"
+      - action: browser_snapshot
+        params: {}
+        expect: "At least one session card is present"
+        extract:
+          first_card_ref: "Reference to first clickable session card element"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads with message content"
+      - action: browser_snapshot
+        params: {}
+        expect: "Message list is rendered on the session detail page"
+        extract:
+          message_count: "Number of message elements visible"
+          page_url: "Current URL after navigation"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-003-session-detail.png"
+        assert: "Screenshot captured"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors after navigation"
+    pass_criteria:
+      - "Clicking a session card navigates to a session detail page"
+      - "URL changes to include a session identifier"
+      - "Message list renders with at least one message"
+      - "No critical console errors"
+    error_signatures:
+      - pattern: "status == 404 AND /api/"
+        meaning: "Session detail endpoint not found — routing issue"
+      - pattern: "TypeError: Cannot read properties of null"
+        meaning: "Session data failed to load"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-004  Pagination loads more results
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-004
+    title: "Pagination loads more results"
+    priority: P2
+    tags: [review-queue, pagination]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded with session cards"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session list visible"
+      - action: browser_snapshot
+        params: {}
+        expect: "Check for pagination controls (next button, page numbers, load more, infinite scroll sentinel)"
+        extract:
+          has_pagination: "Whether pagination controls are visible"
+          initial_items: "Count of visible session items"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='next'], [aria-label*='Next'], button:has-text('Next'), button:has-text('Load more'), [class*='pagination'] button:last-of-type"
+        assert: "Pagination control clicked (skip if not found)"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "New results load after pagination action"
+      - action: browser_snapshot
+        params: {}
+        expect: "New or additional session items are visible"
+        extract:
+          post_pagination_items: "Count of visible session items after pagination"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-004-pagination.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "Pagination controls are present (or test notes their absence)"
+      - "Clicking next/load-more loads additional or different results"
+      - "No console errors during pagination"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend pagination query failed"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-005  Filter by risk level
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-005
+    title: "Filter by risk level"
+    priority: P2
+    tags: [review-queue, filter, risk-level]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Queue loaded"
+      - action: browser_snapshot
+        params: {}
+        expect: "Look for risk level filter — dropdown, select, or button group"
+        extract:
+          risk_filter_ref: "Reference to risk level filter element"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='risk' i], [data-testid*='risk' i], select[name*='risk' i], [class*='risk-filter'], [placeholder*='risk' i]"
+        assert: "Risk level filter control clicked or opened"
+      - action: browser_snapshot
+        params: {}
+        expect: "Risk level options are visible (e.g., Low, Medium, High, Critical)"
+        extract:
+          risk_options: "Available risk level option values"
+      - action: browser_click
+        params:
+          selector: "[role='option']:first-of-type, li:first-of-type, [data-value]:first-of-type"
+        assert: "A risk level option selected"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Queue updates with filtered results"
+      - action: browser_snapshot
+        params: {}
+        expect: "Session list is filtered — count or content changed"
+        extract:
+          filtered_count: "Number of sessions after filter"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-005-risk-filter.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "Risk level filter is present and interactive"
+      - "Selecting a risk level refreshes the queue"
+      - "Filtered results reflect the selected risk level"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend filter query failed"
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Filter component received undefined options"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-006  Filter by language
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-006
+    title: "Filter by language"
+    priority: P2
+    tags: [review-queue, filter, language]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Queue loaded"
+      - action: browser_snapshot
+        params: {}
+        expect: "Look for language filter — dropdown, select, or combobox"
+        extract:
+          language_filter_ref: "Reference to language filter element"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='language' i], [data-testid*='language' i], select[name*='language' i], [class*='language-filter'], [placeholder*='language' i]"
+        assert: "Language filter control clicked or opened"
+      - action: browser_snapshot
+        params: {}
+        expect: "Language options are visible"
+        extract:
+          language_options: "Available language option values"
+      - action: browser_click
+        params:
+          selector: "[role='option']:first-of-type, li:first-of-type, [data-value]:first-of-type"
+        assert: "A language option selected"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Queue updates with filtered results"
+      - action: browser_snapshot
+        params: {}
+        expect: "Session list filtered by selected language"
+        extract:
+          filtered_count: "Number of sessions after language filter"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-006-language-filter.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "Language filter is present and interactive"
+      - "Selecting a language refreshes the queue"
+      - "Filtered results correspond to selected language"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend language filter query failed"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-007  Filter by date range
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-007
+    title: "Filter by date range"
+    priority: P2
+    tags: [review-queue, filter, date-range]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Queue loaded"
+      - action: browser_snapshot
+        params: {}
+        expect: "Look for date range filter — date pickers, calendar inputs, or preset range buttons"
+        extract:
+          date_filter_ref: "Reference to date range filter element"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='date' i], [data-testid*='date' i], input[type='date'], [class*='date-filter'], [placeholder*='date' i], [class*='date-range']"
+        assert: "Date range filter control clicked or opened"
+      - action: browser_snapshot
+        params: {}
+        expect: "Date picker or date range control is visible"
+        extract:
+          date_control_type: "Type of date control (calendar, input, preset buttons)"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-007-date-filter.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "Date range filter control is present"
+      - "Interacting with the date filter opens a picker or reveals input fields"
+      - "No console errors during interaction"
+    error_signatures:
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Date filter component data missing"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-008  Filter by tags
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-008
+    title: "Filter by tags"
+    priority: P2
+    tags: [review-queue, filter, tags]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Queue loaded"
+      - action: browser_snapshot
+        params: {}
+        expect: "Look for tags filter — combobox, chip input, or multi-select"
+        extract:
+          tags_filter_ref: "Reference to tags filter element"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='tag' i], [data-testid*='tag' i], [class*='tag-filter'], [placeholder*='tag' i], [class*='chip-input']"
+        assert: "Tags filter control clicked or opened"
+      - action: browser_snapshot
+        params: {}
+        expect: "Tag options or autocomplete suggestions visible"
+        extract:
+          tag_options: "Available tag option values"
+      - action: browser_click
+        params:
+          selector: "[role='option']:first-of-type, li:first-of-type, [data-value]:first-of-type"
+        assert: "A tag option selected"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-008-tags-filter.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "Tags filter is present and interactive"
+      - "Selecting a tag filters or narrows the queue"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend tags filter query failed"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-009  Sort order toggle
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-009
+    title: "Sort order toggle"
+    priority: P2
+    tags: [review-queue, sort]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded with multiple session cards"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session list visible"
+      - action: browser_snapshot
+        params: {}
+        expect: "Look for sort control — sort button, dropdown, or column header"
+        extract:
+          sort_control_ref: "Reference to sort control element"
+          initial_first_item: "Text of the first session item"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='sort' i], [data-testid*='sort' i], [class*='sort'], button:has-text('Sort'), th[class*='sortable']"
+        assert: "Sort control clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 5000
+        assert: "List re-renders after sort toggle"
+      - action: browser_snapshot
+        params: {}
+        expect: "Session order changed after toggling sort"
+        extract:
+          post_sort_first_item: "Text of the first session item after sort"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-009-sort-toggle.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "Sort control is present and clickable"
+      - "Toggling sort changes the order of session cards"
+      - "No console errors during sort"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend sort query failed"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-010  Completed tab shows sessions
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-010
+    title: "Completed tab shows sessions"
+    priority: P1
+    tags: [review-queue, tabs, completed]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded (RQ-001 passed)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Tab container visible"
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('Completed'), button:has-text('Completed'), a:has-text('Completed')"
+        assert: "Completed tab clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li, [class*='empty'], [class*='no-results'], p"
+          timeout: 10000
+        assert: "Tab content loads — session list or empty state"
+      - action: browser_snapshot
+        params: {}
+        expect: "Completed tab content is visible — either session cards or an empty state message"
+        extract:
+          has_sessions: "Whether session cards are present"
+          empty_state_text: "Empty state message if no sessions"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-010-completed-tab.png"
+        assert: "Screenshot captured"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors"
+    pass_criteria:
+      - "Completed tab activates on click"
+      - "Tab content loads with session list or empty state"
+      - "No console errors"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend failed to return completed sessions"
+      - pattern: "status == 403"
+        meaning: "Permission denied for completed tab"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-011  Flagged tab shows sessions
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-011
+    title: "Flagged tab shows sessions"
+    priority: P1
+    tags: [review-queue, tabs, flagged]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded (RQ-001 passed)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Tab container visible"
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('Flagged'), button:has-text('Flagged'), a:has-text('Flagged')"
+        assert: "Flagged tab clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li, [class*='empty'], [class*='no-results'], p"
+          timeout: 10000
+        assert: "Tab content loads — session list or empty state"
+      - action: browser_snapshot
+        params: {}
+        expect: "Flagged tab content is visible — either flagged session cards or an empty state"
+        extract:
+          has_sessions: "Whether session cards are present"
+          empty_state_text: "Empty state message if no sessions"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-011-flagged-tab.png"
+        assert: "Screenshot captured"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors"
+    pass_criteria:
+      - "Flagged tab activates on click"
+      - "Tab content loads with session list or empty state"
+      - "No console errors"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend failed to return flagged sessions"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-012  In-progress tab
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-012
+    title: "In-progress tab loads"
+    priority: P1
+    tags: [review-queue, tabs, in-progress]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded (RQ-001 passed)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Tab container visible"
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('In Progress'), button:has-text('In Progress'), a:has-text('In Progress')"
+        assert: "In Progress tab clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li, [class*='empty'], [class*='no-results'], p"
+          timeout: 10000
+        assert: "Tab content loads — session list or empty state"
+      - action: browser_snapshot
+        params: {}
+        expect: "In Progress tab content is visible — either in-progress session cards or an empty state"
+        extract:
+          has_sessions: "Whether session cards are present"
+          empty_state_text: "Empty state message if no sessions"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-012-in-progress-tab.png"
+        assert: "Screenshot captured"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors"
+    pass_criteria:
+      - "In Progress tab activates on click"
+      - "Tab content loads with session list or empty state"
+      - "No console errors"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend failed to return in-progress sessions"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-013  Supervision tab
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-013
+    title: "Supervision tab loads"
+    priority: P1
+    tags: [review-queue, tabs, supervision]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded (RQ-001 passed)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Tab container visible"
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('Supervision'), button:has-text('Supervision'), a:has-text('Supervision')"
+        assert: "Supervision tab clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li, [class*='empty'], [class*='no-results'], p"
+          timeout: 10000
+        assert: "Tab content loads — session list or empty state"
+      - action: browser_snapshot
+        params: {}
+        expect: "Supervision tab content is visible — either supervision session cards or an empty state"
+        extract:
+          has_sessions: "Whether session cards are present"
+          empty_state_text: "Empty state message if no sessions"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-013-supervision-tab.png"
+        assert: "Screenshot captured"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors"
+    pass_criteria:
+      - "Supervision tab activates on click"
+      - "Tab content loads with session list or empty state"
+      - "No console errors"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend failed to return supervision sessions"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-014  Awaiting feedback tab
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-014
+    title: "Awaiting feedback tab loads"
+    priority: P2
+    tags: [review-queue, tabs, awaiting]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded (RQ-001 passed)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Tab container visible"
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('Awaiting'), button:has-text('Awaiting'), a:has-text('Awaiting')"
+        assert: "Awaiting tab clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li, [class*='empty'], [class*='no-results'], p"
+          timeout: 10000
+        assert: "Tab content loads — session list or empty state"
+      - action: browser_snapshot
+        params: {}
+        expect: "Awaiting tab content is visible — either awaiting-feedback session cards or an empty state"
+        extract:
+          has_sessions: "Whether session cards are present"
+          empty_state_text: "Empty state message if no sessions"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-014-awaiting-tab.png"
+        assert: "Screenshot captured"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors"
+    pass_criteria:
+      - "Awaiting tab activates on click"
+      - "Tab content loads with session list or empty state"
+      - "No console errors"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend failed to return awaiting-feedback sessions"

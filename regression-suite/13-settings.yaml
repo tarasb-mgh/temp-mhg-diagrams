@@ -1,0 +1,232 @@
+# MHG Workbench Regression Suite — 13 Settings
+# 3 tests covering settings page load, language preference persistence,
+# and Back to Chat navigation
+#
+# Variables resolved from _config.yaml:
+#   ${workbench_url}  — environments.<env>.workbench_url
+#   ${chat_url}       — environments.<env>.chat_url
+#   ${account.<role>}  — accounts.<role>.email / otp_source / otp_pattern
+
+module:
+  id: 13-settings
+  title: "Settings"
+  description: >
+    Validates that the Settings page loads with preference sections, that
+    language preference changes persist across navigation, and that the
+    Back to Chat button navigates correctly to the chat frontend.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # ST-001  Settings page loads
+  # ---------------------------------------------------------------------------
+  - id: ST-001
+    title: "Settings page loads"
+    priority: P1
+    tags: [settings, preferences, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/settings"
+        assert: "Page loads without network errors"
+        expect: "Settings page is displayed"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='settings'], [class*='settings' i], main, [role='main']"
+          timeout: 10000
+        assert: "Settings content is visible within timeout"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Settings page snapshot captured"
+        expect: >
+          Settings page renders with preference sections including theme,
+          language, and notifications options
+
+      - action: evidence_capture
+        params:
+          label: "ST-001-settings-page"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Settings page renders without errors"
+      - "Preference sections are visible (theme, language, notifications)"
+      - "No unexpected console errors or 4xx/5xx network responses"
+    error_signatures:
+      - pattern: "403.*api/"
+        meaning: "Permission denied loading settings"
+      - pattern: "TypeError"
+        meaning: "Null guard missing in settings component"
+
+  # ---------------------------------------------------------------------------
+  # ST-002  Language preference persists
+  # ---------------------------------------------------------------------------
+  - id: ST-002
+    title: "Language preference persists"
+    priority: P2
+    tags: [settings, language, persistence]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "Settings page is accessible (ST-001 passed)"
+    depends_on: [ST-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/settings"
+        assert: "Settings page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='settings'], [class*='settings' i], main, [role='main']"
+          timeout: 10000
+        assert: "Settings content is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Settings page snapshot before language change"
+        expect: "Language preference selector or dropdown is visible"
+
+      - action: browser_click
+        params:
+          selector: "select[name*='language' i], [data-testid*='language' i], [class*='language' i] select, [aria-label*='language' i]"
+        assert: "Language selector clicked"
+        expect: "Language options become visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Language options snapshot"
+        expect: "Available language options are displayed"
+
+      - action: browser_select_option
+        params:
+          selector: "select[name*='language' i], [data-testid*='language' i], [class*='language' i] select, [aria-label*='language' i]"
+          value: "uk"
+        assert: "Ukrainian language option selected"
+        expect: "Language preference updated to Ukrainian"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Settings page after language change"
+        expect: "Language preference shows Ukrainian selected"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench"
+        assert: "Navigate away from settings to dashboard"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Dashboard loaded"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/settings"
+        assert: "Navigate back to settings"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='settings'], [class*='settings' i], main, [role='main']"
+          timeout: 10000
+        assert: "Settings page reloaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Settings page after returning"
+        expect: "Language preference still shows Ukrainian — preference was persisted"
+
+      - action: evidence_capture
+        params:
+          label: "ST-002-language-persistence"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Language preference can be changed on the settings page"
+      - "After navigating away and returning, the language preference is retained"
+      - "No unexpected console errors during preference change or navigation"
+    error_signatures:
+      - pattern: "400.*api/.*settings"
+        meaning: "Settings update API rejected the language preference"
+      - pattern: "TypeError"
+        meaning: "Settings persistence component error"
+
+  # ---------------------------------------------------------------------------
+  # ST-003  Back to Chat navigates correctly
+  # ---------------------------------------------------------------------------
+  - id: ST-003
+    title: "Back to Chat navigates correctly"
+    priority: P1
+    tags: [settings, navigation, chat]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench"
+        assert: "Workbench dashboard loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Dashboard content is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Dashboard snapshot showing sidebar"
+        expect: "Sidebar navigation is visible with a 'Back to Chat' or 'Return to Chat' button"
+
+      - action: browser_click
+        params:
+          selector: "a:has-text('Back to Chat'), button:has-text('Back to Chat'), a:has-text('Return to Chat'), button:has-text('Return to Chat'), [data-testid*='back-to-chat' i], [class*='back-to-chat' i]"
+        assert: "Back to Chat button clicked"
+        expect: "Navigation to chat frontend initiated"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='chat'], [class*='chat' i], [class*='message' i], main, body"
+          timeout: 15000
+        assert: "Chat frontend page loaded"
+        expect: "Browser navigated to the chat frontend URL (dev.mentalhelp.chat)"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Chat frontend snapshot"
+        expect: "Chat frontend is displayed — URL contains dev.mentalhelp.chat or mentalhelp.chat"
+
+      - action: evidence_capture
+        params:
+          label: "ST-003-back-to-chat"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "'Back to Chat' or 'Return to Chat' button is present in the sidebar"
+      - "Clicking the button navigates to the chat frontend URL (dev.mentalhelp.chat)"
+      - "Chat frontend loads without errors"
+    error_signatures:
+      - pattern: "404"
+        meaning: "Chat frontend URL not found — incorrect navigation target"
+      - pattern: "TypeError"
+        meaning: "Navigation handler error in Back to Chat component"

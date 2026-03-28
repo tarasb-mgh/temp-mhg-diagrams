@@ -1,0 +1,249 @@
+# MHG Workbench Regression Suite — 11 Privacy & GDPR
+# 4 tests covering privacy controls page, PII masking, and export/erasure UI
+#
+# Variables resolved from _config.yaml:
+#   ${workbench_url}  — environments.<env>.workbench_url
+#   ${account.<role>}  — accounts.<role>.email / otp_source / otp_pattern
+
+module:
+  id: 11-privacy-gdpr
+  title: "Privacy & GDPR"
+  description: >
+    Validates that privacy controls render correctly, PII masking toggles
+    persist across navigation, the PII mask button state is visible in the
+    header, and data export/erasure UI elements are present.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # PV-001  Privacy Controls page loads
+  # ---------------------------------------------------------------------------
+  - id: PV-001
+    title: "Privacy Controls page loads"
+    priority: P1
+    tags: [privacy, gdpr, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/privacy"
+        assert: "Page loads without network errors"
+        expect: "Privacy controls page is displayed"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='privacy'], [class*='privacy' i], h1:has-text('Privacy'), h2:has-text('Privacy'), main"
+          timeout: 10000
+        assert: "Privacy controls page content is visible"
+        expect: "Page heading or content area related to privacy is rendered"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captures the privacy controls page"
+        expect: "Privacy controls page renders with PII masking section, data management, or similar privacy-related content"
+
+      - action: evidence_capture
+        params:
+          label: "PV-001-privacy-page-loads"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Privacy controls page renders without errors"
+      - "PII masking section, data management, or similar privacy-related content is visible"
+      - "No unexpected console errors or 4xx/5xx network responses"
+    error_signatures:
+      - pattern: "404.*privacy"
+        meaning: "Privacy route not found — page may not be registered"
+      - pattern: "TypeError"
+        meaning: "Null guard missing in privacy page component"
+
+  # ---------------------------------------------------------------------------
+  # PV-002  PII mask persists across navigation
+  # ---------------------------------------------------------------------------
+  - id: PV-002
+    title: "PII mask persists across navigation"
+    priority: P2
+    tags: [privacy, gdpr, pii, navigation]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "Privacy Controls page is accessible (via PV-001)"
+    depends_on: [AUTH-001, PV-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/privacy"
+        assert: "Privacy controls page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='privacy'], [class*='privacy' i], main"
+          timeout: 10000
+        assert: "Privacy page content visible"
+
+      - action: browser_click
+        params:
+          selector: "button[aria-label*='PII' i], button[aria-label*='mask' i], button:has-text('PII'), button:has-text('Mask'), [data-testid*='pii' i], [data-testid*='mask' i]"
+        assert: "PII mask toggle button clicked ON"
+        expect: "PII masking is enabled"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot after enabling PII mask"
+        expect: "PII mask toggle shows enabled/active state"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/users"
+        assert: "Navigated to Users page"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='users'], [class*='users' i], main, table"
+          timeout: 10000
+        assert: "Users page content visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of Users page with PII mask active"
+        expect: "PII is masked — emails and names are hidden, redacted, or replaced with placeholders"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/privacy"
+        assert: "Navigated back to Privacy page"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='privacy'], [class*='privacy' i], main"
+          timeout: 10000
+        assert: "Privacy page content visible again"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of Privacy page after navigation round-trip"
+        expect: "PII mask toggle still shows enabled/active state — mask persisted across navigation"
+
+      - action: evidence_capture
+        params:
+          label: "PV-002-pii-mask-persists"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "After toggling PII mask ON, emails and names on the Users page are hidden or redacted"
+      - "Navigating back to the Privacy page shows PII mask still in enabled state"
+      - "No unexpected console errors during navigation"
+    error_signatures:
+      - pattern: "TypeError.*pii"
+        meaning: "PII mask state not persisted in component or store"
+      - pattern: "undefined.*mask"
+        meaning: "Mask state lost during navigation — state management issue"
+
+  # ---------------------------------------------------------------------------
+  # PV-003  PII mask button shows state in header
+  # ---------------------------------------------------------------------------
+  - id: PV-003
+    title: "PII mask button shows state in header"
+    priority: P1
+    tags: [privacy, gdpr, pii, header]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/privacy"
+        assert: "Privacy controls page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "header, [class*='header' i], [data-testid='header'], nav"
+          timeout: 10000
+        assert: "Header bar is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of the header bar"
+        expect: >
+          PII mask toggle button is present in the header and shows current
+          state (e.g., "PII Hidden"/"PII Visible", eye icon state, or
+          similar toggle indicator)
+
+      - action: evidence_capture
+        params:
+          label: "PV-003-pii-header-button"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "PII mask toggle button is present in the header bar"
+      - "Button shows a clear visual indicator of the current PII mask state"
+    error_signatures:
+      - pattern: "undefined.*pii"
+        meaning: "PII mask button not rendered — component missing or permission issue"
+      - pattern: "403.*api/privacy"
+        meaning: "Privacy API call failed — button state may not load"
+
+  # ---------------------------------------------------------------------------
+  # PV-004  Export/erasure UI elements present
+  # ---------------------------------------------------------------------------
+  - id: PV-004
+    title: "Export/erasure UI elements present"
+    priority: P3
+    tags: [privacy, gdpr, export, erasure, visual]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "Privacy Controls page is accessible (via PV-001)"
+    depends_on: [AUTH-001, PV-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/privacy"
+        assert: "Privacy controls page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='privacy'], [class*='privacy' i], main"
+          timeout: 10000
+        assert: "Privacy page content visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of privacy page to verify export/erasure elements"
+        expect: >
+          Data export and data erasure action buttons or sections are present
+          on the page. Do NOT click them — just verify they exist and are visible.
+
+      - action: evidence_capture
+        params:
+          label: "PV-004-export-erasure-ui"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "A data export button, link, or section is visible on the privacy page"
+      - "A data erasure button, link, or section is visible on the privacy page"
+      - "Neither button was clicked — this is a presence-only verification"
+    error_signatures:
+      - pattern: "404.*privacy"
+        meaning: "Privacy page not found — export/erasure UI cannot be verified"
+      - pattern: "TypeError"
+        meaning: "Privacy page component crash — export/erasure section may not render"

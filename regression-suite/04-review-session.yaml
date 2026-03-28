@@ -1,0 +1,670 @@
+# MHG Workbench Regression Suite — Module 04: Review Session & Rating
+# 10 tests | Role: owner | Depends on: AUTH-001
+# Validates session detail view, message rendering, rating workflow, comment entry,
+# tags, back navigation, and anonymization indicators.
+
+module:
+  id: "04-review-session"
+  title: "Review Session & Rating"
+  description: "Verify the review session detail page renders messages correctly, supports the 1-10 rating workflow, comment entry, tag management, and back navigation."
+  role: owner
+  depends_on: [AUTH-001]
+  viewport: default
+
+tests:
+
+  # ──────────────────────────────────────────────────────────
+  # RS-001  Session shows user/assistant messages
+  # ──────────────────────────────────────────────────────────
+  - id: RS-001
+    title: "Session shows user and assistant messages"
+    priority: P0
+    tags: [review-session, messages, smoke]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Session detail page reachable (RQ-003 passed)"
+    depends_on: [RQ-003]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked to open detail"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: browser_snapshot
+        params: {}
+        expect: "Both user messages and assistant messages are visible in the conversation"
+        extract:
+          user_messages: "Count of user message elements"
+          assistant_messages: "Count of assistant message elements"
+          total_messages: "Total message count"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-001-messages.png"
+        assert: "Screenshot captured"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors"
+      - action: evidence_capture
+        params:
+          description: "Verify both user and assistant messages render"
+          check: "At least one user message and at least one assistant message are visible with distinguishable styling"
+    pass_criteria:
+      - "Session detail page loads with a conversation view"
+      - "At least one user message is rendered"
+      - "At least one assistant message is rendered"
+      - "User and assistant messages are visually distinguishable (different alignment, color, or label)"
+      - "No critical console errors"
+    error_signatures:
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Message data failed to load — API returned undefined"
+      - pattern: "status == 404 AND /api/"
+        meaning: "Session detail endpoint not found"
+      - pattern: "status >= 500"
+        meaning: "Backend error loading session messages"
+
+  # ──────────────────────────────────────────────────────────
+  # RS-002  Assistant message shows rate button
+  # ──────────────────────────────────────────────────────────
+  - id: RS-002
+    title: "Assistant message shows rate button"
+    priority: P0
+    tags: [review-session, rating, smoke]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Session detail shows messages (RS-001 passed)"
+    depends_on: [RS-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: browser_snapshot
+        params: {}
+        expect: "Assistant messages have a rating/score UI element — button, icon, or interactive control"
+        extract:
+          rate_button_ref: "Reference to rating button/control on an assistant message"
+          rate_button_count: "Number of rate buttons visible"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-002-rate-button.png"
+        assert: "Screenshot captured"
+      - action: evidence_capture
+        params:
+          description: "Verify rating UI on assistant messages"
+          check: "Each assistant message has a rate/score button or interactive rating element"
+    pass_criteria:
+      - "At least one assistant message has a visible rating/score UI element"
+      - "Rating element is interactive (button, clickable icon, or similar)"
+      - "No console errors"
+    error_signatures:
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Rating component received undefined props"
+      - pattern: "[a-z]+\\.[a-z]+(\\.[a-z]+)+"
+        meaning: "Literal i18n key visible instead of translated button label"
+
+  # ──────────────────────────────────────────────────────────
+  # RS-003  Rating scale (1-10) renders
+  # ──────────────────────────────────────────────────────────
+  - id: RS-003
+    title: "Rating scale (1-10) renders"
+    priority: P0
+    tags: [review-session, rating, scale, smoke]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Assistant message rate button visible (RS-002 passed)"
+    depends_on: [RS-002]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: browser_snapshot
+        params: {}
+        expect: "Identify rate button on first assistant message"
+        extract:
+          rate_button_ref: "Reference to the first rating button"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='rate' i], [aria-label*='score' i], [data-testid*='rate' i], [class*='rate-btn'], [class*='rating-button'], button:has-text('Rate'), button:has-text('Score')"
+        assert: "Rate button clicked on an assistant message"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='rating-scale'], [class*='score-selector'], [role='radiogroup'], [class*='rating-options'], [class*='slider']"
+          timeout: 5000
+        assert: "Rating scale UI appears"
+      - action: browser_snapshot
+        params: {}
+        expect: "A 1-10 rating scale is visible with selectable options"
+        extract:
+          scale_options: "All visible rating option values (should be 1 through 10)"
+          scale_type: "Type of scale control (radio buttons, slider, number buttons)"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-003-rating-scale.png"
+        assert: "Screenshot captured"
+      - action: evidence_capture
+        params:
+          description: "Verify 1-10 rating scale"
+          check: "Rating options span from 1 to 10; all 10 values are selectable"
+    pass_criteria:
+      - "Clicking the rate button opens a rating scale"
+      - "Scale shows options from 1 to 10"
+      - "All 10 options are present and interactive"
+      - "No literal i18n keys visible (known issue KI-001: gradeDescription.buttonAriaLabel)"
+    error_signatures:
+      - pattern: "[a-z]+\\.[a-z]+(\\.[a-z]+)+"
+        meaning: "Literal i18n key visible — known issue KI-001"
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Rating scale data not loaded"
+
+  # ──────────────────────────────────────────────────────────
+  # RS-004  Rating updates progress indicator
+  # ──────────────────────────────────────────────────────────
+  - id: RS-004
+    title: "Rating updates progress indicator"
+    priority: P0
+    tags: [review-session, rating, progress, smoke]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Rating scale renders (RS-003 passed)"
+    depends_on: [RS-003]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: browser_snapshot
+        params: {}
+        expect: "Note the current progress indicator state (e.g., '0 of N rated')"
+        extract:
+          initial_progress: "Progress indicator text before rating"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='rate' i], [aria-label*='score' i], [data-testid*='rate' i], [class*='rate-btn'], [class*='rating-button'], button:has-text('Rate'), button:has-text('Score')"
+        assert: "Rate button clicked on first assistant message"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='rating-scale'], [class*='score-selector'], [role='radiogroup'], [class*='rating-options']"
+          timeout: 5000
+        assert: "Rating scale appears"
+      - action: browser_click
+        params:
+          selector: "[data-value='7'], [value='7'], button:has-text('7'), [aria-label='7'], [role='radio']:nth-of-type(7)"
+        assert: "Selected rating value 7"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='progress'], [class*='rated'], [class*='indicator']"
+          timeout: 5000
+        assert: "Progress indicator updates"
+      - action: browser_snapshot
+        params: {}
+        expect: "Progress indicator shows updated count (e.g., '1 of N rated')"
+        extract:
+          updated_progress: "Progress indicator text after rating"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-004-progress-update.png"
+        assert: "Screenshot captured"
+      - action: evidence_capture
+        params:
+          description: "Verify progress indicator updates after rating"
+          check: "Progress changed from initial state to reflect one rated message"
+    pass_criteria:
+      - "Selecting a rating value (7) is accepted"
+      - "Progress indicator updates to reflect the new rating (e.g., '1 of N rated')"
+      - "The rated message shows the selected score visually"
+      - "No console errors during rating"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend failed to save rating"
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Progress indicator component received undefined data"
+
+  # ──────────────────────────────────────────────────────────
+  # RS-005  Rate all messages then submit enabled
+  # ──────────────────────────────────────────────────────────
+  - id: RS-005
+    title: "Rate all messages then submit enabled"
+    priority: P1
+    tags: [review-session, rating, submit]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Rating workflow functional (RS-004 passed)"
+    depends_on: [RS-004]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: browser_snapshot
+        params: {}
+        expect: "Identify all assistant messages that require rating and the Submit Review button state"
+        extract:
+          unrated_count: "Number of unrated assistant messages"
+          submit_button_disabled: "Whether Submit Review button is disabled"
+      - action: evidence_capture
+        params:
+          description: "Rate each assistant message using the rating scale"
+          check: "Iterate through each assistant message: click rate button, select a score (5-8 range), confirm. Repeat for all unrated messages."
+      - action: browser_snapshot
+        params: {}
+        expect: "After rating all messages, Submit Review button becomes enabled"
+        extract:
+          all_rated: "Whether all assistant messages have been rated"
+          submit_button_enabled: "Whether Submit Review button is now enabled/clickable"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-005-submit-enabled.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "All assistant messages can be individually rated"
+      - "Progress indicator reaches 100% (all rated)"
+      - "Submit Review button transitions from disabled to enabled after all messages are rated"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend failed to save one or more ratings"
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Submit button state not computed correctly"
+
+  # ──────────────────────────────────────────────────────────
+  # RS-006  Submit review with comment
+  # ──────────────────────────────────────────────────────────
+  - id: RS-006
+    title: "Submit review with comment"
+    priority: P1
+    tags: [review-session, submit, comment]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Submit button enabled after rating all messages (RS-005 passed)"
+    depends_on: [RS-005]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: evidence_capture
+        params:
+          description: "Rate all assistant messages if not already rated"
+          check: "Ensure all assistant messages have been rated so Submit button is enabled"
+      - action: browser_snapshot
+        params: {}
+        expect: "Locate comment/notes textarea and Submit Review button"
+        extract:
+          comment_field_ref: "Reference to comment textarea"
+          submit_button_ref: "Reference to Submit Review button"
+      - action: browser_fill_form
+        params:
+          selector: "textarea[name*='comment' i], textarea[placeholder*='comment' i], textarea[name*='note' i], textarea[placeholder*='note' i], textarea[class*='comment'], textarea[class*='review-note']"
+          value: "Regression test review comment — automated by test suite RS-006"
+        assert: "Comment text entered in textarea"
+      - action: browser_click
+        params:
+          selector: "button:has-text('Submit'), button:has-text('Complete'), button[type='submit']:has-text('Review'), [data-testid*='submit-review']"
+        assert: "Submit Review button clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='success'], [class*='toast'], [class*='snackbar'], [role='alert'], [class*='notification']"
+          timeout: 10000
+        assert: "Success confirmation appears"
+      - action: browser_snapshot
+        params: {}
+        expect: "Review submitted successfully — confirmation message or redirect to queue"
+        extract:
+          success_message: "Text of success notification"
+          redirected_url: "Current URL after submission"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-006-submit-review.png"
+        assert: "Screenshot captured"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors during submission"
+      - action: browser_network_requests
+        params: {}
+        assert: "No 4xx/5xx errors on review submission API call"
+    pass_criteria:
+      - "Comment textarea accepts text input"
+      - "Submit Review button is clickable"
+      - "Submission triggers a success confirmation (toast, redirect, or status change)"
+      - "No 4xx/5xx network errors during submission"
+      - "Session moves out of Pending tab (or status updates)"
+    error_signatures:
+      - pattern: "status >= 500"
+        meaning: "Backend failed to save the review"
+      - pattern: "status == 400"
+        meaning: "Validation error — missing required fields"
+      - pattern: "status == 403"
+        meaning: "Permission denied — owner role cannot submit reviews"
+
+  # ──────────────────────────────────────────────────────────
+  # RS-007  Comment textarea accepts input
+  # ──────────────────────────────────────────────────────────
+  - id: RS-007
+    title: "Comment textarea accepts input"
+    priority: P1
+    tags: [review-session, comment, input]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Session detail shows messages (RS-001 passed)"
+    depends_on: [RS-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: browser_snapshot
+        params: {}
+        expect: "Locate comment or notes textarea on the page"
+        extract:
+          textarea_ref: "Reference to comment/notes textarea element"
+      - action: browser_fill_form
+        params:
+          selector: "textarea[name*='comment' i], textarea[placeholder*='comment' i], textarea[name*='note' i], textarea[placeholder*='note' i], textarea[class*='comment'], textarea[class*='review-note'], textarea"
+          value: "Test input for RS-007 — verifying textarea accepts text"
+        assert: "Text entered in comment textarea"
+      - action: browser_snapshot
+        params: {}
+        expect: "Typed text is visible in the textarea"
+        extract:
+          textarea_value: "Current value of the textarea"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-007-comment-textarea.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "Comment/notes textarea is present on the session detail page"
+      - "Textarea accepts text input"
+      - "Entered text is visible in the field"
+    error_signatures:
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Textarea component not rendered — missing form data"
+
+  # ──────────────────────────────────────────────────────────
+  # RS-008  Tags combobox on session detail
+  # ──────────────────────────────────────────────────────────
+  - id: RS-008
+    title: "Tags combobox on session detail"
+    priority: P2
+    tags: [review-session, tags, combobox]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Session detail shows messages (RS-001 passed)"
+    depends_on: [RS-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: browser_snapshot
+        params: {}
+        expect: "Look for tags input — combobox, multi-select, chip input, or autocomplete"
+        extract:
+          tags_input_ref: "Reference to tags combobox/input element"
+          existing_tags: "Any pre-existing tags on the session"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='tag' i], [data-testid*='tag' i], [class*='tag-input'], [class*='chip-input'], [placeholder*='tag' i], [role='combobox'][class*='tag']"
+        assert: "Tags input clicked or focused"
+      - action: browser_snapshot
+        params: {}
+        expect: "Tag suggestions or autocomplete dropdown visible"
+        extract:
+          tag_suggestions: "Available tag suggestion values"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-008-tags-combobox.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "Tags input/combobox is present on the session detail page"
+      - "Clicking the input shows suggestions or allows freeform entry"
+      - "No console errors during interaction"
+    error_signatures:
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Tags component received undefined data"
+      - pattern: "status >= 500"
+        meaning: "Backend failed to load tag options"
+
+  # ──────────────────────────────────────────────────────────
+  # RS-009  Back button returns to queue
+  # ──────────────────────────────────────────────────────────
+  - id: RS-009
+    title: "Back button returns to queue"
+    priority: P1
+    tags: [review-session, navigation, back]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Session detail shows messages (RS-001 passed)"
+    depends_on: [RS-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: browser_snapshot
+        params: {}
+        expect: "Locate back button, breadcrumb link, or navigation element to return to queue"
+        extract:
+          back_element_ref: "Reference to back button or breadcrumb"
+      - action: browser_click
+        params:
+          selector: "[aria-label*='back' i], [data-testid*='back' i], button:has-text('Back'), a:has-text('Back'), [class*='breadcrumb'] a:first-of-type, [class*='back-button'], nav [href*='review']"
+        assert: "Back button or breadcrumb clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist'], nav, .tabs, .MuiTabs-root"
+          timeout: 10000
+        assert: "Review queue page loads again with tab container"
+      - action: browser_snapshot
+        params: {}
+        expect: "Returned to the review queue page"
+        extract:
+          current_url: "Current URL after back navigation"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-009-back-to-queue.png"
+        assert: "Screenshot captured"
+    pass_criteria:
+      - "Back button or breadcrumb is present on the session detail page"
+      - "Clicking it returns to the review queue"
+      - "Review queue renders correctly with tabs visible"
+      - "URL matches the review queue path"
+    error_signatures:
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Navigation state lost during back navigation"
+
+  # ──────────────────────────────────────────────────────────
+  # RS-010  Anonymized/blinded indicator
+  # ──────────────────────────────────────────────────────────
+  - id: RS-010
+    title: "Anonymized/blinded indicator visible"
+    priority: P2
+    tags: [review-session, anonymization, privacy]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Session detail shows messages (RS-001 passed)"
+    depends_on: [RS-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='card'], [class*='session'], [class*='list-item'], tr, li"
+          timeout: 10000
+        assert: "Session cards visible"
+      - action: browser_click
+        params:
+          selector: "[class*='card']:first-of-type, [class*='session']:first-of-type, tr:first-of-type, li:first-of-type"
+        assert: "First session card clicked"
+      - action: browser_wait_for
+        params:
+          selector: "[class*='message'], [class*='chat'], [class*='conversation'], [class*='detail']"
+          timeout: 10000
+        assert: "Session detail page loads"
+      - action: browser_snapshot
+        params: {}
+        expect: "Look for anonymization/blinding indicator — badge, icon, label, or banner showing the session is anonymized"
+        extract:
+          anonymization_indicator: "Text or element indicating anonymization status"
+          user_identity_visible: "Whether real user identity (name, email) is visible or masked"
+      - action: browser_take_screenshot
+        params:
+          filename: "rs-010-anonymized-indicator.png"
+        assert: "Screenshot captured"
+      - action: evidence_capture
+        params:
+          description: "Verify anonymization indicator is present"
+          check: "Session detail shows an anonymization badge, label, or icon. User identity is masked or replaced with a pseudonym."
+    pass_criteria:
+      - "Session detail displays an anonymization/blinding indicator"
+      - "Real user identity (name, email) is not exposed to the reviewer"
+      - "Indicator is clearly visible (badge, icon, or label)"
+    error_signatures:
+      - pattern: "TypeError: Cannot read properties of undefined"
+        meaning: "Anonymization state not loaded"

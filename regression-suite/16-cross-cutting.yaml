@@ -1,0 +1,416 @@
+# MHG Workbench Regression Suite — 16 Cross-Cutting Concerns
+# 6 tests covering PWA, empty states, loading skeletons, console/network monitoring
+#
+# Variables resolved from _config.yaml:
+#   ${workbench_url}  — environments.<env>.workbench_url
+#   ${account.<role>}  — accounts.<role>.email / otp_source / otp_pattern
+
+module:
+  id: 16-cross-cutting
+  title: "Cross-Cutting Concerns"
+  description: >
+    Validates cross-cutting UX and reliability concerns: PWA install banner,
+    empty state rendering, loading skeletons, and aggregated console/network
+    error monitoring across the entire regression session.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # CC-001  PWA install banner renders
+  # ---------------------------------------------------------------------------
+  - id: CC-001
+    title: "PWA install banner renders"
+    priority: P3
+    tags: [pwa, install, banner, ux]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "Browser supports PWA install prompts (Chromium-based)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench loads successfully"
+        expect: "Dashboard or main workbench page is displayed"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of workbench captured"
+        expect: >
+          Check for PWA install banner, prompt, or 'Add to Home Screen' element.
+          If not present, document as expected — banner suppression is normal
+          behavior for already-installed or non-eligible contexts.
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Second snapshot for install prompt timing"
+        expect: >
+          PWA install banner may appear after a brief delay. Look for
+          beforeinstallprompt-related UI, app install button, or A2HS prompt.
+          Absence is acceptable and should be documented.
+
+      - action: evidence_capture
+        params:
+          label: "CC-001-pwa-install-banner"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Page loads without errors on a compatible viewport"
+      - "PWA install banner presence or absence is documented with evidence"
+      - "No JavaScript errors related to service worker or manifest"
+    error_signatures:
+      - pattern: "manifest.*error"
+        meaning: "PWA manifest failed to load or parse"
+      - pattern: "service.worker.*error"
+        meaning: "Service worker registration failed"
+
+  # ---------------------------------------------------------------------------
+  # CC-002  Empty state renders when no data
+  # ---------------------------------------------------------------------------
+  - id: CC-002
+    title: "Empty state renders when no data"
+    priority: P2
+    tags: [empty-state, ux, rendering]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/review/escalations"
+        assert: "Escalations page loads"
+        expect: "Page navigates to escalations view (likely empty in test environment)"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='empty' i], [data-testid*='empty' i], *:has-text('No escalations'), *:has-text('No results'), *:has-text('No data'), *:has-text('nothing'), [class*='placeholder' i]"
+          timeout: 10000
+        assert: "Empty state element is visible"
+        expect: "An empty state message renders — not a blank page or error"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Empty state snapshot captured"
+        expect: >
+          Page displays a meaningful empty state message (e.g., 'No escalations found',
+          'No results', or similar placeholder). The page is NOT blank and does NOT
+          show an error or crash screen.
+
+      - action: evidence_capture
+        params:
+          label: "CC-002-empty-state"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Empty state message is visible when no data exists"
+      - "Page does NOT render as completely blank"
+      - "No error messages or crash screens displayed"
+      - "No unhandled JavaScript exceptions"
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Component does not guard against empty/null data"
+      - pattern: "TypeError"
+        meaning: "Null guard missing when data array is empty"
+
+  # ---------------------------------------------------------------------------
+  # CC-003  Loading skeletons during fetch
+  # ---------------------------------------------------------------------------
+  - id: CC-003
+    title: "Loading skeletons during fetch"
+    priority: P3
+    tags: [loading, skeleton, ux, performance]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/review"
+        assert: "Review page navigation initiated"
+        expect: "Data-heavy review page begins loading"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Immediate snapshot captured during initial render"
+        expect: >
+          Look for skeleton/placeholder elements in the accessibility tree:
+          elements with class containing 'skeleton', 'shimmer', 'loading',
+          'placeholder', or aria-busy='true'. These indicate loading states
+          before data arrives.
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='skeleton' i], [class*='shimmer' i], [class*='loading' i], [aria-busy='true'], [class*='placeholder' i], [data-testid*='skeleton' i]"
+          timeout: 3000
+        assert: "Skeleton or loading indicator detected (or timeout if data loaded instantly)"
+        expect: >
+          Skeleton placeholders or loading indicators are present during data fetch.
+          If data loads too quickly for capture, document that the page loaded
+          without visible loading delay.
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='review-queue'], table, [class*='review' i], [class*='list' i], [class*='empty' i]"
+          timeout: 15000
+        assert: "Final content loaded after skeletons"
+        expect: "Actual content replaces skeleton placeholders"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-load snapshot captured"
+        expect: "Page shows actual content (review data or empty state) — no residual skeletons"
+
+      - action: evidence_capture
+        params:
+          label: "CC-003-loading-skeletons"
+          include: [screenshot]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Loading indicators (skeletons, spinners, or shimmer) appear during data fetch, OR data loads instantly without visible delay"
+      - "Final rendered state contains actual content (not stuck on loading)"
+      - "No residual skeleton elements after data has loaded"
+    error_signatures:
+      - pattern: "stuck.*loading"
+        meaning: "Page may be stuck in loading state — fetch may have failed silently"
+      - pattern: "TypeError"
+        meaning: "Component crash during loading-to-loaded state transition"
+
+  # ---------------------------------------------------------------------------
+  # CC-004  Console monitoring: no unexpected errors
+  # ---------------------------------------------------------------------------
+  - id: CC-004
+    title: "Console monitoring: no unexpected errors"
+    priority: P0
+    tags: [console, monitoring, errors, aggregation, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "This is an AGGREGATION test — run LAST in the suite"
+      - "All other tests in the regression suite have completed"
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_console_messages
+        params: {}
+        assert: "All console messages from the entire session retrieved"
+        expect: >
+          Collect ALL console errors accumulated during the regression run.
+          This captures errors from every test that executed in this browser session.
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Current page state captured for context"
+        expect: "Shows the final page state at time of console aggregation"
+
+      - action: evidence_capture
+        params:
+          label: "CC-004-console-monitoring"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved with full console log"
+
+    pass_criteria:
+      - "Collect all console error messages from the session"
+      - "Filter against known_acceptable_console patterns from _config.yaml"
+      - "PASS if all errors match known acceptable patterns"
+      - "FAIL if any UNEXPECTED critical errors (Error, TypeError, Uncaught) exist"
+      - "Report: list each unexpected error with the page/URL where it occurred"
+    error_signatures:
+      - pattern: "Uncaught.*Error"
+        meaning: "Unhandled exception detected — likely a bug"
+      - pattern: "TypeError: Cannot read"
+        meaning: "Null reference — missing guard clause"
+      - pattern: "ChunkLoadError"
+        meaning: "Code-splitting or deployment mismatch — stale chunks"
+      - pattern: "ResizeObserver loop"
+        meaning: "Known acceptable — layout observation timing (filter this)"
+
+  # ---------------------------------------------------------------------------
+  # CC-005  Network monitoring: no unexpected 4xx/5xx
+  # ---------------------------------------------------------------------------
+  - id: CC-005
+    title: "Network monitoring: no unexpected 4xx/5xx"
+    priority: P0
+    tags: [network, monitoring, errors, aggregation, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "This is an AGGREGATION test — run LAST in the suite"
+      - "All other tests in the regression suite have completed"
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_network_requests
+        params: {}
+        assert: "All network requests from the entire session retrieved"
+        expect: >
+          Collect ALL network failures (4xx and 5xx responses) accumulated
+          during the regression run. This captures failures from every test
+          that executed in this browser session.
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Current page state captured for context"
+        expect: "Shows the final page state at time of network aggregation"
+
+      - action: evidence_capture
+        params:
+          label: "CC-005-network-monitoring"
+          include: [screenshot, network]
+        assert: "Evidence bundle saved with full network log"
+
+    pass_criteria:
+      - "Collect all 4xx and 5xx network responses from the session"
+      - "Filter against known_acceptable_network patterns from _config.yaml"
+      - "PASS if all failures match known acceptable patterns"
+      - "FAIL if any UNEXPECTED server errors (5xx) exist"
+      - "WARN (but do not fail) for unexpected 4xx client errors"
+      - "Report: list each unexpected failure with URL, status code, and request context"
+    error_signatures:
+      - pattern: "500.*api/"
+        meaning: "Internal server error — backend bug or unhandled exception"
+      - pattern: "502.*api/"
+        meaning: "Bad gateway — backend may be down or restarting"
+      - pattern: "503.*api/"
+        meaning: "Service unavailable — backend overloaded or in maintenance"
+      - pattern: "401.*api/auth/verify"
+        meaning: "Known acceptable — expected during invalid OTP tests (filter this)"
+      - pattern: "403.*api/"
+        meaning: "Known acceptable — expected during RBAC negative tests (filter this)"
+
+  # ---------------------------------------------------------------------------
+  # CC-006  Navigation produces no JS exceptions
+  # ---------------------------------------------------------------------------
+  - id: CC-006
+    title: "Navigation produces no JS exceptions"
+    priority: P1
+    tags: [navigation, stability, exceptions, ux]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Navigate to workbench dashboard"
+        expect: "Dashboard loads without errors"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[data-testid='dashboard'], nav, aside, [class*='sidebar' i]"
+          timeout: 10000
+        assert: "Dashboard is visible"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/review"
+        assert: "Navigate to review page"
+        expect: "Review page loads"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i], [class*='review' i]"
+          timeout: 10000
+        assert: "Review page content visible"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/surveys/schemas"
+        assert: "Navigate to survey schemas page"
+        expect: "Survey schemas page loads"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i], [class*='survey' i]"
+          timeout: 10000
+        assert: "Survey schemas page content visible"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/users"
+        assert: "Navigate to users page"
+        expect: "Users page loads"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i], [class*='user' i]"
+          timeout: 10000
+        assert: "Users page content visible"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/groups"
+        assert: "Navigate to groups page"
+        expect: "Groups page loads"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i], [class*='group' i]"
+          timeout: 10000
+        assert: "Groups page content visible"
+
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/settings"
+        assert: "Navigate to settings page"
+        expect: "Settings page loads"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "nav, aside, [class*='sidebar' i], [class*='setting' i]"
+          timeout: 10000
+        assert: "Settings page content visible"
+
+      - action: browser_console_messages
+        params: {}
+        assert: "Console messages retrieved after rapid navigation"
+        expect: >
+          Check for any uncaught exceptions, TypeError, or ReferenceError
+          that occurred during the navigation sequence. Filter out known
+          acceptable patterns (e.g., ResizeObserver loop).
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Final page state captured after navigation sequence"
+        expect: "Settings page rendered correctly — last page in the navigation sequence"
+
+      - action: evidence_capture
+        params:
+          label: "CC-006-navigation-stability"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "All 6 pages load without uncaught JavaScript exceptions"
+      - "No TypeError or ReferenceError in console during navigation"
+      - "Each page renders its expected content (not a blank screen or crash)"
+      - "No navigation results in a white screen or React error boundary"
+    error_signatures:
+      - pattern: "Uncaught TypeError"
+        meaning: "Null reference during navigation — component unmount/mount issue"
+      - pattern: "Uncaught ReferenceError"
+        meaning: "Undefined variable — possible code-splitting or import issue"
+      - pattern: "ChunkLoadError"
+        meaning: "Lazy-loaded chunk failed — deployment or cache mismatch"
+      - pattern: "Error boundary"
+        meaning: "React error boundary caught a crash during navigation"

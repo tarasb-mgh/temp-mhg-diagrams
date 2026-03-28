@@ -165,6 +165,46 @@ Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs for testing — alw
 - During review validation, test at least one session with reviewable assistant messages.
 - Always capture browser console and network errors (endpoint + HTTP status) as evidence.
 
+### Workbench Regression Test Suite
+
+The `regression-suite/` directory contains a comprehensive, AI-agent-executable regression
+test suite for the MHG Workbench application (124 test cases across 16 modules).
+
+```
+regression-suite/
+├── _config.yaml              # URLs, accounts, timeouts, known acceptable errors
+├── _runner-guide.md          # Agent execution protocol
+├── 01-auth.yaml              # Authentication & access control (11 tests)
+├── 02-navigation.yaml        # Shell, sidebar, breadcrumbs (12 tests)
+├── 03-review-queue.yaml      # Queue tabs, filtering, pagination (14 tests)
+├── 04-review-session.yaml    # Session detail, rating, submit (10 tests)
+├── 05-review-dashboards.yaml # Dashboards, reports, config (6 tests)
+├── 06-safety-flags.yaml      # Flags, escalation, deanonymization (6 tests)
+├── 07-survey-schemas.yaml    # Schema CRUD, editor, publish (9 tests)
+├── 08-survey-instances.yaml  # Instance deployment, responses (7 tests)
+├── 09-user-management.yaml   # Users, approvals, tester tags (8 tests)
+├── 10-group-management.yaml  # Groups, members, invitations (8 tests)
+├── 11-privacy-gdpr.yaml      # PII masking, export, erasure (4 tests)
+├── 12-security-admin.yaml    # RBAC, permissions, feature flags (7 tests)
+├── 13-settings.yaml          # Preferences, admin settings (3 tests)
+├── 14-i18n.yaml              # Locale switching, key completeness (6 tests)
+├── 15-responsive.yaml        # Mobile, tablet, desktop layouts (7 tests)
+├── 16-cross-cutting.yaml     # PWA, empty states, error monitoring (6 tests)
+└── results/                  # Agent writes run results here
+```
+
+**Execution modes** (specified at invocation):
+- `smoke` — P0 tests only (21 tests, ~10 min)
+- `standard` — P0 + P1 (85 tests, ~30 min, recommended post-deploy)
+- `full` — all priorities (124 tests, ~60 min)
+- `module:XX` — single module (e.g., `module:03-review-queue`)
+
+Tests are defined in YAML with structured steps using Playwright MCP tools
+(`browser_navigate`, `browser_snapshot`, `browser_click`, `browser_fill_form`,
+`browser_wait_for`, `browser_console_messages`, `browser_network_requests`).
+Each test specifies role, priority, dependencies, assertions, and error signatures.
+The `_runner-guide.md` documents the full execution protocol for the AI agent.
+
 ## Key Patterns
 
 ### Task Format in tasks.md

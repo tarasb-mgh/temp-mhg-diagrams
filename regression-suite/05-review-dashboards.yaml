@@ -1,0 +1,382 @@
+# MHG Workbench Regression Suite — Module 05: Review Dashboards & Reports
+# 6 tests | Role: owner | Depends on: AUTH-001
+
+module:
+  id: 05-review-dashboards
+  title: "Review Dashboards & Reports"
+  description: >
+    Validates that all review dashboard pages, reports, escalations, tags, and
+    configuration screens load correctly and render their expected content.
+  test_count: 6
+  default_role: owner
+  default_viewport:
+    width: 1280
+    height: 800
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # RD-001: Review Dashboard loads with personal stats
+  # ---------------------------------------------------------------------------
+  - id: RD-001
+    title: "Review Dashboard loads with personal stats"
+    priority: P1
+    tags: [review, dashboard, stats]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+      - "At least one completed review exists for the owner account"
+    depends_on: [AUTH-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review/dashboard"
+        assert: "Page begins loading without immediate redirect"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-dashboard'], .review-dashboard, main"
+          timeout: 10000
+        expect: "Dashboard container element is present in the DOM"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured — dashboard page is fully rendered"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify that a personal stats section is visible. Look for metric
+          cards or summary elements showing data such as: reviews completed,
+          average score, pending reviews, or similar stat indicators. At least
+          one stat card or metric value must be visible.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "RD-001 Review Dashboard personal stats"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Dashboard page loads without HTTP 4xx/5xx errors"
+      - "At least one personal stat metric card or summary element is visible"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Stats data not loaded — API may have returned empty or null"
+      - pattern: "404.*/api/.*dashboard"
+        meaning: "Dashboard API endpoint missing or route not registered"
+      - pattern: "403"
+        meaning: "Owner role lacks permission to view dashboard"
+
+  # ---------------------------------------------------------------------------
+  # RD-002: Team Dashboard loads
+  # ---------------------------------------------------------------------------
+  - id: RD-002
+    title: "Team Dashboard loads"
+    priority: P1
+    tags: [review, dashboard, team]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+    depends_on: [AUTH-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review/team"
+        assert: "Page begins loading without immediate redirect"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='team-dashboard'], .team-dashboard, main"
+          timeout: 10000
+        expect: "Team dashboard container element is present in the DOM"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured — team dashboard page is fully rendered"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify that a team stats section or team member table is visible.
+          Look for elements showing reviewer names, team-level metrics,
+          completion rates, or a data table with team information.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "RD-002 Team Dashboard"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Team dashboard page loads without HTTP 4xx/5xx errors"
+      - "Team stats table or team metric section is visible"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Team data not loaded — API may have returned empty or null"
+      - pattern: "404.*/api/.*team"
+        meaning: "Team dashboard API endpoint missing or route not registered"
+      - pattern: "403"
+        meaning: "Owner role lacks permission to view team dashboard"
+
+  # ---------------------------------------------------------------------------
+  # RD-003: Reports page loads
+  # ---------------------------------------------------------------------------
+  - id: RD-003
+    title: "Reports page loads"
+    priority: P2
+    tags: [review, reports]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+    depends_on: [AUTH-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review/reports"
+        assert: "Page begins loading without immediate redirect"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-reports'], .review-reports, main"
+          timeout: 10000
+        expect: "Reports container element is present in the DOM"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured — reports page is fully rendered"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify the page renders without error. Confirm no error boundaries,
+          blank white screens, or crash messages are displayed. The page should
+          show report content, filters, or an empty-state placeholder.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "RD-003 Reports page"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Reports page loads without HTTP 4xx/5xx errors"
+      - "Page renders meaningful content or an empty-state placeholder (no crash)"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Report data not loaded — API may have returned empty or null"
+      - pattern: "404.*/api/.*reports"
+        meaning: "Reports API endpoint missing or route not registered"
+      - pattern: "ChunkLoadError"
+        meaning: "Code splitting failure — reports module not bundled correctly"
+
+  # ---------------------------------------------------------------------------
+  # RD-004: Escalations page loads
+  # ---------------------------------------------------------------------------
+  - id: RD-004
+    title: "Escalations page loads"
+    priority: P1
+    tags: [review, escalations, safety]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+    depends_on: [AUTH-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review/escalations"
+        assert: "Page begins loading without immediate redirect"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='escalations'], .escalations, main"
+          timeout: 10000
+        expect: "Escalations container element is present in the DOM"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured — escalations page is fully rendered"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify that an escalation list is visible, OR an empty-state message
+          indicating no escalations exist. Either outcome is acceptable. Look
+          for list items, table rows, or a message like "No escalations" or
+          "No items to display".
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "RD-004 Escalations page"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Escalations page loads without HTTP 4xx/5xx errors"
+      - "Escalation list or empty-state placeholder is visible"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Escalation data not loaded — API may have returned empty or null"
+      - pattern: "404.*/api/.*escalation"
+        meaning: "Escalations API endpoint missing or route not registered"
+      - pattern: "403"
+        meaning: "Owner role lacks permission to view escalations"
+
+  # ---------------------------------------------------------------------------
+  # RD-005: Review Tags page loads
+  # ---------------------------------------------------------------------------
+  - id: RD-005
+    title: "Review Tags page loads"
+    priority: P2
+    tags: [review, tags, management]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+    depends_on: [AUTH-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review/tags"
+        assert: "Page begins loading without immediate redirect"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-tags'], .review-tags, main"
+          timeout: 10000
+        expect: "Tags management container element is present in the DOM"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured — review tags page is fully rendered"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify that the tag management UI is visible. Look for elements such
+          as: a list of existing tags, tag chips/badges, a create/add tag
+          button, or a tag configuration form. An empty-state with an "Add Tag"
+          action is also acceptable.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "RD-005 Review Tags page"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Tags page loads without HTTP 4xx/5xx errors"
+      - "Tag management UI elements are visible (list, form, or empty-state with action)"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Tag data not loaded — API may have returned empty or null"
+      - pattern: "404.*/api/.*tag"
+        meaning: "Tags API endpoint missing or route not registered"
+      - pattern: "403"
+        meaning: "Owner role lacks permission to manage review tags"
+
+  # ---------------------------------------------------------------------------
+  # RD-006: Review Configuration page loads
+  # ---------------------------------------------------------------------------
+  - id: RD-006
+    title: "Review Configuration page loads"
+    priority: P2
+    tags: [review, configuration, settings]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+    depends_on: [AUTH-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review/config"
+        assert: "Page begins loading without immediate redirect"
+
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='review-config'], .review-config, main"
+          timeout: 10000
+        expect: "Review configuration container element is present in the DOM"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured — review configuration page is fully rendered"
+
+      - action: browser_snapshot
+        params: {}
+        assert: >
+          Verify that configuration form elements are visible. Look for inputs,
+          selectors, or settings related to: minimum number of reviews,
+          scoring thresholds, review assignment rules, escalation thresholds,
+          or similar configuration parameters. At least one form field or
+          settings control must be visible.
+
+      - action: browser_console_messages
+        params: {}
+        assert: >
+          No unexpected console errors. Ignore patterns listed in
+          _config.yaml known_acceptable_console.
+
+      - action: evidence_capture
+        params:
+          label: "RD-006 Review Configuration page"
+        assert: "Screenshot and DOM snapshot saved as evidence"
+
+    pass_criteria:
+      - "Configuration page loads without HTTP 4xx/5xx errors"
+      - "At least one form field or settings control is visible (min reviews, thresholds, etc.)"
+      - "No critical console errors"
+
+    error_signatures:
+      - pattern: "Cannot read properties of undefined"
+        meaning: "Config data not loaded — API may have returned empty or null"
+      - pattern: "404.*/api/.*config"
+        meaning: "Review config API endpoint missing or route not registered"
+      - pattern: "403"
+        meaning: "Owner role lacks permission to view review configuration"

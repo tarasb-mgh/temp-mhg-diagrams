@@ -1,0 +1,401 @@
+# MHG Workbench Regression Suite — 08 Survey Instance Management
+# 7 tests covering instance CRUD, detail views, responses, and answer display
+#
+# Variables resolved from _config.yaml:
+#   ${workbench_url}  — environments.<env>.workbench_url
+#   ${account.<role>}  — accounts.<role>.email / otp_source / otp_pattern
+
+module:
+  id: 08-survey-instances
+  title: "Survey Instance Management"
+  description: >
+    Validates that survey instances can be listed, created with schema and
+    group selectors, viewed with completion counts, and that response
+    viewing and answer detail functionality works correctly.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # SI-001  Instance list page loads
+  # ---------------------------------------------------------------------------
+  - id: SI-001
+    title: "Instance list page loads"
+    priority: P0
+    tags: [survey, instance, list, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/instances"
+        assert: "Page loads without network errors"
+        expect: "Survey instances page is displayed"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='instance' i], [data-testid*='instance' i], *:has-text('Create'), *:has-text('New Instance')"
+          timeout: 10000
+        assert: "Instance list or empty state is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of instance list page captured"
+        expect: "Table or list of survey instances is visible, or empty state with create CTA"
+
+      - action: evidence_capture
+        params:
+          label: "SI-001-instance-list"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Instance list page loads at /workbench/surveys/instances"
+      - "Either a table/list of instances or an empty state is visible"
+      - "No unexpected console errors or 4xx/5xx network responses"
+    error_signatures:
+      - pattern: "404.*surveys/instances"
+        meaning: "Instance list route not found — routing may be misconfigured"
+      - pattern: "403.*api/"
+        meaning: "Permission denied fetching instances"
+
+  # ---------------------------------------------------------------------------
+  # SI-002  New Instance form with selectors
+  # ---------------------------------------------------------------------------
+  - id: SI-002
+    title: "New Instance form with selectors"
+    priority: P1
+    tags: [survey, instance, create, form]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "User is on the instance list page"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/instances"
+        assert: "Instance list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='instance' i], *:has-text('Create'), *:has-text('New Instance')"
+          timeout: 10000
+        assert: "Instance list or empty state visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('New Instance'), button:has-text('Create'), a:has-text('New Instance'), a:has-text('Create')"
+        assert: "New Instance button clicked"
+        expect: "Instance creation form appears"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "select, [role='listbox'], [role='combobox'], [class*='select' i], [data-testid*='schema-select' i], [data-testid*='form' i]"
+          timeout: 10000
+        assert: "Form with selectors is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "New instance form snapshot captured"
+        expect: "Form displays a schema selector dropdown AND a group/target selector"
+
+      - action: evidence_capture
+        params:
+          label: "SI-002-new-instance-form"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Clicking 'New Instance' or 'Create' opens a creation form"
+      - "Form includes a schema selector dropdown"
+      - "Form includes a group or target selector"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Form component failed to initialize"
+      - pattern: "404.*schemas"
+        meaning: "Schema list endpoint not found — selector cannot populate"
+
+  # ---------------------------------------------------------------------------
+  # SI-003  Create instance
+  # ---------------------------------------------------------------------------
+  - id: SI-003
+    title: "Create instance"
+    priority: P1
+    tags: [survey, instance, create, submit]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is on the new instance form (via SI-002)"
+      - "At least one published schema exists"
+      - "At least one group exists"
+    depends_on: [SI-002]
+    steps:
+      - action: browser_click
+        params:
+          selector: "select:first-of-type, [data-testid*='schema-select' i], [role='combobox']:first-of-type"
+        assert: "Schema selector clicked"
+        expect: "Schema dropdown options appear"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Schema selector options captured"
+        expect: "At least one schema option is visible in the dropdown"
+
+      - action: browser_select_option
+        params:
+          selector: "select:first-of-type, [data-testid*='schema-select' i]"
+          value: "first"
+        assert: "First available schema selected"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid*='group-select' i], [data-testid*='target-select' i], select:nth-of-type(2), [role='combobox']:nth-of-type(2)"
+        assert: "Group/target selector clicked"
+
+      - action: browser_select_option
+        params:
+          selector: "[data-testid*='group-select' i], [data-testid*='target-select' i], select:nth-of-type(2)"
+          value: "first"
+        assert: "First available group selected"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Create'), button:has-text('Submit'), button:has-text('Save'), button[type='submit']"
+        assert: "Submit button clicked"
+        expect: "Instance creation request sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='success' i], [class*='toast' i], *:has-text('created'), *:has-text('Created'), *:has-text('saved'), *:has-text('Saved')"
+          timeout: 10000
+        assert: "Success confirmation visible"
+        expect: "Instance created successfully"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-creation snapshot captured"
+        expect: "Success notification visible or redirected to instance detail/list"
+
+      - action: evidence_capture
+        params:
+          label: "SI-003-create-instance"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Instance is created successfully (network 200/201 or success notification)"
+      - "User is redirected to instance detail or list after creation"
+      - "No unexpected errors during creation"
+    error_signatures:
+      - pattern: "400.*api/"
+        meaning: "Validation error on instance creation — missing required fields"
+      - pattern: "500.*api/"
+        meaning: "Server error during instance creation"
+
+  # ---------------------------------------------------------------------------
+  # SI-004  Instance detail shows completion count
+  # ---------------------------------------------------------------------------
+  - id: SI-004
+    title: "Instance detail shows completion count"
+    priority: P1
+    tags: [survey, instance, detail, completion]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "At least one instance exists in the list (via SI-001)"
+    depends_on: [SI-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/instances"
+        assert: "Instance list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='instance' i]"
+          timeout: 10000
+        assert: "Instance list visible"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='instance-item']:first-child, [class*='list-item']:first-child, a[href*='instances/']"
+        assert: "First instance in the list clicked"
+        expect: "Instance detail page loads"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='detail' i], [class*='instance' i], *:has-text('completion'), *:has-text('Completion'), *:has-text('responses'), *:has-text('Responses'), *:has-text('count')"
+          timeout: 10000
+        assert: "Instance detail page is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Instance detail snapshot captured"
+        expect: "Detail page shows completion/response count (may be 0 for new instances)"
+
+      - action: evidence_capture
+        params:
+          label: "SI-004-instance-detail"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Clicking an instance navigates to its detail page"
+      - "Detail page displays completion or response count"
+      - "No unexpected errors on detail page"
+    error_signatures:
+      - pattern: "404.*instances/"
+        meaning: "Instance detail route or API endpoint not found"
+      - pattern: "TypeError"
+        meaning: "Detail component failed to render instance data"
+
+  # ---------------------------------------------------------------------------
+  # SI-005  View Responses button works
+  # ---------------------------------------------------------------------------
+  - id: SI-005
+    title: "View Responses button works"
+    priority: P1
+    tags: [survey, instance, responses, list]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is on the instance detail page (via SI-004)"
+    depends_on: [SI-004]
+    steps:
+      - action: browser_click
+        params:
+          selector: "button:has-text('View Responses'), button:has-text('Responses'), a:has-text('Responses'), [data-testid*='responses' i], [role='tab']:has-text('Responses')"
+        assert: "View Responses button or tab clicked"
+        expect: "Response list renders"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='response' i], [data-testid*='response' i], *:has-text('No responses'), *:has-text('0 responses')"
+          timeout: 10000
+        assert: "Response list or empty state is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Responses view snapshot captured"
+        expect: "Response list is rendered showing individual responses, or empty state if no responses exist"
+
+      - action: evidence_capture
+        params:
+          label: "SI-005-view-responses"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Clicking 'View Responses' or 'Responses' tab shows the response list"
+      - "Response list renders (with data or empty state)"
+      - "No unexpected errors during response list load"
+    error_signatures:
+      - pattern: "404.*responses"
+        meaning: "Responses endpoint not found"
+      - pattern: "TypeError"
+        meaning: "Response list component failed to render"
+
+  # ---------------------------------------------------------------------------
+  # SI-006  Hide non-visible answers toggle
+  # ---------------------------------------------------------------------------
+  - id: SI-006
+    title: "Hide non-visible answers toggle"
+    priority: P2
+    tags: [survey, instance, responses, visibility, filter]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is on the responses view (via SI-005)"
+    depends_on: [SI-005]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        assert: "Capture responses view state"
+        expect: "Responses view is displayed"
+
+      - action: browser_click
+        params:
+          selector: "[data-testid*='visibility-toggle' i], [data-testid*='hide-non-visible' i], input[type='checkbox'][name*='visible' i], label:has-text('Hide non-visible'), label:has-text('Show visible only'), button:has-text('Filter'), [class*='toggle' i][aria-label*='visible' i]"
+        assert: "Hide non-visible toggle or filter clicked"
+        expect: "Toggle activates or filter menu appears"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-toggle snapshot captured"
+        expect: "Toggle is active or filter is applied — non-visible answers may be hidden from view"
+
+      - action: evidence_capture
+        params:
+          label: "SI-006-hide-non-visible"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "A toggle or filter for hiding non-visible answers is present on the responses view"
+      - "Activating the toggle changes the displayed response data"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Visibility toggle component failed"
+      - pattern: "undefined.*visible"
+        meaning: "Visibility flag data not available on responses"
+
+  # ---------------------------------------------------------------------------
+  # SI-007  Response detail shows answers
+  # ---------------------------------------------------------------------------
+  - id: SI-007
+    title: "Response detail shows answers"
+    priority: P2
+    tags: [survey, instance, response, detail, answers]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is on the responses view with at least one response (via SI-005)"
+    depends_on: [SI-005]
+    steps:
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='response-item']:first-child, [class*='list-item']:first-child, a[href*='responses/']"
+        assert: "First response in the list clicked"
+        expect: "Response detail view loads"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='detail' i], [class*='answer' i], [class*='response-detail' i], [data-testid*='answer' i]"
+          timeout: 10000
+        assert: "Response detail view is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Response detail snapshot captured"
+        expect: "Individual answers are rendered with their corresponding question text"
+
+      - action: evidence_capture
+        params:
+          label: "SI-007-response-detail"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Clicking a response navigates to its detail view"
+      - "Detail view shows individual answers paired with question text"
+      - "No unexpected errors rendering response detail"
+    error_signatures:
+      - pattern: "404.*responses/"
+        meaning: "Response detail endpoint not found"
+      - pattern: "TypeError"
+        meaning: "Answer rendering component failed — data shape mismatch"
+      - pattern: "undefined.*question"
+        meaning: "Question text not resolved for answer display"
