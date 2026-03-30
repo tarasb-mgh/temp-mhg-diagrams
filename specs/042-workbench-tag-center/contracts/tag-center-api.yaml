@@ -1,0 +1,346 @@
+openapi: 3.0.3
+info:
+  title: Workbench Tag Center API
+  version: 1.0.0
+  description: Unified API contract for user-tag and review-tag operations in Tag Center.
+servers:
+  - url: https://api.dev.mentalhelp.chat
+    description: Dev API
+paths:
+  /api/admin/tag-center/definitions:
+    get:
+      summary: List tag definitions by scope
+      parameters:
+        - in: query
+          name: scope
+          required: true
+          schema:
+            type: string
+            enum: [user, review]
+      responses:
+        "200":
+          description: Definitions returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagDefinitionListResponse"
+    post:
+      summary: Create tag definition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTagDefinitionRequest"
+      responses:
+        "201":
+          description: Definition created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagDefinitionResponse"
+        "409":
+          description: Name conflict
+  /api/admin/tag-center/definitions/{tagId}:
+    patch:
+      summary: Update tag definition metadata
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTagDefinitionRequest"
+      responses:
+        "200":
+          description: Definition updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagDefinitionResponse"
+    delete:
+      summary: Delete tag definition if preconditions are satisfied
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Definition deleted
+        "409":
+          description: Delete blocked by active assignments/references
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationBlockedResponse"
+  /api/admin/tag-center/definitions/{tagId}/archive:
+    post:
+      summary: Archive tag definition
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagDefinitionResponse"
+  /api/admin/tag-center/definitions/{tagId}/unarchive:
+    post:
+      summary: Unarchive tag definition
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Unarchived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagDefinitionResponse"
+  /api/admin/tag-center/users:
+    get:
+      summary: Search users for user-tag assignments
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Case-insensitive partial match on user name/email/tag name
+        - in: query
+          name: tagId
+          schema:
+            type: string
+          description: Optional filter by tag ID
+      responses:
+        "200":
+          description: User list returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSearchResponse"
+  /api/admin/tag-center/users/{userId}/tags:
+    get:
+      summary: Get all assigned user tags for a user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User tags returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserTagsResponse"
+    put:
+      summary: Assign or unassign user tag (non-capability-gated assignment action)
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetUserTagAssignmentRequest"
+      responses:
+        "200":
+          description: Assignment updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserTagsResponse"
+        "400":
+          description: Invalid input
+        "404":
+          description: User or tag not found
+        "409":
+          description: Conflicting state
+  /api/workbench/users/{userId}/tags:
+    get:
+      summary: Profile projection of all assigned user tags
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profile tags projection returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileTagsResponse"
+  /api/admin/tag-center/rights:
+    get:
+      summary: List rights grants (moderator+)
+      responses:
+        "200":
+          description: Rights returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RightsListResponse"
+    put:
+      summary: Update rights grants (moderator+)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRightsRequest"
+      responses:
+        "200":
+          description: Rights updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RightsListResponse"
+components:
+  schemas:
+    TagDefinition:
+      type: object
+      properties:
+        tagId: { type: string }
+        name: { type: string }
+        scope:
+          type: string
+          enum: [user, review]
+        status:
+          type: string
+          enum: [active, archived]
+      required: [tagId, name, scope, status]
+    TagDefinitionResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          $ref: "#/components/schemas/TagDefinition"
+      required: [success, data]
+    TagDefinitionListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagDefinition"
+      required: [success, data]
+    CreateTagDefinitionRequest:
+      type: object
+      properties:
+        name: { type: string }
+        scope:
+          type: string
+          enum: [user, review]
+      required: [name, scope]
+    UpdateTagDefinitionRequest:
+      type: object
+      properties:
+        name: { type: string }
+      additionalProperties: false
+    OperationBlockedResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        code:
+          type: string
+          enum: [conflict]
+        message: { type: string }
+        nextAction: { type: string }
+      required: [success, code, message, nextAction]
+    UserSummary:
+      type: object
+      properties:
+        userId: { type: string }
+        displayName: { type: string }
+        email: { type: string }
+      required: [userId, displayName, email]
+    UserSearchResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSummary"
+      required: [success, data]
+    SetUserTagAssignmentRequest:
+      type: object
+      properties:
+        tagId: { type: string }
+        assigned: { type: boolean }
+      required: [tagId, assigned]
+    UserTagsResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            userId: { type: string }
+            tags:
+              type: array
+              items:
+                $ref: "#/components/schemas/TagDefinition"
+          required: [userId, tags]
+      required: [success, data]
+    UserProfileTagsResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            userId: { type: string }
+            assignedTags:
+              type: array
+              items:
+                $ref: "#/components/schemas/TagDefinition"
+          required: [userId, assignedTags]
+      required: [success, data]
+    RightGrant:
+      type: object
+      properties:
+        subjectId: { type: string }
+        rightName: { type: string }
+        granted: { type: boolean }
+      required: [subjectId, rightName, granted]
+    RightsListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RightGrant"
+      required: [success, data]
+    UpdateRightsRequest:
+      type: object
+      properties:
+        updates:
+          type: array
+          items:
+            $ref: "#/components/schemas/RightGrant"
+      required: [updates]
