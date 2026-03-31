@@ -107,6 +107,27 @@ Expected result:
 - Layout remains readable and non-overloaded on desktop and mobile.
 - Contextual low-frequency controls stay discoverable without introducing extra sections.
 
+### 8.1) Desktop Viewport Containment (Required)
+
+1. Open `User Tags` mode at desktop width (>=1280).
+2. Verify the route fits the visible workbench content viewport without requiring outer page scroll.
+3. In `User Tag Assignments`, confirm user list and assigned-tags list use internal scroll when data volume is high.
+4. Switch to `Review Tags` mode and confirm long definition lists scroll inside the definitions panel.
+
+Expected result:
+- Desktop route content remains within one visible viewport.
+- Internal panel lists scroll; outer route/page does not expand.
+
+### 8.2) Mobile Scroll Behavior (Required)
+
+1. Open `User Tags` mode at mobile width (~375).
+2. Scroll the page through both `User Tag Definitions` and `User Tag Assignments`.
+3. Confirm no horizontal overflow appears.
+
+Expected result:
+- Mobile keeps natural vertical page scrolling.
+- Section cards remain visually separated and all controls are reachable.
+
 ### 9) Reliability Gate (SC-003)
 
 1. Run automated E2E suite in dev for each happy flow.
@@ -172,3 +193,4 @@ Use the `frontend-ui-ux-engineer` quality baseline for final visual verification
 
 - `spec.md`: updated with UX priority requirement for contextual secondary rights controls and noise reduction (`FR-018` + US1 scenario 8).
 - `plan.md`: updated with implementation decision for contextual rights controls in assignments header.
+- `spec.md` and `plan.md`: updated with desktop single-viewport containment + mobile natural scroll requirements (`FR-019`, `FR-020`, shell-aware viewport layout strategy).

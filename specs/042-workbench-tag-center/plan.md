@@ -169,6 +169,10 @@ Keep rights-management and definition lifecycle actions gated; keep user-tag ass
 
 Keep high-frequency definition and assignment flows visually primary, and place rights-management actions as compact secondary controls in the assignments header (icon refresh + save action) to reduce layout noise on desktop and mobile.
 
+### Shell-Aware Viewport Layout Strategy
+
+Use route-level flex containment in Workbench shell for Tag Center instead of fixed viewport math in nested panels. On desktop, keep the route within one visible viewport and move overflow into panel-level scrollers (definitions and assignments lists). On mobile, keep natural page scrolling behavior and avoid forcing desktop overflow constraints.
+
 ### Profile Completeness
 
 User profile shows all assigned user tags from the same source of truth used by Tag Center assignment flows.

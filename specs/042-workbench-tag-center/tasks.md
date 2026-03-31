@@ -155,6 +155,7 @@
 - [X] T054 Final regression pass for Tag Center route/navigation consolidation in `workbench-frontend/src/router/routes.tsx` and `workbench-frontend/src/features/workbench/WorkbenchLayout.tsx` — MTB-1107
 - [X] T055 [P] UX polish pass for Tag Center layout density and progressive disclosure of rights controls in `workbench-frontend/src/features/workbench/tags/TagCenterPage.tsx` and `workbench-frontend/src/features/workbench/tags/components/*.tsx` — MTB-1108
 - [X] T056 [P] Refine Tag Center controls: icon-first definition actions and contextual rights controls embedded in `UserTagAssignmentsPanel` header for desktop/mobile in `workbench-frontend/src/features/workbench/tags/components/*.tsx` and `workbench-frontend/src/features/workbench/tags/TagCenterPage.tsx` — MTB-1109
+- [X] T057 [P] Align Tag Center viewport behavior with Workbench shell: desktop single-screen panel scrolling + mobile natural scroll restoration in `workbench-frontend/src/features/workbench/WorkbenchLayout.tsx` and `workbench-frontend/src/features/workbench/tags/components/*.tsx` — MTB-1110
 
 ---
 
