@@ -153,6 +153,8 @@
 - [X] T052 [P] Verify workbench PWA installability and no regression in manifest/service worker behavior after Tag Center rollout using `workbench-frontend/public/manifest.json` and `chat-ui/tests/e2e/workbench/tag-center.spec.ts` — MTB-1104
 - [X] T053 [P] Update user-facing documentation scope notes in `specs/042-workbench-tag-center/plan.md` and `specs/042-workbench-tag-center/spec.md` if wording drift appears during implementation; if no wording drift is detected, record explicit \"no change required\" evidence in `specs/042-workbench-tag-center/quickstart.md` — MTB-1106
 - [X] T054 Final regression pass for Tag Center route/navigation consolidation in `workbench-frontend/src/router/routes.tsx` and `workbench-frontend/src/features/workbench/WorkbenchLayout.tsx` — MTB-1107
+- [X] T055 [P] UX polish pass for Tag Center layout density and progressive disclosure of rights controls in `workbench-frontend/src/features/workbench/tags/TagCenterPage.tsx` and `workbench-frontend/src/features/workbench/tags/components/*.tsx` — MTB-1108
+- [X] T056 [P] Refine Tag Center controls: icon-first definition actions and contextual rights controls embedded in `UserTagAssignmentsPanel` header for desktop/mobile in `workbench-frontend/src/features/workbench/tags/components/*.tsx` and `workbench-frontend/src/features/workbench/tags/TagCenterPage.tsx` — MTB-1109
 
 ---
 

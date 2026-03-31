@@ -39,6 +39,7 @@ An operator opens Tag Center in User Tags mode and can manage user tag definitio
 5. **Given** an existing user tag definition, **When** an authorized operator edits its metadata, **Then** the updated metadata is shown consistently in Tag Center views.
 6. **Given** an existing user tag definition, **When** an authorized operator archives it, **Then** it is no longer available for new assignments and remains visible as archived state.
 7. **Given** an existing user tag definition with active assignments, **When** an authorized operator attempts to delete it, **Then** deletion is blocked, assignments remain intact, and guidance is provided to remove assignments first.
+8. **Given** an operator in `User Tags` mode, **When** the page is rendered on desktop or mobile, **Then** high-frequency actions (definitions and assignments) remain visually primary and low-frequency rights controls are compact and embedded contextually in the assignments header to reduce visual noise.
 
 ---
 
@@ -122,6 +123,7 @@ Authorization for rights-management and tag-definition actions is made by capabi
 - **FR-015**: The solution MUST provide explicit, repeatable validation coverage for core create/edit/archive/delete/assign/unassign/search/permission/error flows across both modes.
 - **FR-016**: Workbench navigation MUST expose Tag Center as the supported tagging entry point and remove legacy tagging page links from standard navigation.
 - **FR-017**: Any required guidance message for blocked delete actions MUST include both the blocking reason and the next required operator step.
+- **FR-018**: Tag Center layout MUST prioritize high-frequency actions and reduce visual noise by keeping low-frequency rights-management controls compact, secondary, and contextually placed near assignment workflows.
 
 ### Key Entities
 

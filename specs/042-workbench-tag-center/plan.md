@@ -165,6 +165,10 @@ Replace dedicated tester-only API flows with unified definition/assignment contr
 
 Keep rights-management and definition lifecycle actions gated; keep user-tag assignment ungated by capability per clarified business rule.
 
+### Contextual Secondary Controls for Rights Management
+
+Keep high-frequency definition and assignment flows visually primary, and place rights-management actions as compact secondary controls in the assignments header (icon refresh + save action) to reduce layout noise on desktop and mobile.
+
 ### Profile Completeness
 
 User profile shows all assigned user tags from the same source of truth used by Tag Center assignment flows.

@@ -92,8 +92,22 @@ Expected result:
 Expected result:
 - Restricted accounts cannot execute gated definition/rights actions.
 - Authorized accounts can execute gated actions.
+- Rights-management controls remain secondary and appear contextually in the assignments header.
+- Refresh action is icon-based and save action uses compact label `Save`.
 
-### 8) Reliability Gate (SC-003)
+### 8) UX Noise Reduction and Layout Density
+
+1. Open `User Tags` mode on desktop width (>=1280).
+2. Confirm definitions and assignments are visually primary and easily scannable.
+3. Confirm rights-management actions are integrated into the assignments header as compact secondary controls.
+4. Repeat on mobile width (~375).
+
+Expected result:
+- Primary actions stay in focus with reduced whitespace noise.
+- Layout remains readable and non-overloaded on desktop and mobile.
+- Contextual low-frequency controls stay discoverable without introducing extra sections.
+
+### 9) Reliability Gate (SC-003)
 
 1. Run automated E2E suite in dev for each happy flow.
 2. Execute 10 consecutive runs per happy flow.
@@ -126,6 +140,17 @@ Expected result:
   - rights-gated denied action
 - SC-003 run summary (10-run sequence per happy flow)
 
+## UI Review Gate (Required Before Merge)
+
+Use the `frontend-ui-ux-engineer` quality baseline for final visual verification.
+
+- Visual hierarchy is clear: primary actions are obvious, secondary controls are de-emphasized.
+- Spacing and density are consistent across cards, rows, and control groups (no excessive whitespace noise).
+- Interactive states are present and readable for hover/focus/disabled on all actionable controls.
+- Mobile layout (around 375px) has no horizontal overflow and keeps touch targets usable.
+- Assignment and definition rows remain legible with long tag names (wrapping/truncation behaves intentionally).
+- Destructive actions are visually distinct and not easy to trigger accidentally.
+
 ## Phase 7 Automation Evidence Mapping
 
 - Reliability gate (`T048`):
@@ -145,5 +170,5 @@ Expected result:
 
 ## Documentation Drift Check (T053)
 
-- `spec.md`: no wording drift detected during implementation; no update required.
-- `plan.md`: no wording drift detected during implementation; no update required.
+- `spec.md`: updated with UX priority requirement for contextual secondary rights controls and noise reduction (`FR-018` + US1 scenario 8).
+- `plan.md`: updated with implementation decision for contextual rights controls in assignments header.
