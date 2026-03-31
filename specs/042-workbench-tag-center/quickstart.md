@@ -125,3 +125,25 @@ Expected result:
   - blocked delete (conflict)
   - rights-gated denied action
 - SC-003 run summary (10-run sequence per happy flow)
+
+## Phase 7 Automation Evidence Mapping
+
+- Reliability gate (`T048`):
+  - `chat-ui/tests/e2e/workbench/tag-center.spec.ts` → `workbench: tag center reliability gate` (10 serial runs)
+  - Artifacts: `test-results/tag-center-reliability-run-<n>.png`
+- Accessibility audit (`T050`):
+  - `chat-ui/tests/e2e/workbench/tag-center.spec.ts` → `workbench: tag center accessibility checks`
+  - Evidence includes keyboard navigation and semantic control discoverability.
+- Responsive validation (`T051`):
+  - `chat-ui/tests/e2e/workbench/tag-center.spec.ts` → `workbench: tag center responsive validation`
+  - Artifacts: `test-results/tag-center-responsive-mobile-375.png`, `...-tablet-768.png`, `...-desktop-1280.png`
+- PWA installability regression (`T052`):
+  - `chat-ui/tests/e2e/workbench/tag-center.spec.ts` → `workbench: pwa and route regression`
+  - Validates manifest reachability and service-worker API availability.
+- Final route/navigation regression (`T054`):
+  - `chat-ui/tests/e2e/workbench/tag-center.spec.ts` → `legacy tag routes are not primary and unified route is stable`
+
+## Documentation Drift Check (T053)
+
+- `spec.md`: no wording drift detected during implementation; no update required.
+- `plan.md`: no wording drift detected during implementation; no update required.

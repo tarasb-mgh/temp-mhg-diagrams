@@ -1,7 +1,7 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 3.9.0 → 3.10.0
+  Version change: 3.12.0 → 3.12.1
 
   Modified principles:
   - II. Multi-Repository Orchestration — added delivery-workbench-frontend
@@ -23,8 +23,8 @@
     target list.
   - Cross-Repository References: no structural change needed.
   - Reference Documents: added delivery workbench repo CLAUDE.md refs.
-  - XI. Documentation Standards: added delivery workbench to screenshot
-    capture URLs.
+  - XI. Documentation Standards: clarified that all Markdown files in this
+    repository MUST be English-only.
   - XII. Release Engineering: added delivery workbench to post-deploy
     health verification URLs.
   - Fixed duplicate step 3/4 in Split-Repository Implementation
@@ -375,8 +375,9 @@ updated on every change deployed to the production environment. Four
 documentation types are defined, each targeting a distinct audience and
 purpose.
 
-- All project artifacts in this repository (`specs/`, checklists, plans,
-  tasks, and related speckit documentation) MUST be written in English.
+- All Markdown files in this repository (`*.md`) MUST be written in English
+  only. This includes specifications, plans, tasks, checklists, reports,
+  rules, and agent-facing documentation.
 
 - **User Manual**
   - Audience: end users (clients, therapists, administrators)
@@ -757,6 +758,8 @@ orchestrated through `client-spec`.
   documentation (Release Notes always; User Manual and Non-Technical
   Onboarding when workflows or UI changed; Technical Onboarding when
   dev tooling or repo structure changed) is non-compliant
+- Any non-English content in repository Markdown files (`*.md`) is
+  non-compliant
 - Releasing a deployable repository to production without a verified
   deploy workflow and fully provisioned prod GitHub environment is
   non-compliant (Principle XII)
@@ -795,4 +798,4 @@ orchestrated through `client-spec`.
 | Non-Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding |
 | Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding |
 
-**Version**: 3.12.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-24
+**Version**: 3.12.1 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-31

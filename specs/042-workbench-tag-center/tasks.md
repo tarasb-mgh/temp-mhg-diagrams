@@ -146,13 +146,13 @@
 
 **Purpose**: Final consistency, reliability gate execution, and documentation alignment.
 
-- [ ] T048 Run SC-003 reliability gate (10 consecutive runs per happy flow) and capture results in `chat-ui/tests/e2e/workbench/tag-center.spec.ts` artifacts — MTB-1105
-- [ ] T049 [P] Verify quickstart end-to-end checklist and update evidence references in `specs/042-workbench-tag-center/quickstart.md` — MTB-1101
-- [ ] T050 [P] Run accessibility audit (keyboard navigation, focus visibility, semantic labels, screen-reader behavior, WCAG AA contrast) for Tag Center and profile tags in `workbench-frontend/src/features/tags/TagCenterPage.tsx` and `workbench-frontend/src/features/users/UserProfileView.tsx` — MTB-1102
-- [ ] T051 [P] Run responsive validation at 375px, 768px, and 1280px for Tag Center and profile tags in `chat-ui/tests/e2e/workbench/tag-center.spec.ts` — MTB-1103
-- [ ] T052 [P] Verify workbench PWA installability and no regression in manifest/service worker behavior after Tag Center rollout using `workbench-frontend/public/manifest.json` and `chat-ui/tests/e2e/workbench/tag-center.spec.ts` — MTB-1104
-- [ ] T053 [P] Update user-facing documentation scope notes in `specs/042-workbench-tag-center/plan.md` and `specs/042-workbench-tag-center/spec.md` if wording drift appears during implementation; if no wording drift is detected, record explicit \"no change required\" evidence in `specs/042-workbench-tag-center/quickstart.md` — MTB-1106
-- [ ] T054 Final regression pass for Tag Center route/navigation consolidation in `workbench-frontend/src/router/routes.tsx` and `workbench-frontend/src/features/workbench/WorkbenchLayout.tsx` — MTB-1107
+- [X] T048 Run SC-003 reliability gate (10 consecutive runs per happy flow) and capture results in `chat-ui/tests/e2e/workbench/tag-center.spec.ts` artifacts — MTB-1105
+- [X] T049 [P] Verify quickstart end-to-end checklist and update evidence references in `specs/042-workbench-tag-center/quickstart.md` — MTB-1101
+- [X] T050 [P] Run accessibility audit (keyboard navigation, focus visibility, semantic labels, screen-reader behavior, WCAG AA contrast) for Tag Center and profile tags in `workbench-frontend/src/features/tags/TagCenterPage.tsx` and `workbench-frontend/src/features/users/UserProfileView.tsx` — MTB-1102
+- [X] T051 [P] Run responsive validation at 375px, 768px, and 1280px for Tag Center and profile tags in `chat-ui/tests/e2e/workbench/tag-center.spec.ts` — MTB-1103
+- [X] T052 [P] Verify workbench PWA installability and no regression in manifest/service worker behavior after Tag Center rollout using `workbench-frontend/public/manifest.json` and `chat-ui/tests/e2e/workbench/tag-center.spec.ts` — MTB-1104
+- [X] T053 [P] Update user-facing documentation scope notes in `specs/042-workbench-tag-center/plan.md` and `specs/042-workbench-tag-center/spec.md` if wording drift appears during implementation; if no wording drift is detected, record explicit \"no change required\" evidence in `specs/042-workbench-tag-center/quickstart.md` — MTB-1106
+- [X] T054 Final regression pass for Tag Center route/navigation consolidation in `workbench-frontend/src/router/routes.tsx` and `workbench-frontend/src/features/workbench/WorkbenchLayout.tsx` — MTB-1107
 
 ---
 

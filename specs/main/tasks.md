@@ -131,9 +131,9 @@
 
 **Purpose**: Post-deploy verification that all changes are live and functional on dev.
 
-- [ ] T028 [P] Smoke test US2 headers: `curl -si https://api.dev.mentalhelp.chat/api/settings` — verify `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy` present; `X-Powered-By` absent — **BLOCKED: awaiting chat-backend PR #162 merge + dev deploy**
-- [ ] T029 [P] Smoke test US3 CORS: `curl -H "Origin: https://evil.example.com" -si https://api.dev.mentalhelp.chat/api/settings` — verify no `Access-Control-Allow-Origin` header and no HTTP 500 — **BLOCKED: awaiting PR #162**
-- [ ] T030 [P] Smoke test US3 404: `curl -si https://api.dev.mentalhelp.chat/api/nonexistent` — verify HTTP 404 with `{"success":false,"error":{"code":"NOT_FOUND",...}}` — **BLOCKED: awaiting PR #162**
+- [X] T028 [P] Smoke test US2 headers: `curl -si https://api.dev.mentalhelp.chat/api/settings` — verified `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy` present; `X-Powered-By` absent (validated 2026-03-30)
+- [X] T029 [P] Smoke test US3 CORS: `curl -H "Origin: https://evil.example.com" -si https://api.dev.mentalhelp.chat/api/settings` — verified no `Access-Control-Allow-Origin` header and no HTTP 500 (validated 2026-03-30)
+- [X] T030 [P] Smoke test US3 404: `curl -si https://api.dev.mentalhelp.chat/api/nonexistent` — verified HTTP 404 with `{"success":false,"error":{"code":"NOT_FOUND",...}}` (validated 2026-03-30)
 - [X] T031 vite-plugin-pwa HIGH advisory documented in commit messages on both frontend PRs (#111, #85) as accepted known risk pending upstream fix
 
 ---
