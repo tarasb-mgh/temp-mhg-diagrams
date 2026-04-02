@@ -1,9 +1,14 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 3.12.0 → 3.12.1
+  Version change: 3.12.1 → 3.13.0
 
   Modified principles:
+  - III. Test-Aligned Development — added Mandatory Test Coverage
+    subsection: new features require min 2 tests per scenario
+    (positive + negative); bug fixes require regression tests that
+    reproduce the defect. Removed "Tests are OPTIONAL" clause.
+  - (Previous 3.12.1 changes retained below for reference)
   - II. Multi-Repository Orchestration — added delivery-workbench-frontend
     and delivery-workbench-backend to primary target repository list.
   - VII. Split-Repository First — added delivery-workbench-frontend and
@@ -105,11 +110,32 @@ Tests MUST align with each repository's established testing culture.
 - **Test evidence**: Before/after screenshots stored in `evidence/<task-id>/`
 - **Regression evidence**: For UI/API regressions, capture browser console and
   non-static network status evidence (endpoint + status codes)
-- Tests are OPTIONAL in task generation unless explicitly requested
+
+#### Mandatory Test Coverage
+
+- **New features**: Every user-facing scenario described in `spec.md`
+  MUST have at least two tests — one **positive** (happy path confirms
+  expected behavior) and one **negative** (invalid input, unauthorized
+  access, error condition handled correctly). Tests MUST be created as
+  part of the implementation phase, not deferred.
+- **Bug fixes**: Every bug fix MUST include at least one **regression
+  test** that reproduces the original defect and verifies the fix
+  prevents recurrence. The test MUST fail against the pre-fix code and
+  pass after the fix. If the bug spans backend and frontend, both
+  layers MUST have a regression test.
+- **Test location**: Tests belong in the repository where the fix or
+  feature is implemented — unit tests next to the source, E2E tests in
+  `chat-ui` or the `regression-suite/` YAML definitions.
+- Tests that are not runnable in CI (manual verification, browser-only
+  E2E) MUST be documented as YAML test cases in `regression-suite/`
+  with clear steps, assertions, and pass criteria so they can be
+  executed by an AI agent or human tester.
 
 **Rationale**: Split repositories have their own testing infrastructure.
 New features MUST integrate with existing patterns in each target rather
-than introduce competing approaches.
+than introduce competing approaches. Mandatory positive/negative tests
+for features and regression tests for bugs prevent recurrence of fixed
+issues and ensure behavioral guarantees are machine-verifiable.
 
 ### IV. Branch and Integration Discipline
 
@@ -798,4 +824,4 @@ orchestrated through `client-spec`.
 | Non-Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding |
 | Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding |
 
-**Version**: 3.12.1 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-03-31
+**Version**: 3.13.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-04-02

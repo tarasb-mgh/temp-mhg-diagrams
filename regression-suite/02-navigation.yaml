@@ -1,6 +1,7 @@
 # MHG Workbench Regression Suite — 02 Navigation & Shell
-# 12 tests covering sidebar groups, collapse/expand, breadcrumbs, group scope,
-# language switching (EN/UK/RU), and PII mask toggle.
+# 16 tests covering sidebar groups, collapse/expand, breadcrumbs, group scope,
+# language switching (EN/UK/RU), PII mask toggle, space-switch navigation,
+# and All Spaces behavior.
 #
 # All tests assume owner role and depend on AUTH-001 for an active session.
 
@@ -822,3 +823,266 @@ tests:
         meaning: "Crash in PII toggle handler"
       - pattern: "undefined.*mask"
         meaning: "PII mask state not initialized"
+
+  # ---------------------------------------------------------------------------
+  # NAV-013  Space switch stays on current page (positive — regression for 043)
+  # ---------------------------------------------------------------------------
+  - id: NAV-013
+    title: "Space switch stays on current page"
+    priority: P0
+    tags: [navigation, space-selector, regression, 043-fix]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+      - "At least 2 non-archived Spaces exist"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review Queue page loaded"
+        expect: "URL is /workbench/review and review content is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Review Queue snapshot captured"
+        expect: "Space selector dropdown is visible in the header"
+
+      - action: browser_evaluate
+        params:
+          expression: "window.location.pathname"
+        assert: "Current path is /workbench/review"
+        extract:
+          variable: path_before_switch
+
+      - action: browser_evaluate
+        params:
+          expression: >
+            (() => {
+              const sel = document.getElementById('workbench-scope-selector');
+              const opts = Array.from(sel.options).filter(o => o.value && !o.selected);
+              if (!opts.length) return null;
+              const target = opts[0].value;
+              const nativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+              nativeSetter.call(sel, target);
+              sel.dispatchEvent(new Event('change', { bubbles: true }));
+              return target;
+            })()
+        assert: "Space switched via dropdown"
+        extract:
+          variable: switched_to_group_id
+
+      - action: browser_wait_for
+        params:
+          time: 5
+        assert: "Waited for async space switch to complete"
+
+      - action: browser_evaluate
+        params:
+          expression: "window.location.pathname"
+        assert: "URL check after space switch"
+        expect: "Path is still /workbench/review — NOT /workbench/group"
+        extract:
+          variable: path_after_switch
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-switch snapshot captured"
+        expect: "Space selector shows the newly selected Space; page content is review queue"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-013-space-switch-stays"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "URL before switch is /workbench/review"
+      - "URL after switch is /workbench/review (unchanged)"
+      - "URL is NOT /workbench/group after switch"
+      - "Space selector value changed to a different Space"
+      - "No JavaScript errors during switch"
+    error_signatures:
+      - pattern: "pushState.*workbench/group"
+        meaning: "Navigate to /workbench/group still firing — regression of 043 fix"
+
+  # ---------------------------------------------------------------------------
+  # NAV-014  Space switch on sub-page preserves deep path (negative — redirect)
+  # ---------------------------------------------------------------------------
+  - id: NAV-014
+    title: "Space switch does NOT redirect from deep path"
+    priority: P1
+    tags: [navigation, space-selector, regression, 043-fix]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+      - "At least 2 non-archived Spaces exist"
+    depends_on: [AUTH-001, NAV-013]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/users"
+        assert: "Users page loaded"
+        expect: "URL is /workbench/users"
+
+      - action: browser_evaluate
+        params:
+          expression: "window.location.pathname"
+        assert: "Path is /workbench/users"
+
+      - action: browser_evaluate
+        params:
+          expression: >
+            (() => {
+              const sel = document.getElementById('workbench-scope-selector');
+              const opts = Array.from(sel.options).filter(o => o.value && !o.selected);
+              if (!opts.length) return null;
+              const target = opts[opts.length - 1].value;
+              const nativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+              nativeSetter.call(sel, target);
+              sel.dispatchEvent(new Event('change', { bubbles: true }));
+              return target;
+            })()
+        assert: "Space switched to a different group"
+
+      - action: browser_wait_for
+        params:
+          time: 5
+        assert: "Waited for async operation"
+
+      - action: browser_evaluate
+        params:
+          expression: "window.location.pathname"
+        assert: "URL stayed on /workbench/users"
+        expect: "Path is /workbench/users — NOT redirected to /workbench/group or /workbench"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-014-deep-path-preserved"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "URL after switch is /workbench/users (unchanged)"
+      - "URL is NOT /workbench/group or /workbench"
+      - "No navigation event to /workbench/group detected"
+    error_signatures:
+      - pattern: "pushState.*workbench/group"
+        meaning: "Redirect to /workbench/group still firing"
+
+  # ---------------------------------------------------------------------------
+  # NAV-015  All Spaces option exists and selects cross-group view (positive)
+  # ---------------------------------------------------------------------------
+  - id: NAV-015
+    title: "All Spaces option in header selector selects cross-group view"
+    priority: P0
+    tags: [navigation, space-selector, all-spaces, 043-unify]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+      - "At least 1 non-archived Space exists"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review Queue page loaded"
+
+      - action: browser_evaluate
+        params:
+          expression: >
+            (() => {
+              const sel = document.getElementById('workbench-scope-selector');
+              if (!sel) return { error: 'selector not found' };
+              const options = Array.from(sel.options).map(o => ({ value: o.value, text: o.text }));
+              const hasAllSpaces = options.some(o => o.value === '__all__');
+              return { hasAllSpaces, options };
+            })()
+        assert: "Space selector has All Spaces option"
+        expect: "hasAllSpaces is true"
+
+      - action: browser_evaluate
+        params:
+          expression: >
+            (() => {
+              const sel = document.getElementById('workbench-scope-selector');
+              const nativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+              nativeSetter.call(sel, '__all__');
+              sel.dispatchEvent(new Event('change', { bubbles: true }));
+              return 'selected All Spaces';
+            })()
+        assert: "All Spaces selected"
+
+      - action: browser_wait_for
+        params:
+          time: 3
+        assert: "Waited for async operation"
+
+      - action: browser_evaluate
+        params:
+          expression: >
+            (() => {
+              const sel = document.getElementById('workbench-scope-selector');
+              return { selectedValue: sel?.value, pathname: window.location.pathname };
+            })()
+        assert: "All Spaces is active and page is still review queue"
+        expect: "selectedValue is '__all__' and pathname is /workbench/review"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-015-all-spaces-selected"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Header space selector contains an 'All Spaces' option"
+      - "Selecting 'All Spaces' does not redirect away from current page"
+      - "Review Queue local scope dropdown is NOT present (removed)"
+      - "No JavaScript errors during All Spaces selection"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Crash when setting activeGroupId to null"
+      - pattern: "400.*groupId is required"
+        meaning: "Backend rejects null groupId — Layer 7 fix missing"
+
+  # ---------------------------------------------------------------------------
+  # NAV-016  Group Dashboard shows empty state when All Spaces active (negative)
+  # ---------------------------------------------------------------------------
+  - id: NAV-016
+    title: "Group Dashboard shows select-space prompt when All Spaces active"
+    priority: P1
+    tags: [navigation, space-selector, all-spaces, group-dashboard, 043-unify]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with All Spaces selected"
+    depends_on: [AUTH-001, NAV-015]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/group"
+        assert: "Group Dashboard page loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured"
+        expect: "Page shows 'Select a group' prompt, not group dashboard content"
+
+      - action: evidence_capture
+        params:
+          label: "NAV-016-group-empty-state"
+          include: [screenshot]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Group Dashboard does NOT show group statistics when All Spaces is selected"
+      - "A prompt to select a Space is visible"
+      - "No 500 errors or API calls with null groupId"
+    error_signatures:
+      - pattern: "TypeError.*null"
+        meaning: "Component tried to fetch data with null groupId"
+      - pattern: "500"
+        meaning: "Backend error from null groupId passed to group API"
