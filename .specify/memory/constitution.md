@@ -1,9 +1,17 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 3.12.1 → 3.13.0
+  Version change: 3.13.0 → 3.14.0
 
   Modified principles:
+  - I. Spec-First Development — added rules prohibiting AI agents from
+    skipping speckit workflow when owner invokes speckit commands. Bug
+    fixes must follow specify->plan->tasks->implement when requested.
+  - IV. Branch and Integration Discipline — added explicit prohibition
+    on AI agents merging PRs without owner approval. Added requirement
+    to deploy feature branches to dev via workflow_dispatch for
+    validation before merge. Prohibited --admin flag usage by AI agents.
+  - (Previous 3.13.0 changes retained below for reference)
   - III. Test-Aligned Development — added Mandatory Test Coverage
     subsection: new features require min 2 tests per scenario
     (positive + negative); bug fixes require regression tests that
@@ -76,9 +84,20 @@ All features MUST begin with a specification before any implementation work.
 - Technical planning (`/speckit.plan`) follows specification approval
 - Implementation (`/speckit.implement`) only proceeds after task breakdown
 - No code changes without a corresponding spec in `specs/###-feature-name/`
+- **Bug fixes follow speckit when requested**: When the owner invokes
+  `/speckit.specify` or `/mhg.specify` for a bug, AI agents MUST follow
+  the full speckit workflow (specify -> plan -> tasks -> implement) rather
+  than jumping directly to code changes. Investigation and diagnosis MAY
+  precede the spec to inform it, but implementation MUST NOT begin until
+  the spec-plan-tasks pipeline has been executed.
+- **AI agents MUST NOT skip speckit phases**: If the owner invokes a
+  speckit command, the agent MUST execute that command as defined — not
+  substitute its own judgment about whether the workflow is "needed".
 
 **Rationale**: Specifications create shared understanding, reduce rework,
 and provide traceable requirements for features spanning multiple repositories.
+Enforcing speckit compliance for AI agents prevents ad-hoc fixes that bypass
+review, testing, and traceability gates.
 
 ### II. Multi-Repository Orchestration
 
@@ -147,6 +166,15 @@ Feature work MUST follow established branch policies.
 - `main` is promotion-only; never commit directly
 - Integration to `develop` MUST happen only via Pull Request from a feature/bugfix
   branch; direct commits and direct merges to `develop` are prohibited
+- **AI agents MUST NOT merge PRs** to `develop` or `main` without explicit
+  written approval from the repository owner. Creating and pushing a PR is
+  permitted; merging it is not. The `--admin` flag MUST NOT be used by AI
+  agents to bypass branch protection or review requirements.
+- **Dev environment validation from feature branches**: Deploy workflows
+  support `workflow_dispatch` with branch selection. AI agents MUST deploy
+  feature/bugfix branches to the dev environment for validation BEFORE
+  requesting merge approval. Merging untested PRs directly to `develop`
+  is prohibited.
 - Pull Requests to `develop` MUST have required reviewer approvals before merge
 - Pull Requests to `develop` MUST have all required CI checks passing before merge
 - All tests MUST pass before merge
@@ -177,7 +205,10 @@ simplifies cross-repo coordination. Mandatory post-release backmerge
 prevents the main/develop divergence that caused merge conflicts during
 the v2026.02.23 release. CI bypass without approval has caused broken
 features to reach production and deployed untested code to prod without
-owner knowledge.
+owner knowledge. In April 2026, an AI agent repeatedly merged PRs to
+`develop` using `--admin` without owner approval, deploying untested
+changes that required multiple follow-up hotfixes — this principle now
+explicitly prohibits autonomous merging by AI agents.
 
 ### V. Privacy and Security First
 
@@ -784,6 +815,16 @@ orchestrated through `client-spec`.
   documentation (Release Notes always; User Manual and Non-Technical
   Onboarding when workflows or UI changed; Technical Onboarding when
   dev tooling or repo structure changed) is non-compliant
+- An AI agent merging a PR to `develop` or `main` without explicit
+  written owner approval is non-compliant (Principle IV)
+- An AI agent using `--admin` flag to bypass branch protection is
+  non-compliant (Principle IV)
+- An AI agent skipping the speckit workflow when the owner invokes a
+  speckit command (e.g., `/mhg.specify`, `/speckit.specify`) is
+  non-compliant (Principle I)
+- Deploying code to dev by merging to `develop` instead of using
+  `workflow_dispatch` from a feature branch is non-compliant when the
+  PR has not received owner approval (Principle IV)
 - Any non-English content in repository Markdown files (`*.md`) is
   non-compliant
 - Releasing a deployable repository to production without a verified
@@ -824,4 +865,4 @@ orchestrated through `client-spec`.
 | Non-Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8814593/Non-Technical+Onboarding |
 | Technical Onboarding | https://mentalhelpglobal.atlassian.net/wiki/spaces/UD/pages/8847361/Technical+Onboarding |
 
-**Version**: 3.13.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-04-02
+**Version**: 3.14.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-04-13
