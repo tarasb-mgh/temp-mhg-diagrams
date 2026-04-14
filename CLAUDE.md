@@ -168,7 +168,7 @@ Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs for testing — alw
 ### Workbench Regression Test Suite
 
 The `regression-suite/` directory contains a comprehensive, AI-agent-executable regression
-test suite for the MHG Workbench application (124 test cases across 16 modules).
+test suite for the MHG Workbench application (125 test cases across 16 modules).
 
 ```
 regression-suite/
@@ -194,9 +194,9 @@ regression-suite/
 ```
 
 **Execution modes** (specified at invocation):
-- `smoke` — P0 tests only (21 tests, ~10 min)
+- `smoke` — P0 tests only (22 tests, ~10 min)
 - `standard` — P0 + P1 (85 tests, ~30 min, recommended post-deploy)
-- `full` — all priorities (124 tests, ~60 min)
+- `full` — all priorities (125 tests, ~60 min)
 - `module:XX` — single module (e.g., `module:03-review-queue`)
 
 Tests are defined in YAML with structured steps using Playwright MCP tools

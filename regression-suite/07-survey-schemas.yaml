@@ -1,5 +1,5 @@
 # MHG Workbench Regression Suite — 07 Survey Schema Management
-# 17 tests covering schema CRUD, editor, publishing, preview, clone, archive, autosave
+# 18 tests covering schema CRUD, editor, publishing, preview, clone, archive, autosave
 #
 # Variables resolved from _config.yaml:
 #   ${workbench_url}  — environments.<env>.workbench_url
@@ -1285,3 +1285,88 @@ tests:
         meaning: "Autosave error not caught — missing error handler for PATCH failure"
       - pattern: "TypeError"
         meaning: "Error state rendering failed in save status component"
+
+  # ---------------------------------------------------------------------------
+  # SS-018  Existing draft schema loads without false validation block
+  # ---------------------------------------------------------------------------
+  # Regression: stale closure in useDebouncedSave caused the validation gate
+  # to check initial empty state instead of loaded schema data, permanently
+  # showing "Complete all questions to save" on any existing draft.
+  # Fixed in workbench-frontend PR #140 (2026-04-14).
+  - id: SS-018
+    title: "Existing draft schema loads without false validation block"
+    priority: P0
+    tags: [survey, schema, autosave, validation, regression, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+      - "At least one draft schema with a non-empty title and at least one question exists"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table"
+          timeout: 10000
+        assert: "Schema table is visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Schema list snapshot captured"
+        expect: "At least one row with 'Draft' status and a non-zero question count is visible"
+
+      - action: browser_click
+        params:
+          selector: "tr:has(td:has-text('Draft')):has(td:not(:has-text('0'))) button[aria-label='Edit'], tr:has(td:has-text('Draft')):has(td:not(:has-text('0'))) button:has-text('Edit')"
+        assert: "Edit button clicked on a draft schema that has questions"
+        expect: "Schema editor opens"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "h1:has-text('Edit Schema'), [class*='editor' i]"
+          timeout: 10000
+        assert: "Schema editor page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "idle"
+          timeout: 4000
+        assert: "Wait 4 seconds for schema load + debounce + autosave cycle"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Editor snapshot captured after autosave cycle"
+        expect: >
+          Save status shows 'Saved' (green checkmark with timestamp)
+          and does NOT show 'Complete all questions to save' (amber warning).
+          The title field is populated with the schema's title.
+
+      - action: browser_take_screenshot
+        params: {}
+        assert: "Screenshot of editor header area with save status"
+
+      - action: evidence_capture
+        params:
+          label: "SS-018-existing-draft-no-false-block"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Opening an existing draft schema with title and questions shows 'Saved' status, not 'Complete all questions to save'"
+      - "Autosave PATCH request fires successfully (HTTP 200) after debounce"
+      - "No 'validation_blocked' state appears when the form data is valid"
+      - "No unexpected console errors or network failures"
+    error_signatures:
+      - pattern: "Complete all questions"
+        meaning: "Stale closure regression — validation gate reading initial empty state instead of loaded schema data (see PR #140)"
+      - pattern: "validation_blocked"
+        meaning: "useDebouncedSave validation is using stale closure values instead of latestPropsRef"
+      - pattern: "TypeError"
+        meaning: "Error in save status rendering or schema data loading"
