@@ -1,5 +1,5 @@
 # MHG Workbench Regression Suite — 07 Survey Schema Management
-# 9 tests covering schema CRUD, editor, publishing, preview, clone, archive
+# 17 tests covering schema CRUD, editor, publishing, preview, clone, archive, autosave
 #
 # Variables resolved from _config.yaml:
 #   ${workbench_url}  — environments.<env>.workbench_url
@@ -10,8 +10,8 @@ module:
   title: "Survey Schema Management"
   description: >
     Validates that survey schemas can be listed, created, edited, saved,
-    published, previewed, cloned, and archived/restored through the
-    workbench survey schema management UI.
+    published, previewed, cloned, archived/restored, and autosaved through
+    the workbench survey schema management UI.
   gate: false
 
 tests:
@@ -544,3 +544,744 @@ tests:
         meaning: "Server error during restore operation"
       - pattern: "404"
         meaning: "Schema not found for archive/restore"
+
+  # ---------------------------------------------------------------------------
+  # SS-010  Autosave triggers after title edit
+  # ---------------------------------------------------------------------------
+  - id: SS-010
+    title: "Autosave triggers after title edit"
+    priority: P1
+    tags: [survey, schema, autosave, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i], *:has-text('Create'), *:has-text('New Schema')"
+          timeout: 10000
+        assert: "Schema list or empty state visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('New Schema'), button:has-text('Create'), a:has-text('New Schema'), a:has-text('Create'), [data-testid*='survey.schemas.create' i]"
+        assert: "Create new schema button clicked"
+        expect: "Schema editor form appears"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i], [class*='editor' i]"
+          timeout: 10000
+        assert: "Editor form is visible with title field"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i]"
+          value: "Autosave Test Schema SS-010"
+        assert: "Schema title filled"
+
+      - action: browser_wait_for
+        params:
+          state: "idle"
+          timeout: 3000
+        assert: "Wait 3 seconds for debounce timer to fire"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "Network requests captured after debounce"
+        expect: "A PATCH request to the schemas API endpoint is present with HTTP 200 status"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-autosave snapshot captured"
+        expect: "Editor still shows the title 'Autosave Test Schema SS-010'"
+
+      - action: evidence_capture
+        params:
+          label: "SS-010-autosave-title"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Editing the title triggers an autosave PATCH request after debounce"
+      - "PATCH request returns HTTP 200"
+      - "No unexpected errors during autosave"
+    error_signatures:
+      - pattern: "500.*api/"
+        meaning: "Server error during autosave PATCH"
+      - pattern: "400.*api/"
+        meaning: "Validation error on autosave payload"
+      - pattern: "TypeError"
+        meaning: "Autosave handler failed to serialize form state"
+
+  # ---------------------------------------------------------------------------
+  # SS-011  Autosave with all 16 question types
+  # ---------------------------------------------------------------------------
+  - id: SS-011
+    title: "Autosave with all 16 question types"
+    priority: P1
+    tags: [survey, schema, autosave, question-types]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i], *:has-text('Create'), *:has-text('New Schema')"
+          timeout: 10000
+        assert: "Schema list or empty state visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('New Schema'), button:has-text('Create'), a:has-text('New Schema'), a:has-text('Create'), [data-testid*='survey.schemas.create' i]"
+        assert: "Create new schema button clicked"
+        expect: "Schema editor form appears"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i], [class*='editor' i]"
+          timeout: 10000
+        assert: "Editor form is visible with title field"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i]"
+          value: "All 16 Question Types SS-011"
+        assert: "Schema title filled"
+
+      - action: browser_evaluate
+        params:
+          expression: |
+            // Add 16 questions programmatically — one for each supported type
+            const types = [
+              'free_text', 'integer_signed', 'integer_unsigned', 'decimal',
+              'date', 'time', 'datetime', 'rating_scale',
+              'email', 'phone', 'url', 'postal_code',
+              'alphanumeric_code', 'single_choice', 'multi_choice', 'boolean'
+            ];
+            for (let i = 0; i < types.length; i++) {
+              const addBtn = [...document.querySelectorAll('button')].find(b => /add.*(question|field)/i.test(b.textContent));
+              if (addBtn) addBtn.click();
+              await new Promise(r => setTimeout(r, 500));
+              // Select question type
+              const typeSelect = document.querySelector(
+                "select[name*='type'], [data-testid*='question-type'], [role='listbox']"
+              );
+              if (typeSelect) {
+                typeSelect.value = types[i];
+                typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+              await new Promise(r => setTimeout(r, 300));
+              // Fill question text
+              const textInputs = document.querySelectorAll(
+                "input[name*='text'], input[placeholder*='question' i], textarea[name*='text']"
+              );
+              const lastInput = textInputs[textInputs.length - 1];
+              if (lastInput) {
+                lastInput.value = `Question ${i + 1}: ${types[i]}`;
+                lastInput.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              await new Promise(r => setTimeout(r, 300));
+            }
+        assert: "16 questions added via browser_evaluate — one per question type"
+        expect: "All 16 question types are present in the editor"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of editor with 16 questions captured"
+        expect: "All 16 question types are visible in the schema editor"
+
+      - action: browser_wait_for
+        params:
+          state: "idle"
+          timeout: 4000
+        assert: "Wait 4 seconds for debounce timer to fire"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "Network requests captured after debounce"
+        expect: "A PATCH request returns HTTP 200 with all 16 questions in the request body"
+
+      - action: evidence_capture
+        params:
+          label: "SS-011-all-16-types"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "All 16 question types can be added to a schema"
+      - "Autosave PATCH fires and returns HTTP 200"
+      - "PATCH request body contains all 16 questions with correct types"
+      - "No unexpected errors during question creation or autosave"
+    error_signatures:
+      - pattern: "400.*api/"
+        meaning: "Validation error — one or more question types may be invalid"
+      - pattern: "500.*api/"
+        meaning: "Server error during autosave with multiple question types"
+      - pattern: "TypeError"
+        meaning: "Question type component failed to render for one of the 16 types"
+
+  # ---------------------------------------------------------------------------
+  # SS-012  Save status shows "Saved" after successful save
+  # ---------------------------------------------------------------------------
+  - id: SS-012
+    title: "Save status shows 'Saved' after successful save"
+    priority: P1
+    tags: [survey, schema, autosave, status]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i], *:has-text('Create'), *:has-text('New Schema')"
+          timeout: 10000
+        assert: "Schema list or empty state visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('New Schema'), button:has-text('Create'), a:has-text('New Schema'), a:has-text('Create'), [data-testid*='survey.schemas.create' i]"
+        assert: "Create new schema button clicked"
+        expect: "Schema editor form appears"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i], [class*='editor' i]"
+          timeout: 10000
+        assert: "Editor form is visible with title field"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i]"
+          value: "Save Status Test SS-012"
+        assert: "Schema title filled"
+
+      - action: browser_wait_for
+        params:
+          state: "idle"
+          timeout: 3000
+        assert: "Wait 3 seconds for debounce and autosave to complete"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured after autosave"
+        expect: "Save status element displays 'Saved' text (e.g., 'Saved', 'Saved at HH:MM', or equivalent indicator)"
+
+      - action: evidence_capture
+        params:
+          label: "SS-012-save-status"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "After autosave completes, the save status element shows 'Saved' text"
+      - "Status indicator is clearly visible in the editor UI"
+      - "No unexpected errors during autosave"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Save status component failed to update after autosave"
+      - pattern: "undefined.*status"
+        meaning: "Save status element not bound to autosave state"
+
+  # ---------------------------------------------------------------------------
+  # SS-013  Validation gate blocks save for empty question text
+  # ---------------------------------------------------------------------------
+  - id: SS-013
+    title: "Validation gate blocks save for empty question text"
+    priority: P1
+    tags: [survey, schema, autosave, validation]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i], *:has-text('Create'), *:has-text('New Schema')"
+          timeout: 10000
+        assert: "Schema list or empty state visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('New Schema'), button:has-text('Create'), a:has-text('New Schema'), a:has-text('Create'), [data-testid*='survey.schemas.create' i]"
+        assert: "Create new schema button clicked"
+        expect: "Schema editor form appears"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i], [class*='editor' i]"
+          timeout: 10000
+        assert: "Editor form is visible with title field"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i]"
+          value: "Validation Gate Test SS-013"
+        assert: "Schema title filled"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "Capture baseline network requests before adding empty question"
+        expect: "Record current network request count for later comparison"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Add Question'), button:has-text('Add Field'), button:has-text('Add Item'), [data-testid*='add-question' i]"
+        assert: "Add Question button clicked"
+        expect: "A new question row appears with empty text field"
+
+      - action: browser_wait_for
+        params:
+          state: "idle"
+          timeout: 4000
+        assert: "Wait 4 seconds for debounce timer to elapse"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "Network requests captured after debounce with empty question"
+        expect: "No new PATCH request was sent — validation gate blocked the autosave due to empty question text"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot of editor with empty question and blocked save"
+        expect: "Question is visible with empty text field; no save occurred"
+
+      - action: evidence_capture
+        params:
+          label: "SS-013-validation-gate"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Adding a question with empty text does NOT trigger a PATCH request"
+      - "Autosave is blocked by the validation gate"
+      - "No unexpected errors during validation check"
+    error_signatures:
+      - pattern: "400.*api/"
+        meaning: "Validation gate failed to block — request reached server and was rejected"
+      - pattern: "TypeError"
+        meaning: "Validation logic threw an error instead of blocking gracefully"
+
+  # ---------------------------------------------------------------------------
+  # SS-014  Validation gate shows feedback indicator
+  # ---------------------------------------------------------------------------
+  - id: SS-014
+    title: "Validation gate shows feedback indicator"
+    priority: P1
+    tags: [survey, schema, autosave, validation, status]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is in the scenario from SS-013 — schema with empty question text"
+    depends_on: [SS-013]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured with validation-blocked state"
+        expect: >
+          The save status element shows a validation-blocked message
+          (e.g., 'Unsaved changes', 'Fix errors to save', or similar)
+          rather than a stale 'Saved' timestamp
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='status' i], [class*='save' i], [data-testid*='save-status' i], [data-testid*='autosave' i], *:has-text('unsaved'), *:has-text('error'), *:has-text('fix'), *:has-text('invalid')"
+          timeout: 5000
+        assert: "Save status feedback element is visible"
+        expect: "Status element shows validation-blocked feedback, not a stale 'Saved' indicator"
+
+      - action: evidence_capture
+        params:
+          label: "SS-014-validation-feedback"
+          include: [screenshot, console]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Save status element shows a validation-blocked message when autosave cannot proceed"
+      - "Status does NOT show a stale 'Saved' timestamp from before the invalid question was added"
+      - "Feedback clearly indicates that there are validation issues preventing save"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Save status component failed to reflect validation state"
+      - pattern: "undefined.*status"
+        meaning: "Status element not connected to validation gate output"
+
+  # ---------------------------------------------------------------------------
+  # SS-015  Autosave resumes after completing question
+  # ---------------------------------------------------------------------------
+  - id: SS-015
+    title: "Autosave resumes after completing question"
+    priority: P1
+    tags: [survey, schema, autosave, validation, recovery]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is in the scenario from SS-014 — schema with empty question text and blocked autosave"
+    depends_on: [SS-014]
+    steps:
+      - action: browser_fill_form
+        params:
+          selector: "input[name*='text'], input[placeholder*='question' i], textarea[name*='text'], input[placeholder*='Question text' i], [data-testid*='question-text' i]"
+          value: "What is your overall satisfaction?"
+        assert: "Question text filled in"
+        expect: "Question now has valid text, removing the validation block"
+
+      - action: browser_wait_for
+        params:
+          state: "idle"
+          timeout: 3000
+        assert: "Wait 3 seconds for debounce timer to fire after question text was filled"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "Network requests captured after question text was completed"
+        expect: "A new PATCH request was sent and returned HTTP 200 — autosave resumed"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured after autosave recovery"
+        expect: "Save status element shows 'Saved' again (not the validation-blocked message)"
+
+      - action: evidence_capture
+        params:
+          label: "SS-015-autosave-recovery"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Filling in the empty question text lifts the validation gate"
+      - "Autosave PATCH fires and returns HTTP 200 after the question is completed"
+      - "Save status returns to 'Saved' indicator"
+      - "No unexpected errors during recovery"
+    error_signatures:
+      - pattern: "400.*api/"
+        meaning: "Validation still rejecting — question text may not have been serialized"
+      - pattern: "500.*api/"
+        meaning: "Server error on resumed autosave"
+      - pattern: "TypeError"
+        meaning: "Autosave handler failed to re-trigger after validation recovery"
+
+  # ---------------------------------------------------------------------------
+  # SS-016  Choice question options saved correctly
+  # ---------------------------------------------------------------------------
+  - id: SS-016
+    title: "Choice question options saved correctly"
+    priority: P2
+    tags: [survey, schema, autosave, choices]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i], *:has-text('Create'), *:has-text('New Schema')"
+          timeout: 10000
+        assert: "Schema list or empty state visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('New Schema'), button:has-text('Create'), a:has-text('New Schema'), a:has-text('Create'), [data-testid*='survey.schemas.create' i]"
+        assert: "Create new schema button clicked"
+        expect: "Schema editor form appears"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i], [class*='editor' i]"
+          timeout: 10000
+        assert: "Editor form is visible with title field"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i]"
+          value: "Choice Options Test SS-016"
+        assert: "Schema title filled"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Add Question'), button:has-text('Add Field'), button:has-text('Add Item'), [data-testid*='add-question' i]"
+        assert: "Add Question button clicked for single_choice question"
+
+      - action: browser_evaluate
+        params:
+          expression: |
+            // Select single_choice type for the first question
+            const typeSelect = document.querySelector(
+              "select[name*='type'], [data-testid*='question-type'], [role='listbox']"
+            );
+            if (typeSelect) {
+              typeSelect.value = 'single_choice';
+              typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            await new Promise(r => setTimeout(r, 500));
+            // Fill question text
+            const textInput = document.querySelector(
+              "input[name*='text'], input[placeholder*='question' i], textarea[name*='text']"
+            );
+            if (textInput) {
+              textInput.value = 'What is your gender?';
+              textInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            await new Promise(r => setTimeout(r, 300));
+            // Add 3 options: Male, Female, Other
+            const options = ['Male', 'Female', 'Other'];
+            for (const opt of options) {
+              const addOptionBtn = [...document.querySelectorAll('button')].find(
+                b => /add.*(option|choice)/i.test(b.textContent)
+              );
+              if (addOptionBtn) addOptionBtn.click();
+              await new Promise(r => setTimeout(r, 300));
+              const optionInputs = document.querySelectorAll(
+                "input[name*='option'], input[placeholder*='option' i], input[placeholder*='choice' i]"
+              );
+              const lastOption = optionInputs[optionInputs.length - 1];
+              if (lastOption) {
+                lastOption.value = opt;
+                lastOption.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              await new Promise(r => setTimeout(r, 200));
+            }
+        assert: "Single choice question added with 3 options: Male, Female, Other"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Add Question'), button:has-text('Add Field'), button:has-text('Add Item'), [data-testid*='add-question' i]"
+        assert: "Add Question button clicked for multi_choice question"
+
+      - action: browser_evaluate
+        params:
+          expression: |
+            // Select multi_choice type for the second question
+            const typeSelects = document.querySelectorAll(
+              "select[name*='type'], [data-testid*='question-type'], [role='listbox']"
+            );
+            const lastTypeSelect = typeSelects[typeSelects.length - 1];
+            if (lastTypeSelect) {
+              lastTypeSelect.value = 'multi_choice';
+              lastTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            await new Promise(r => setTimeout(r, 500));
+            // Fill question text for second question
+            const textInputs = document.querySelectorAll(
+              "input[name*='text'], input[placeholder*='question' i], textarea[name*='text']"
+            );
+            const lastTextInput = textInputs[textInputs.length - 1];
+            if (lastTextInput) {
+              lastTextInput.value = 'Which topics concern you?';
+              lastTextInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            await new Promise(r => setTimeout(r, 300));
+            // Add 4 options: Anxiety, Depression, Stress, Self-esteem
+            const options = ['Anxiety', 'Depression', 'Stress', 'Self-esteem'];
+            for (const opt of options) {
+              const addOptionBtns = [...document.querySelectorAll('button')].filter(
+                b => /add.*(option|choice)/i.test(b.textContent)
+              );
+              const lastAddBtn = addOptionBtns[addOptionBtns.length - 1];
+              if (lastAddBtn) lastAddBtn.click();
+              await new Promise(r => setTimeout(r, 300));
+              const optionInputs = document.querySelectorAll(
+                "input[name*='option'], input[placeholder*='option' i], input[placeholder*='choice' i]"
+              );
+              const lastOption = optionInputs[optionInputs.length - 1];
+              if (lastOption) {
+                lastOption.value = opt;
+                lastOption.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              await new Promise(r => setTimeout(r, 200));
+            }
+        assert: "Multi choice question added with 4 options: Anxiety, Depression, Stress, Self-esteem"
+
+      - action: browser_wait_for
+        params:
+          state: "idle"
+          timeout: 4000
+        assert: "Wait 4 seconds for debounce and autosave"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "Network requests captured after autosave"
+        expect: >
+          PATCH request returns HTTP 200 and payload includes both questions:
+          single_choice with options ['Male', 'Female', 'Other'] and
+          multi_choice with options ['Anxiety', 'Depression', 'Stress', 'Self-esteem']
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Post-autosave snapshot with choice questions captured"
+        expect: "Both choice questions with their options are visible in the editor"
+
+      - action: evidence_capture
+        params:
+          label: "SS-016-choice-options"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Single choice question is created with 3 options (Male, Female, Other)"
+      - "Multi choice question is created with 4 options (Anxiety, Depression, Stress, Self-esteem)"
+      - "Autosave PATCH payload includes correct options arrays for both questions"
+      - "PATCH returns HTTP 200"
+    error_signatures:
+      - pattern: "400.*api/"
+        meaning: "Options validation error — choice format may be incorrect"
+      - pattern: "500.*api/"
+        meaning: "Server error serializing choice options"
+      - pattern: "TypeError"
+        meaning: "Choice option component failed to render or serialize"
+
+  # ---------------------------------------------------------------------------
+  # SS-017  Save error shows retry button
+  # ---------------------------------------------------------------------------
+  - id: SS-017
+    title: "Save error shows retry button"
+    priority: P1
+    tags: [survey, schema, autosave, error, negative]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User is authenticated as owner (via AUTH-001)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/surveys/schemas"
+        assert: "Schema list page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='list' i], [class*='schema' i], *:has-text('Create'), *:has-text('New Schema')"
+          timeout: 10000
+        assert: "Schema list or empty state visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('New Schema'), button:has-text('Create'), a:has-text('New Schema'), a:has-text('Create'), [data-testid*='survey.schemas.create' i]"
+        assert: "Create new schema button clicked"
+        expect: "Schema editor form appears"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i], [class*='editor' i]"
+          timeout: 10000
+        assert: "Editor form is visible with title field"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i]"
+          value: "Error Retry Test SS-017"
+        assert: "Schema title filled initially to trigger a successful first save"
+
+      - action: browser_wait_for
+        params:
+          state: "idle"
+          timeout: 3000
+        assert: "Wait for initial autosave to complete"
+
+      - action: browser_evaluate
+        params:
+          expression: |
+            // Intercept the next PATCH request and simulate a 500 error
+            const originalFetch = window.fetch;
+            let intercepted = false;
+            window.fetch = function(...args) {
+              const [url, options] = args;
+              if (!intercepted && options && options.method === 'PATCH') {
+                intercepted = true;
+                return Promise.resolve(new Response(
+                  JSON.stringify({ error: 'Internal Server Error' }),
+                  { status: 500, statusText: 'Internal Server Error', headers: { 'Content-Type': 'application/json' } }
+                ));
+              }
+              return originalFetch.apply(this, args);
+            };
+        assert: "Network intercept installed to simulate 500 error on next PATCH"
+
+      - action: browser_fill_form
+        params:
+          selector: "input[name='title'], input[placeholder*='title' i], input[placeholder*='name' i], [data-testid*='schema-title' i]"
+          value: "Error Retry Test SS-017 — edited"
+        assert: "Title edited to trigger autosave with intercepted 500 error"
+
+      - action: browser_wait_for
+        params:
+          state: "idle"
+          timeout: 3000
+        assert: "Wait 3 seconds for debounce and error response"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Snapshot captured after simulated save failure"
+        expect: >
+          Save status element shows 'Save failed' or equivalent error message
+          with a 'Retry' button visible
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "*:has-text('Save failed'), *:has-text('Error'), *:has-text('Failed'), *:has-text('retry'), button:has-text('Retry'), [data-testid*='retry' i], [class*='error' i][class*='save' i]"
+          timeout: 5000
+        assert: "Error state with retry option is visible"
+        expect: "Save status shows failure message and a Retry button is available"
+
+      - action: evidence_capture
+        params:
+          label: "SS-017-save-error-retry"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "When autosave PATCH receives a 500 error, the save status shows 'Save failed'"
+      - "A 'Retry' button is visible to allow the user to re-attempt the save"
+      - "The error state is clearly distinguishable from the normal 'Saved' state"
+    error_signatures:
+      - pattern: "Unhandled.*rejection"
+        meaning: "Autosave error not caught — missing error handler for PATCH failure"
+      - pattern: "TypeError"
+        meaning: "Error state rendering failed in save status component"
