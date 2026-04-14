@@ -9,7 +9,7 @@
 - **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
 - Include exact file paths in descriptions
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Setup (Shared Infrastructure) — MTB-1311 / MTB-1324
 
 **Purpose**: Create the new `mcp-server` repository and establish shared types
 
@@ -26,11 +26,11 @@
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundational (Blocking Prerequisites) — MTB-1312 / MTB-1325..MTB-1327
 
 **Purpose**: Backend device auth endpoints + MCP server core infrastructure. MUST complete before any user story tool implementation.
 
-### Backend Device Auth (chat-backend)
+### Backend Device Auth (chat-backend) — MTB-1325
 
 - [ ] T009 Create device code model with Redis storage (device_code, user_code, userId, authorized, expiresAt, pollInterval, failedAttempts) in chat-backend/src/models/device-code.ts
 - [ ] T010 Implement device auth service with code generation (256-bit device code, 8-char base-20 user code), Redis TTL storage, polling logic, and rate limiting in chat-backend/src/services/device-auth.ts
@@ -40,13 +40,13 @@
 - [ ] T014 [P] Write unit tests for device auth service (code generation, expiry, polling, lockout after 5 failed attempts) in chat-backend/tests/unit/device-auth.test.ts
 - [ ] T015 [P] Write unit tests for device auth routes (initiate, poll, verify endpoints) in chat-backend/tests/unit/device-auth-routes.test.ts
 
-### Frontend Device Verification Page (workbench-frontend)
+### Frontend Device Verification Page (workbench-frontend) — MTB-1326
 
 - [ ] T016 Create DeviceVerify page component at /auth/device route — pre-fills user_code from URL query param, shows login form (OTP/Google), on auth success calls POST /api/auth/device/verify in workbench-frontend/src/pages/auth/DeviceVerify.tsx
 - [ ] T017 [P] Add /auth/device route to workbench-frontend router configuration
 - [ ] T018 [P] Write unit test for DeviceVerify page (renders code, submits verification, shows success message) in workbench-frontend/tests/unit/DeviceVerify.test.tsx
 
-### MCP Server Core (mcp-server)
+### MCP Server Core (mcp-server) — MTB-1327
 
 - [ ] T019 Create Express app with health endpoint (GET /health) and environment config loading (BACKEND_API_URL, PORT, DEVICE_AUTH_CALLBACK_URL) in mcp-server/src/index.ts
 - [ ] T020 Implement MCP SSE transport setup — create McpServer instance, bind SSEServerTransport to GET /sse and POST /messages routes, manage transport session map in mcp-server/src/index.ts
@@ -64,7 +64,7 @@
 
 ---
 
-## Phase 3: User Story 1 — Authenticate and Discover Available Tools (Priority: P1) MVP
+## Phase 3: User Story 1 — Authenticate and Discover Available Tools (Priority: P1) MVP — MTB-1313 / MTB-1328
 
 **Goal**: Users connect from Claude Code, authenticate via browser, and discover role-scoped tools
 
@@ -82,7 +82,7 @@
 
 ---
 
-## Phase 4: User Story 2 — Review Chat Sessions (Priority: P1)
+## Phase 4: User Story 2 — Review Chat Sessions (Priority: P1) — MTB-1314 / MTB-1329
 
 **Goal**: Reviewers browse pending sessions, read messages, submit reviews, manage safety flags
 
@@ -104,7 +104,7 @@
 
 ---
 
-## Phase 5: User Story 3 — Manage Users (Priority: P2)
+## Phase 5: User Story 3 — Manage Users (Priority: P2) — MTB-1315 / MTB-1330
 
 **Goal**: Admins search users, view profiles, approve pending registrations, block/unblock
 
@@ -122,7 +122,7 @@
 
 ---
 
-## Phase 6: User Story 4 — Manage Surveys (Priority: P2)
+## Phase 6: User Story 4 — Manage Surveys (Priority: P2) — MTB-1316 / MTB-1331
 
 **Goal**: Researchers/admins create schemas, publish, deploy instances, monitor completion, invalidate responses
 
@@ -145,7 +145,7 @@
 
 ---
 
-## Phase 7: User Story 5 — Review Dashboards and Team Stats (Priority: P3)
+## Phase 7: User Story 5 — Review Dashboards and Team Stats (Priority: P3) — MTB-1317 / MTB-1332
 
 **Goal**: Reviewers/supervisors check personal stats, team metrics, reports, escalations
 
@@ -163,7 +163,7 @@
 
 ---
 
-## Phase 8: User Story 6 — Manage Groups (Priority: P3)
+## Phase 8: User Story 6 — Manage Groups (Priority: P3) — MTB-1318 / MTB-1333
 
 **Goal**: Admins browse groups, view members, check group-specific chats and surveys
 
@@ -181,7 +181,7 @@
 
 ---
 
-## Phase 9: User Story 7 — Supervise Reviews (Priority: P3)
+## Phase 9: User Story 7 — Supervise Reviews (Priority: P3) — MTB-1319 / MTB-1334
 
 **Goal**: Supervisors approve/reject completed reviews from their queue
 
@@ -198,7 +198,7 @@
 
 ---
 
-## Phase 10: User Story 8 — Manage Review Tags (Priority: P3)
+## Phase 10: User Story 8 — Manage Review Tags (Priority: P3) — MTB-1320 / MTB-1335
 
 **Goal**: Admins create tags, reviewers assign tags to sessions
 
@@ -215,7 +215,7 @@
 
 ---
 
-## Phase 11: User Story 9 — Session Introspection (Priority: P1)
+## Phase 11: User Story 9 — Session Introspection (Priority: P1) — MTB-1321 / MTB-1336
 
 **Goal**: Any user can query their identity, role, and capabilities
 
@@ -227,7 +227,7 @@
 
 ---
 
-## Phase 12: Infrastructure & Deployment
+## Phase 12: Infrastructure & Deployment — MTB-1322 / MTB-1337, MTB-1338
 
 **Purpose**: Deploy the MCP server and configure networking
 
@@ -253,7 +253,7 @@
 
 ---
 
-## Phase 13: Polish & Cross-Cutting Concerns
+## Phase 13: Polish & Cross-Cutting Concerns — MTB-1323 / MTB-1339
 
 **Purpose**: Regression tests, documentation, and final hardening
 
