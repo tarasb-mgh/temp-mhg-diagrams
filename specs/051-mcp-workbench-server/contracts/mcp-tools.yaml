@@ -1,0 +1,498 @@
+# MCP Tool Definitions: MHG Workbench Server
+# Each tool maps to a backend API call with required RBAC permissions.
+# Tools are registered at server startup; permission checks happen at execution time.
+
+tools:
+  # ─── Meta ───────────────────────────────────────────────────────────
+  - name: whoami
+    description: Returns your identity, role, permissions, and available tool categories
+    tier: 1
+    domain: meta
+    requiredPermissions: []  # Always available to any authenticated user
+    backendCall: GET /api/permissions
+    inputSchema: {}
+    outputFields: [email, role, permissions, availableToolCategories, permissionsLoadedAt]
+
+  # ─── Review Queue (Tier 1) ──────────────────────────────────────────
+  - name: list_review_sessions
+    description: List sessions in the review queue by tab with optional filters
+    tier: 1
+    domain: review
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: GET /api/review/sessions
+    inputSchema:
+      tab:
+        type: string
+        enum: [pending, flagged, in_progress, completed, excluded, supervision, awaiting]
+        required: true
+      riskLevel:
+        type: string
+        enum: [high, medium, low]
+      language:
+        type: string
+      dateFrom:
+        type: string
+        format: date
+      dateTo:
+        type: string
+        format: date
+      cursor:
+        type: string
+      pageSize:
+        type: integer
+        default: 25
+        min: 1
+        max: 100
+
+  - name: get_review_session
+    description: Get session detail with messages (paginated), metadata, and review history
+    tier: 1
+    domain: review
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: GET /api/review/sessions/{sessionId}
+    inputSchema:
+      sessionId:
+        type: string
+        required: true
+      messageCursor:
+        type: string
+        description: Cursor for paginating through messages (most recent first)
+      messagePageSize:
+        type: integer
+        default: 100
+        min: 1
+        max: 200
+        description: Number of messages per page (default 100)
+
+  - name: submit_review
+    description: Submit a review with rating, comments, and optional tag assignments
+    tier: 1
+    domain: review
+    requiredPermissions: [REVIEW_ACCESS, REVIEW_SUBMIT]
+    backendCall: POST /api/review/sessions/{sessionId}/submit
+    inputSchema:
+      sessionId:
+        type: string
+        required: true
+      rating:
+        type: integer
+        min: 1
+        max: 10
+        required: true
+      comment:
+        type: string
+      tagIds:
+        type: array
+        items: { type: string }
+
+  # ─── Safety Flags (Tier 1) ──────────────────────────────────────────
+  - name: list_elevated_sessions
+    description: List safety-flagged elevated sessions (highest priority in review queue)
+    tier: 1
+    domain: safety
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: GET /api/review/sessions?elevated=true
+
+  - name: list_risk_flags
+    description: List all risk flags across sessions
+    tier: 1
+    domain: safety
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: GET /api/risk/escalations
+    inputSchema:
+      cursor:
+        type: string
+      pageSize:
+        type: integer
+        default: 25
+
+  - name: create_risk_flag
+    description: Manually flag a session for safety risk
+    tier: 1
+    domain: safety
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: POST /api/risk/sessions/{sessionId}/flags
+    inputSchema:
+      sessionId:
+        type: string
+        required: true
+      severity:
+        type: string
+        enum: [high, medium, low]
+        required: true
+      reason:
+        type: string
+        required: true
+
+  - name: resolve_safety_flag
+    description: Resolve a safety flag with disposition and notes
+    tier: 1
+    domain: safety
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: POST /api/risk/flags/{flagId}/resolve
+    inputSchema:
+      flagId:
+        type: string
+        required: true
+      disposition:
+        type: string
+        required: true
+      notes:
+        type: string
+
+  # ─── User Management (Tier 1) ──────────────────────────────────────
+  - name: list_users
+    description: List users with optional search and filters
+    tier: 1
+    domain: users
+    requiredPermissions: [USER_MANAGE]
+    backendCall: GET /api/admin/users
+    inputSchema:
+      search:
+        type: string
+        description: Search by name or email
+      role:
+        type: string
+        enum: [owner, moderator, researcher, user]
+      status:
+        type: string
+        enum: [active, blocked, pending]
+      cursor:
+        type: string
+      pageSize:
+        type: integer
+        default: 25
+
+  - name: get_user_profile
+    description: Get user detail including email, role, status, and group memberships
+    tier: 1
+    domain: users
+    requiredPermissions: [USER_MANAGE]
+    backendCall: GET /api/admin/users/{userId}
+    inputSchema:
+      userId:
+        type: string
+        required: true
+
+  - name: approve_user
+    description: Approve a pending user registration
+    tier: 1
+    domain: users
+    requiredPermissions: [USER_MANAGE]
+    backendCall: POST /api/admin/users/{userId}/approve
+    inputSchema:
+      userId:
+        type: string
+        required: true
+
+  - name: block_unblock_user
+    description: Toggle a user's blocked status
+    tier: 1
+    domain: users
+    requiredPermissions: [USER_MANAGE]
+    backendCall: PATCH /api/admin/users/{userId}
+    inputSchema:
+      userId:
+        type: string
+        required: true
+      blocked:
+        type: boolean
+        required: true
+
+  # ─── Survey Schemas (Tier 1) ────────────────────────────────────────
+  - name: list_survey_schemas
+    description: List survey schemas with optional status filter
+    tier: 1
+    domain: surveys
+    requiredPermissions: [SURVEY_ACCESS]
+    backendCall: GET /api/workbench/survey-schemas
+    inputSchema:
+      status:
+        type: string
+        enum: [draft, published, archived]
+      cursor:
+        type: string
+      pageSize:
+        type: integer
+        default: 25
+
+  - name: get_survey_schema
+    description: Get schema detail including all questions
+    tier: 1
+    domain: surveys
+    requiredPermissions: [SURVEY_ACCESS]
+    backendCall: GET /api/workbench/survey-schemas/{schemaId}
+    inputSchema:
+      schemaId:
+        type: string
+        required: true
+
+  - name: create_survey_schema
+    description: Create a new draft survey schema with title, description, and questions
+    tier: 1
+    domain: surveys
+    requiredPermissions: [SURVEY_MANAGE]
+    backendCall: POST /api/workbench/survey-schemas
+    inputSchema:
+      title:
+        type: string
+        required: true
+      description:
+        type: string
+      questions:
+        type: array
+        required: true
+        items:
+          type: object
+          properties:
+            text: { type: string, required: true }
+            type: { type: string, enum: [free_text, single_choice, multi_choice, boolean], required: true }
+            options: { type: array, items: { type: string } }
+
+  - name: publish_survey_schema
+    description: Publish a draft schema (makes it immutable and available for deployment)
+    tier: 1
+    domain: surveys
+    requiredPermissions: [SURVEY_MANAGE]
+    backendCall: POST /api/workbench/survey-schemas/{schemaId}/publish
+    inputSchema:
+      schemaId:
+        type: string
+        required: true
+
+  - name: clone_survey_schema
+    description: Clone a schema into a new independent draft
+    tier: 1
+    domain: surveys
+    requiredPermissions: [SURVEY_MANAGE]
+    backendCall: POST /api/workbench/survey-schemas/{schemaId}/clone
+    inputSchema:
+      schemaId:
+        type: string
+        required: true
+
+  # ─── Survey Instances (Tier 1) ──────────────────────────────────────
+  - name: list_survey_instances
+    description: List survey instances with completion stats
+    tier: 1
+    domain: surveys
+    requiredPermissions: [SURVEY_ACCESS]
+    backendCall: GET /api/workbench/survey-instances
+    inputSchema:
+      cursor:
+        type: string
+      pageSize:
+        type: integer
+        default: 25
+
+  - name: get_survey_instance
+    description: Get instance detail including groups, dates, and response counts
+    tier: 1
+    domain: surveys
+    requiredPermissions: [SURVEY_ACCESS]
+    backendCall: GET /api/workbench/survey-instances/{instanceId}
+    inputSchema:
+      instanceId:
+        type: string
+        required: true
+
+  - name: deploy_survey_instance
+    description: Deploy a survey instance with published schema, groups, and date range
+    tier: 1
+    domain: surveys
+    requiredPermissions: [SURVEY_MANAGE]
+    backendCall: POST /api/workbench/survey-instances
+    inputSchema:
+      schemaId:
+        type: string
+        required: true
+      groupIds:
+        type: array
+        items: { type: string }
+        required: true
+      startDate:
+        type: string
+        format: date
+        required: true
+      expirationDate:
+        type: string
+        format: date
+        required: true
+
+  - name: invalidate_survey_responses
+    description: Invalidate survey responses (instance-wide, per-group, or per-user)
+    tier: 1
+    domain: surveys
+    requiredPermissions: [SURVEY_MANAGE]
+    backendCall: POST /api/workbench/survey-instances/{instanceId}/invalidate
+    inputSchema:
+      instanceId:
+        type: string
+        required: true
+      scope:
+        type: string
+        enum: [instance, group, user]
+        required: true
+      groupId:
+        type: string
+        description: Required when scope is "group"
+      userId:
+        type: string
+        description: Required when scope is "user"
+
+  # ─── Review Dashboards (Tier 2) ────────────────────────────────────
+  - name: get_personal_dashboard
+    description: Get your personal review stats (reviews completed, avg score, pending count)
+    tier: 2
+    domain: dashboards
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: GET /api/review/dashboard/me
+
+  - name: get_team_dashboard
+    description: Get team-level metrics (per-reviewer completion rates)
+    tier: 2
+    domain: dashboards
+    requiredPermissions: [REVIEW_ACCESS, REVIEW_SUPERVISE]
+    backendCall: GET /api/review/dashboard/team
+
+  - name: get_review_reports
+    description: Get or generate review reports
+    tier: 2
+    domain: dashboards
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: GET /api/review/reports
+
+  - name: list_escalations
+    description: List escalated sessions requiring supervisor attention
+    tier: 2
+    domain: dashboards
+    requiredPermissions: [REVIEW_SUPERVISE]
+    backendCall: GET /api/risk/escalations?type=escalated
+
+  # ─── Review Tags (Tier 2) ──────────────────────────────────────────
+  - name: list_review_tags
+    description: List all review tag definitions
+    tier: 2
+    domain: tags
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: GET /api/admin/tags
+
+  - name: create_review_tag
+    description: Create a new review tag definition
+    tier: 2
+    domain: tags
+    requiredPermissions: [TAG_MANAGE]
+    backendCall: POST /api/admin/tags
+    inputSchema:
+      name:
+        type: string
+        required: true
+      description:
+        type: string
+
+  - name: assign_review_tag
+    description: Assign a tag to a review session
+    tier: 2
+    domain: tags
+    requiredPermissions: [REVIEW_ACCESS]
+    backendCall: POST /api/review/sessions/{sessionId}/tags
+    inputSchema:
+      sessionId:
+        type: string
+        required: true
+      tagId:
+        type: string
+        required: true
+
+  # ─── Group Management (Tier 2) ─────────────────────────────────────
+  - name: list_groups
+    description: List all groups with member counts
+    tier: 2
+    domain: groups
+    requiredPermissions: [GROUP_ACCESS]
+    backendCall: GET /api/admin/groups
+
+  - name: get_group_detail
+    description: Get group detail with member list
+    tier: 2
+    domain: groups
+    requiredPermissions: [GROUP_ACCESS]
+    backendCall: GET /api/admin/groups/{groupId}
+    inputSchema:
+      groupId:
+        type: string
+        required: true
+
+  - name: get_group_chats
+    description: List chat sessions for a specific group
+    tier: 2
+    domain: groups
+    requiredPermissions: [GROUP_ACCESS]
+    backendCall: GET /api/admin/groups/{groupId}/chats
+    inputSchema:
+      groupId:
+        type: string
+        required: true
+      cursor:
+        type: string
+      pageSize:
+        type: integer
+        default: 25
+
+  - name: get_group_surveys
+    description: List survey instances deployed to a specific group
+    tier: 2
+    domain: groups
+    requiredPermissions: [GROUP_ACCESS]
+    backendCall: GET /api/workbench/survey-instances?groupId={groupId}
+    inputSchema:
+      groupId:
+        type: string
+        required: true
+
+  # ─── Supervision (Tier 2) ──────────────────────────────────────────
+  - name: list_supervision_queue
+    description: List reviews awaiting supervisor approval
+    tier: 2
+    domain: supervision
+    requiredPermissions: [REVIEW_SUPERVISE]
+    backendCall: GET /api/review/supervision/queue
+    inputSchema:
+      cursor:
+        type: string
+      pageSize:
+        type: integer
+        default: 25
+
+  - name: approve_review
+    description: Supervisor approves a completed review
+    tier: 2
+    domain: supervision
+    requiredPermissions: [REVIEW_SUPERVISE]
+    backendCall: POST /api/review/supervision/{reviewId}/decision
+    inputSchema:
+      reviewId:
+        type: string
+        required: true
+      decision:
+        type: string
+        const: approved
+      comment:
+        type: string
+
+  - name: reject_review
+    description: Supervisor rejects a review with a reason
+    tier: 2
+    domain: supervision
+    requiredPermissions: [REVIEW_SUPERVISE]
+    backendCall: POST /api/review/supervision/{reviewId}/decision
+    inputSchema:
+      reviewId:
+        type: string
+        required: true
+      decision:
+        type: string
+        const: disapproved
+      reason:
+        type: string
+        required: true

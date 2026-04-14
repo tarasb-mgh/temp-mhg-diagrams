@@ -1,0 +1,218 @@
+openapi: 3.0.3
+info:
+  title: MHG Device Authorization API
+  description: OAuth2 Device Authorization Grant endpoints for MCP server authentication
+  version: 1.0.0
+
+paths:
+  /api/auth/device:
+    post:
+      summary: Initiate device authorization flow
+      description: >
+        Creates a new device authorization request. Returns a device code (for
+        server-side polling) and a user code (for the human to verify in browser).
+      operationId: initiateDeviceAuth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id]
+              properties:
+                client_id:
+                  type: string
+                  description: Client identifier (always "mcp-server")
+                  example: mcp-server
+      responses:
+        "200":
+          description: Device authorization request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceAuthorizationResponse"
+        "429":
+          description: Too many device auth requests from this IP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/auth/device/verify:
+    get:
+      summary: Device verification page
+      description: >
+        Serves the device verification page. The user_code is pre-filled from
+        the query parameter. The user completes login via existing OTP/Google
+        flow on this page.
+      operationId: deviceVerifyPage
+      parameters:
+        - name: user_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pre-filled user code from verification_uri_complete
+      responses:
+        "200":
+          description: HTML verification page
+
+    post:
+      summary: Submit device verification
+      description: >
+        Called by the verification page after the user authenticates. Links
+        the device code to the authenticated user.
+      operationId: submitDeviceVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_code]
+              properties:
+                user_code:
+                  type: string
+                  description: The user code to verify
+                  example: ABCD-EFGH
+      responses:
+        "200":
+          description: Device authorized successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Device authorized. You can close this window.
+        "400":
+          description: Invalid or expired user code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Too many failed attempts (code locked)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/auth/device/token:
+    post:
+      summary: Poll for device authorization token
+      description: >
+        The MCP server polls this endpoint with the device_code until the user
+        completes authentication. Returns JWT tokens on success.
+      operationId: pollDeviceToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grant_type, device_code]
+              properties:
+                grant_type:
+                  type: string
+                  enum: [device_code]
+                device_code:
+                  type: string
+                  description: The device code returned from /api/auth/device
+      responses:
+        "200":
+          description: Authorization complete — tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Authorization pending, slow down, denied, or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceTokenError"
+
+components:
+  schemas:
+    DeviceAuthorizationResponse:
+      type: object
+      required:
+        - device_code
+        - user_code
+        - verification_uri
+        - expires_in
+        - interval
+      properties:
+        device_code:
+          type: string
+          description: Server-side device code for polling (256-bit hex)
+          example: a1b2c3d4e5f6...
+        user_code:
+          type: string
+          description: Human-readable code for browser entry (8 chars, base-20)
+          example: ABCD-EFGH
+        verification_uri:
+          type: string
+          format: uri
+          description: URL where user completes authentication
+          example: https://workbench.dev.mentalhelp.chat/auth/device
+        verification_uri_complete:
+          type: string
+          format: uri
+          description: URL with user_code pre-filled
+          example: https://workbench.dev.mentalhelp.chat/auth/device?user_code=ABCD-EFGH
+        expires_in:
+          type: integer
+          description: Seconds until device code expires
+          example: 900
+        interval:
+          type: integer
+          description: Minimum seconds between poll requests
+          example: 5
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        refresh_token:
+          type: string
+          description: JWT refresh token
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds
+
+    DeviceTokenError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum:
+            - authorization_pending
+            - slow_down
+            - access_denied
+            - expired_token
+          description: >
+            authorization_pending: user hasn't completed auth yet.
+            slow_down: polling too fast, increase interval by 5s.
+            access_denied: user denied the request.
+            expired_token: device code has expired.
+        error_description:
+          type: string
+          description: Human-readable error description
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
