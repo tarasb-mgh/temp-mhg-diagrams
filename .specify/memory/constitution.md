@@ -1,9 +1,33 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 3.13.0 → 3.14.0
+  Version change: 3.14.0 → 3.15.0
 
-  Modified principles:
+  Added principles:
+  - XIII. CX Agent (Dialogflow CX) Management — new principle codifying
+    git-first, API-deployed workflow for the Dialogflow CX agent.
+    Covers: mandatory REST API deployment (not console restore),
+    JSON validation, data store tool handling, safety/RAI settings,
+    branch policy. Motivated by 052-cx-clinical-playbooks deployment
+    failures (2026-04-15).
+
+  Added to existing sections:
+  - Repository Roles table: added cx-agent-definition row.
+
+  Modified sections:
+  - Sync Impact Report: updated to 3.15.0.
+
+  Templates requiring updates:
+  - ✅ .specify/templates/plan-template.md (no change needed)
+  - ✅ .specify/templates/tasks-template.md (no change needed)
+  - ✅ .specify/templates/spec-template.md (no change needed)
+  - ⚠ CLAUDE.md (needs CX agent deployment section added)
+
+  Follow-up TODOs:
+  - Add CX agent deployment best practices to CLAUDE.md
+  - (Carried) Create delivery-workbench repos, provision DNS, etc.
+
+  Previous (3.14.0) changes:
   - I. Spec-First Development — added rules prohibiting AI agents from
     skipping speckit workflow when owner invokes speckit commands. Bug
     fixes must follow specify->plan->tasks->implement when requested.
@@ -621,6 +645,99 @@ Mandatory health verification catches issues before users do. In March
 without owner approval, triggering an unplanned production deployment —
 this principle codifies the gate that would have prevented that.
 
+### XIII. CX Agent (Dialogflow CX) Management
+
+All changes to the Dialogflow CX agent ("Mental Health First Responder")
+MUST follow a git-first, API-deployed workflow. The `cx-agent-definition`
+repository is the source of truth; the Dialogflow CX console is a
+read-only view for verification, not an editing tool.
+
+#### Deployment via REST API (MANDATORY)
+
+- Agent changes MUST be deployed using the Dialogflow CX REST API
+  (`v3` or `v3beta1`), NOT via the console "Restore from Git" feature.
+  The git restore is all-or-nothing and fails when the agent uses
+  data store tools (Vertex AI Search) due to engine/data store
+  association conflicts (`FAILED_PRECONDITION`).
+- New intents MUST be created via
+  `POST /v3/{agent}/intents` with all training phrases included
+  in the request body (all languages in one call).
+- New playbooks MUST be created via
+  `POST /v3/{agent}/playbooks`. The `referencedTools` field MUST
+  use full resource paths
+  (`projects/{project}/locations/{location}/agents/{agent}/tools/{tool_id}`),
+  not display names.
+- Flow updates (adding routes) MUST use
+  `PATCH /v3/{agent}/flows/{flow_id}` with the updated
+  `transitionRoutes` array.
+- Playbook instruction updates MUST use
+  `PATCH /v3/{agent}/playbooks/{playbook_id}` without an
+  `updateMask` (full playbook replace); masked updates on
+  `instruction` are silently ignored by the API.
+- All API calls MUST include the `x-goog-user-project` header set
+  to `mental-help-global-25` to satisfy quota project requirements.
+
+#### Git Repository Convention
+
+- The `cx-agent-definition` repository mirrors the Dialogflow CX
+  agent structure: `intents/`, `playbooks/`, `flows/`,
+  `generativeSettings/`, `generators/`, `tools/`, `entityTypes/`.
+- Training phrases are stored per-language in
+  `intents/{INTENT}/trainingPhrases/{lang}.json` (uk, ru, en).
+- Playbook instruction text is stored as a JSON string in
+  `playbooks/{NAME}/{NAME}.json` under
+  `instruction.steps[0].text`. Edits to this field MUST use
+  `json.dump()` (or equivalent) to produce valid JSON escaping;
+  manual string editing of JSON files with embedded `\r\n` and
+  `\"` sequences is error-prone and MUST be avoided.
+- All JSON files MUST pass `json.load()` validation before commit.
+
+#### Data Store Tools
+
+- The agent uses a "Mental Health Knowledge Base" data store tool
+  backed by Vertex AI Search (GCS connector). This tool's
+  configuration MUST NOT be modified during git restore operations.
+- When creating new playbooks that reference data store tools, use
+  the full tool resource path obtained via
+  `GET /v3/{agent}/tools`.
+- The `genAppBuilderSettings.searchEngine` and
+  `knowledgeConnectorSettings` in `generativeSettings/` MUST NOT
+  be removed or emptied — they are required for the knowledge
+  base grounding to function.
+
+#### Safety and RAI Settings
+
+- RAI settings are configured at the agent level in
+  `generativeSettings/uk.json` and are currently set to
+  `BLOCK_NONE` for all harm categories. This is required for the
+  agent's clinical mission (depression/anxiety/crisis support).
+- Per-playbook safety settings (Gemini safety categories) are
+  configured within each playbook's `llmModelSettings`.
+- Changes to RAI or safety settings MUST be reviewed by the
+  clinical team before deployment.
+
+#### Branch and Deployment Policy
+
+- `cx-agent-definition` uses `main` as its base branch (no
+  `develop` branch). Feature work is done on feature branches
+  and merged to `main` via PR or direct push.
+- After merging to `main`, changes MUST be deployed to the live
+  agent via the REST API. There is no CI/CD auto-deploy for
+  Dialogflow CX — deployment is a manual API operation.
+- The Dialogflow CX console MAY be used for read-only verification
+  (checking that intents, playbooks, and routes appear correctly)
+  but MUST NOT be used to make edits that bypass the git repo.
+
+**Rationale**: The Dialogflow CX git restore mechanism has a
+fundamental limitation: it performs a full agent replacement
+including engine/data store recreation, which fails when data
+stores are shared between CHAT and SEARCH solution types. The
+REST API approach provides surgical control — deploying only
+changed resources without touching data store configuration.
+This was discovered during the 052-cx-clinical-playbooks
+deployment (2026-04-15) after three failed console restore
+attempts.
+
 ## Multi-Repository Orchestration
 
 ### Repository Roles
@@ -636,6 +753,7 @@ this principle codifies the gate that would have prevented that.
 | `chat-ui` | Playwright E2E tests | Active | `D:\src\MHG\chat-ui` |
 | `chat-ci` | Reusable GitHub Actions workflows | Active | `D:\src\MHG\chat-ci` |
 | `chat-infra` | GCP infrastructure scripts + Terraform | Active | `D:\src\MHG\chat-infra` |
+| `cx-agent-definition` | Dialogflow CX agent (intents, playbooks, flows) | Active | `D:\src\MHG\cx-agent-definition` |
 | `delivery-workbench-frontend` | React frontend (delivery workbench — AI dev, config, monitoring, infra) | Active | `D:\src\MHG\delivery-workbench-frontend` |
 | `delivery-workbench-backend` | Express.js backend API (delivery workbench) | Active | `D:\src\MHG\delivery-workbench-backend` |
 | `chat-client` | Monorepo (historical reference only) | **LEGACY** | `D:\src\MHG\chat-client` |

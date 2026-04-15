@@ -153,6 +153,46 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
 
 Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs for testing — always use the canonical domain names above.
 
+### CX Agent (Dialogflow CX) Deployment
+
+The Dialogflow CX agent (`cx-agent-definition` repo) MUST be deployed via
+the REST API, NOT via the console "Restore from Git" feature. The git restore
+fails when the agent uses data store tools (Vertex AI Search).
+
+**Deployment commands** (all require `x-goog-user-project: mental-help-global-25` header):
+
+```bash
+# Set common variables
+TOKEN=$(gcloud auth print-access-token)
+AGENT="projects/mental-help-global-25/locations/global/agents/192578e5-f119-436e-9718-abb9d9d1c8b1"
+API="https://global-dialogflow.googleapis.com/v3/$AGENT"
+HEADERS=(-H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: mental-help-global-25" -H "Content-Type: application/json; charset=utf-8")
+
+# Create intent (write payload to temp file first, then use --data-binary @file)
+curl -s -X POST "${HEADERS[@]}" --data-binary @payload.json "$API/intents"
+
+# Create playbook (referencedTools must use full resource paths, not display names)
+curl -s -X POST "${HEADERS[@]}" --data-binary @payload.json "$API/playbooks"
+
+# Update flow (add transition routes)
+curl -s -X PATCH "${HEADERS[@]}" --data-binary @payload.json "$API/flows/{flow_id}"
+
+# Update playbook (NO updateMask — masked instruction updates are silently ignored)
+curl -s -X PATCH "${HEADERS[@]}" --data-binary @payload.json "$API/playbooks/{id}"
+
+# List tools (get full resource paths for referencedTools)
+curl -s "${HEADERS[@]}" "$API/tools"
+```
+
+**Key rules**:
+- JSON files MUST be validated with `json.load()` before commit
+- Playbook instruction text MUST be serialized via `json.dump()` — never edit JSON strings manually
+- Training phrases go in `intents/{NAME}/trainingPhrases/{lang}.json` (uk, ru, en)
+- `referencedTools` uses full paths: `projects/.../agents/.../tools/{tool_id}`
+- RAI settings (`generativeSettings/uk.json`) are `BLOCK_NONE` — required for clinical mission
+- The `cx-agent-definition` repo pushes directly to `main` (no `develop` branch)
+- No CI/CD auto-deploy — deployment is a manual API operation after merge
+
 ### Dev UI Testing Prerequisites
 
 - Dev chat frontend: `https://dev.mentalhelp.chat`
