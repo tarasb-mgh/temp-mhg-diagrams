@@ -90,6 +90,11 @@ components:
           items:
             type: string
           description: Array of screening item IDs that were assessed (e.g. ["D01","D02","D05"])
+        yesItems:
+          type: array
+          items:
+            type: string
+          description: Subset of questionsCovered containing only items answered affirmatively (e.g. ["D01","D05"])
         criticalFlags:
           type: string
           enum: [none, self_harm, acute_panic]
