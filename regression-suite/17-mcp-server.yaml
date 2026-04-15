@@ -1,0 +1,318 @@
+# MHG Workbench Regression Suite — 17 MCP Server
+# 6 tests covering SSE health, device auth, tool discovery, whoami, permission gating, rate limiting
+#
+# Variables resolved from _config.yaml:
+#   ${api_url}           — environments.<env>.api_url
+#   ${mcp_url}           — https://mcp.dev.mentalhelp.chat
+#   ${account.<role>}    — accounts.<role>.email
+
+module:
+  id: 17-mcp-server
+  title: "MCP Workbench Server"
+  description: >
+    Validates that the MCP SSE server is reachable, device authorization flow
+    initiates correctly, tool discovery returns role-filtered results,
+    session introspection works, permission gating is enforced, and rate
+    limiting throttles excessive requests.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # MCP-001  SSE endpoint accessible — health check
+  # ---------------------------------------------------------------------------
+  - id: MCP-001
+    title: "SSE endpoint accessible — health check returns 200"
+    priority: P0
+    tags: [mcp, health, smoke]
+    role: null
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "MCP server deployed at https://mcp.dev.mentalhelp.chat"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "https://mcp.dev.mentalhelp.chat/health"
+        assert: "Health endpoint responds"
+        expect: "Page displays JSON with status ok"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Health response captured"
+        expect: "Response body contains 'status' field with value 'ok'"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "Network log captured"
+        expect: "GET /health returned HTTP 200"
+
+      - action: evidence_capture
+        params:
+          label: "MCP-001-health-check"
+          include: [screenshot, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "GET /health returns HTTP 200"
+      - "Response JSON contains { status: 'ok' }"
+      - "No 5xx errors in network log"
+    error_signatures:
+      - pattern: "502|503|504"
+        meaning: "MCP server unreachable or not deployed"
+      - pattern: "ERR_CONNECTION_REFUSED"
+        meaning: "MCP container not running or DNS not configured"
+
+  # ---------------------------------------------------------------------------
+  # MCP-002  Device auth flow initiates
+  # ---------------------------------------------------------------------------
+  - id: MCP-002
+    title: "Device auth flow initiates — returns device_code and user_code"
+    priority: P0
+    tags: [mcp, auth, device-flow, smoke]
+    role: null
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Backend auth device endpoint is deployed"
+    depends_on: []
+    steps:
+      - action: browser_evaluate
+        params:
+          expression: >
+            fetch('${api_url}/api/auth/device', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ client_id: 'mcp-regression-test' })
+            }).then(r => r.json()).then(j => JSON.stringify(j))
+        assert: "POST /api/auth/device responds"
+        expect: "Response contains success: true with data including device_code and user_code"
+
+      - action: browser_console_messages
+        params: {}
+        assert: "Console output captured"
+
+      - action: evidence_capture
+        params:
+          label: "MCP-002-device-auth-initiate"
+          include: [screenshot, console, network]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "POST /api/auth/device returns HTTP 200"
+      - "Response includes data.device_code (non-empty string)"
+      - "Response includes data.user_code (non-empty string)"
+      - "Response includes data.verification_uri"
+    error_signatures:
+      - pattern: "400.*client_id"
+        meaning: "client_id was missing or invalid in the request body"
+      - pattern: "429"
+        meaning: "Rate limiter triggered — too many device auth requests in window"
+      - pattern: "500.*INTERNAL_ERROR"
+        meaning: "Device auth service crashed — check backend logs"
+
+  # ---------------------------------------------------------------------------
+  # MCP-003  Tool discovery returns tools
+  # ---------------------------------------------------------------------------
+  - id: MCP-003
+    title: "Tool discovery returns non-empty tool list after auth"
+    priority: P1
+    tags: [mcp, tools, discovery]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "MCP server deployed and accessible"
+      - "Authenticated MCP session established (owner role)"
+    depends_on: [MCP-001, MCP-002]
+    steps:
+      - action: browser_evaluate
+        params:
+          expression: >
+            (async () => {
+              const initRes = await fetch('${api_url}/api/auth/device', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_id: 'mcp-regression-test' })
+              });
+              const initData = await initRes.json();
+              return JSON.stringify({
+                step: 'device_init',
+                success: initData.success,
+                hasDeviceCode: !!initData.data?.device_code,
+                hasUserCode: !!initData.data?.user_code,
+                toolDiscoveryNote: 'Full tool list verification requires authenticated MCP SSE session — manual or integration test required'
+              });
+            })()
+        assert: "Device auth initiated for tool discovery test"
+        expect: "Device code obtained; tool discovery requires full SSE session"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Tool discovery precondition captured"
+        expect: "Device auth succeeded as prerequisite for tools/list"
+
+      - action: evidence_capture
+        params:
+          label: "MCP-003-tool-discovery"
+          include: [screenshot, console]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Device auth initiates successfully (prerequisite for SSE session)"
+      - "After full auth, tools/list returns at least 20 tools for owner role"
+      - "Tool list includes whoami, list_review_sessions, list_users, list_groups"
+    error_signatures:
+      - pattern: "tools.*empty"
+        meaning: "Tool registry failed to load or permission filter returned zero tools"
+      - pattern: "401.*unauthorized"
+        meaning: "MCP session auth not established — device flow incomplete"
+
+  # ---------------------------------------------------------------------------
+  # MCP-004  whoami returns user identity
+  # ---------------------------------------------------------------------------
+  - id: MCP-004
+    title: "whoami tool returns email, role, and permissions"
+    priority: P1
+    tags: [mcp, whoami, introspection]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated MCP session with owner role"
+    depends_on: [MCP-003]
+    steps:
+      - action: browser_evaluate
+        params:
+          expression: >
+            fetch('${api_url}/api/auth/me', {
+              headers: { 'Authorization': 'Bearer ${access_token}' }
+            }).then(r => r.json()).then(j => JSON.stringify(j))
+        assert: "GET /api/auth/me responds (backend equivalent of whoami)"
+        expect: "Response contains user email, role, and permissions"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "whoami response captured"
+        expect: "Response includes email, role, permissions array, and isSecurityAdmin flag"
+
+      - action: evidence_capture
+        params:
+          label: "MCP-004-whoami"
+          include: [screenshot, console]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Response includes data.email (non-empty string)"
+      - "Response includes data.role (one of: owner, moderator, researcher, etc.)"
+      - "Response includes data.permissions (non-empty array)"
+      - "Owner role has permissions including WORKBENCH_ACCESS and REVIEW_ACCESS"
+    error_signatures:
+      - pattern: "401.*UNAUTHORIZED"
+        meaning: "Token expired or invalid — re-authenticate"
+      - pattern: "404.*USER_NOT_FOUND"
+        meaning: "User record missing from database"
+
+  # ---------------------------------------------------------------------------
+  # MCP-005  Permission gating — moderator excluded from supervision tools
+  # ---------------------------------------------------------------------------
+  - id: MCP-005
+    title: "Permission gating — moderator should not see supervision tools"
+    priority: P1
+    tags: [mcp, permissions, rbac, gating]
+    role: moderator
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Moderator account exists and is approved"
+      - "MCP server filters tools/list by session permissions"
+    depends_on: [MCP-003]
+    steps:
+      - action: browser_evaluate
+        params:
+          expression: >
+            fetch('${api_url}/api/auth/me', {
+              headers: { 'Authorization': 'Bearer ${moderator_access_token}' }
+            }).then(r => r.json()).then(j => JSON.stringify({
+              role: j.data?.role,
+              permissions: j.data?.permissions,
+              hasReviewSupervise: (j.data?.permissions || []).includes('REVIEW_SUPERVISE'),
+              hasWorkbenchAccess: (j.data?.permissions || []).includes('WORKBENCH_ACCESS')
+            }))
+        assert: "Moderator permissions fetched"
+        expect: "Moderator has WORKBENCH_ACCESS but NOT REVIEW_SUPERVISE"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Moderator permission set captured"
+        expect: "Supervision permissions absent for moderator role"
+
+      - action: evidence_capture
+        params:
+          label: "MCP-005-permission-gating"
+          include: [screenshot, console]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "Moderator role does NOT have REVIEW_SUPERVISE permission"
+      - "Moderator tool list (via MCP) should NOT include list_supervision_queue, approve_review, reject_review"
+      - "Moderator CAN see review tools (list_review_sessions, get_review_session)"
+    error_signatures:
+      - pattern: "REVIEW_SUPERVISE.*true"
+        meaning: "Permission gating failure — moderator incorrectly has supervision access"
+      - pattern: "403"
+        meaning: "Expected when moderator attempts supervision endpoints directly"
+
+  # ---------------------------------------------------------------------------
+  # MCP-006  Rate limiting — rapid tool calls get throttled
+  # ---------------------------------------------------------------------------
+  - id: MCP-006
+    title: "Rate limiting — rapid requests get throttled after 60/min"
+    priority: P2
+    tags: [mcp, rate-limit, throttle]
+    role: null
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Backend rate limiter configured (60 req/min for device poll endpoint)"
+    depends_on: []
+    steps:
+      - action: browser_evaluate
+        params:
+          expression: >
+            (async () => {
+              const results = [];
+              for (let i = 0; i < 65; i++) {
+                const r = await fetch('${api_url}/api/auth/device/token', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ grant_type: 'device_code', device_code: 'nonexistent-code' })
+                });
+                results.push(r.status);
+                if (r.status === 429) break;
+              }
+              const got429 = results.includes(429);
+              return JSON.stringify({
+                totalRequests: results.length,
+                got429,
+                lastStatus: results[results.length - 1],
+                statusCounts: results.reduce((acc, s) => { acc[s] = (acc[s] || 0) + 1; return acc; }, {})
+              });
+            })()
+        assert: "Rapid requests sent to device token poll endpoint"
+        expect: "Rate limiter returns 429 before all 65 requests complete"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Rate limit test result captured"
+        expect: "At least one 429 status code returned"
+
+      - action: evidence_capture
+        params:
+          label: "MCP-006-rate-limiting"
+          include: [screenshot, console]
+        assert: "Evidence captured"
+
+    pass_criteria:
+      - "After exceeding 60 requests per minute, at least one 429 Too Many Requests is returned"
+      - "Rate limiter does not crash the server (no 5xx errors)"
+    error_signatures:
+      - pattern: "500"
+        meaning: "Rate limiter threw an unhandled error instead of 429"
+      - pattern: "status.*429.*false"
+        meaning: "Rate limiter not enforcing — all 65 requests succeeded"
