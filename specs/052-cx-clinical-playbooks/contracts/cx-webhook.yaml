@@ -1,0 +1,119 @@
+openapi: 3.0.3
+info:
+  title: CX Agent Session-End Webhook
+  version: 1.0.0
+  description: >
+    Webhook endpoint called by Dialogflow CX at session end to persist
+    clinical screening assessment data, create risk flags, and emit analytics.
+
+paths:
+  /api/cx-sessions/{sessionId}/mental-state:
+    post:
+      operationId: persistCxMentalState
+      summary: Persist CX agent screening results at session end
+      description: >
+        Called by Dialogflow CX session-end webhook. Receives session parameters
+        from the CX agent, creates assessment records, evaluates risk thresholds,
+        updates agent memory, and emits analytics events.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The Dialogflow CX session ID mapped to a chat session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CxMentalStatePayload'
+      responses:
+        '200':
+          description: Assessment persisted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CxMentalStateResponse'
+        '400':
+          description: Invalid payload (missing required fields, invalid severity)
+        '404':
+          description: Session not found
+        '500':
+          description: Internal error (partial persistence may have occurred)
+
+components:
+  schemas:
+    CxMentalStatePayload:
+      type: object
+      required:
+        - userId
+        - timestamp
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Pseudonymous user ID (NOT PII)
+        timestamp:
+          type: string
+          format: date-time
+          description: Session end timestamp
+        depression:
+          $ref: '#/components/schemas/ScreeningResult'
+        anxiety:
+          $ref: '#/components/schemas/ScreeningResult'
+        sessionDurationSeconds:
+          type: integer
+          minimum: 0
+          description: Total session duration in seconds
+
+    ScreeningResult:
+      type: object
+      required:
+        - assessed
+      properties:
+        assessed:
+          type: boolean
+          description: Whether this screening was conducted in this session
+        severityLevel:
+          type: string
+          enum: [none, mild, moderate, severe]
+          description: Final assessed severity level
+        yesCount:
+          type: integer
+          minimum: 0
+          maximum: 20
+          description: Count of affirmatively answered screening items
+        questionsCovered:
+          type: array
+          items:
+            type: string
+          description: Array of screening item IDs that were assessed (e.g. ["D01","D02","D05"])
+        criticalFlags:
+          type: string
+          enum: [none, self_harm, acute_panic]
+          description: Safety-critical markers detected during screening
+        sessionSummary:
+          type: string
+          description: Brief narrative summary of key concerns for memory persistence
+
+    CxMentalStateResponse:
+      type: object
+      properties:
+        assessmentSessionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of created assessment session records
+        riskFlagsCreated:
+          type: integer
+          minimum: 0
+          description: Number of risk flags auto-created by threshold evaluation
+        memoryUpdated:
+          type: boolean
+          description: Whether agent memory State Timeline was updated
+        analyticsEmitted:
+          type: boolean
+          description: Whether analytics events were emitted (best-effort)
