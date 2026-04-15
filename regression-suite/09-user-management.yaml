@@ -455,3 +455,101 @@ tests:
         meaning: "Crash rendering block/unblock control"
       - pattern: "undefined.*block"
         meaning: "Block status data missing from user profile"
+
+  # ---------------------------------------------------------------------------
+  # UM-009  Owner can assign new roles (expert, admin, master)
+  # ---------------------------------------------------------------------------
+  - id: UM-009
+    title: "Owner can assign new roles (expert, admin, master)"
+    priority: P0
+    tags: [users, role, expert, admin, master, regression, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+      - "At least one non-owner user exists"
+    depends_on: [AUTH-001, UM-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/users"
+        assert: "Users page loaded"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "table, [class*='user-list' i], [class*='userList' i]"
+          timeout: 10000
+        assert: "User list is visible"
+
+      - action: browser_click
+        params:
+          selector: "table tbody tr:first-child, [class*='user-row' i]:first-child"
+        assert: "First user row clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "button:has-text('Change Role')"
+          timeout: 10000
+        assert: "User profile page with Change Role button is visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Change Role')"
+        assert: "Change Role menu opened"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Role menu snapshot"
+        expect: "Dropdown shows all 10 roles including Expert, Admin, and Master"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Expert')"
+        assert: "Expert role selected"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "text=/Expert/i"
+          timeout: 5000
+        assert: "User profile now shows Expert role"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Profile shows Expert role"
+        expect: "User's role badge displays 'Expert' after successful assignment"
+
+      - action: browser_network_requests
+        params: {}
+        assert: "No 500 errors on role assignment"
+        expect: "POST /api/admin/users/:id/role returned 200, not 500"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Change Role')"
+        assert: "Change Role menu re-opened"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('User'):not(:has-text('Change'))"
+        assert: "Reverted to User role"
+
+      - action: evidence_capture
+        params:
+          label: "UM-009-role-assignment-expert"
+          include: [screenshot, console, network]
+        assert: "Evidence bundle saved"
+
+    pass_criteria:
+      - "Expert role can be assigned via the Change Role menu without errors"
+      - "POST /api/admin/users/:id/role returns 200 (not 500)"
+      - "User profile badge updates to show 'Expert' after assignment"
+      - "Role can be reverted back to 'User' without errors"
+      - "No unexpected console errors or 5xx network responses"
+    error_signatures:
+      - pattern: "500.*role"
+        meaning: "Role assignment still failing — DB constraint not updated"
+      - pattern: "INTERNAL_ERROR.*Failed to change user role"
+        meaning: "PostgreSQL CHECK constraint violation — migration 063 not applied"

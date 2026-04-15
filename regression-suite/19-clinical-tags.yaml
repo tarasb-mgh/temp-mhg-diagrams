@@ -1,0 +1,368 @@
+# MHG Workbench Regression Suite — 19 Clinical Tags Management
+# 8 tests covering Tag Center landing, clinical tag CRUD, expert assignments,
+# breadcrumb dropdown navigation, and deprecation redirect.
+#
+# All tests assume owner role with TAG_MANAGE permission.
+
+module:
+  id: 19-clinical-tags
+  title: "Clinical Tags Management"
+  description: >
+    Validates the Clinical Tags tab in Tag Center: landing page with 3 cards,
+    clinical tag CRUD (create, rename, edit description, delete), expert tag
+    assignment with auto-save, breadcrumb dropdown section switching, and
+    redirect from the deprecated standalone clinical tag admin page.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # CLIN-001  Tag Center landing page renders 3 section cards
+  # ---------------------------------------------------------------------------
+  - id: CLIN-001
+    title: "Tag Center landing page renders 3 section cards"
+    priority: P0
+    tags: [clinical-tags, landing, navigation, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner with TAG_MANAGE permission"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/tags"
+        assert: "Tag Center landing page loaded"
+        expect: "Landing page with 3 section cards visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Landing page snapshot captured"
+        expect: >
+          Three cards visible: User Tags, Review Tags, Clinical Tags.
+          Each card has a title and description text.
+          Breadcrumb shows: Workbench > Tag Center
+
+    pass_criteria:
+      - "User Tags card is visible with title and description"
+      - "Review Tags card is visible with title and description"
+      - "Clinical Tags card is visible with title and description"
+      - "Breadcrumb shows 'Workbench' and 'Tag Center'"
+    error_signatures:
+      - pattern: "404"
+        meaning: "Tag Center route not registered"
+      - pattern: "Cannot read.*null"
+        meaning: "Component render error — check TagCenterLanding imports"
+
+  # ---------------------------------------------------------------------------
+  # CLIN-002  Navigate to Clinical Tags via landing card click
+  # ---------------------------------------------------------------------------
+  - id: CLIN-002
+    title: "Navigate to Clinical Tags via landing card click"
+    priority: P0
+    tags: [clinical-tags, navigation, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "On Tag Center landing page"
+    depends_on: [CLIN-001]
+    steps:
+      - action: browser_click
+        params:
+          selector: "button:has-text('Clinical Tags')"
+        assert: "Clinical Tags card clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "h2:has-text('Clinical Tag Definitions')"
+          timeout: 5000
+        assert: "Clinical Tags section loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Clinical Tags section snapshot"
+        expect: >
+          URL is /workbench/tags/clinical.
+          Left panel: Clinical Tag Definitions with create input.
+          Right panel: Expert Tag Assignments with search.
+          Breadcrumb: Workbench > Tag Center > Clinical Tags (with dropdown indicator)
+
+    pass_criteria:
+      - "URL ends with /workbench/tags/clinical"
+      - "Clinical Tag Definitions heading visible"
+      - "Expert Tag Assignments heading visible"
+      - "Create input field visible"
+      - "Breadcrumb shows dropdown on last segment"
+    error_signatures:
+      - pattern: "403"
+        meaning: "TAG_MANAGE permission not granted"
+
+  # ---------------------------------------------------------------------------
+  # CLIN-003  Create a clinical tag
+  # ---------------------------------------------------------------------------
+  - id: CLIN-003
+    title: "Create a clinical tag"
+    priority: P0
+    tags: [clinical-tags, crud, smoke]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "On Clinical Tags section"
+    depends_on: [CLIN-002]
+    steps:
+      - action: browser_fill_form
+        params:
+          selector: "input[placeholder*='tag name']"
+          value: "REGRESSION_TEST_TAG"
+        assert: "Tag name entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Create')"
+        assert: "Create button clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "text=REGRESSION_TEST_TAG"
+          timeout: 5000
+        assert: "New tag appears in list"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Created tag snapshot"
+        expect: >
+          REGRESSION_TEST_TAG badge visible in definitions list.
+          Green active dot indicator visible.
+          Action icons (rename, description, delete) visible.
+
+    pass_criteria:
+      - "REGRESSION_TEST_TAG appears in the tag list"
+      - "Create input is cleared after successful creation"
+      - "Tag has action buttons (rename, description, delete)"
+    error_signatures:
+      - pattern: "409"
+        meaning: "Duplicate tag name — tag already exists from previous test run"
+      - pattern: "500"
+        meaning: "Backend error creating clinical tag"
+
+  # ---------------------------------------------------------------------------
+  # CLIN-004  Duplicate name rejected (case-insensitive)
+  # ---------------------------------------------------------------------------
+  - id: CLIN-004
+    title: "Duplicate name rejected (case-insensitive)"
+    priority: P1
+    tags: [clinical-tags, validation]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "REGRESSION_TEST_TAG exists from CLIN-003"
+    depends_on: [CLIN-003]
+    steps:
+      - action: browser_fill_form
+        params:
+          selector: "input[placeholder*='tag name']"
+          value: "regression_test_tag"
+        assert: "Lowercase duplicate name entered"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Create')"
+        assert: "Create button clicked"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Duplicate error snapshot"
+        expect: "Error message visible indicating tag name already exists"
+
+    pass_criteria:
+      - "Error message about duplicate name is displayed"
+      - "No second tag with the same name appears in the list"
+    error_signatures: []
+
+  # ---------------------------------------------------------------------------
+  # CLIN-005  Breadcrumb dropdown switches sections
+  # ---------------------------------------------------------------------------
+  - id: CLIN-005
+    title: "Breadcrumb dropdown switches sections"
+    priority: P1
+    tags: [clinical-tags, navigation, breadcrumb]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "On Clinical Tags section"
+    depends_on: [CLIN-002]
+    steps:
+      - action: browser_click
+        params:
+          selector: "button:has-text('Clinical Tags'):near(nav[aria-label='Breadcrumb'])"
+        assert: "Breadcrumb dropdown opened"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[role='menu']"
+          timeout: 3000
+        assert: "Dropdown menu visible"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Dropdown menu snapshot"
+        expect: "Menu shows User Tags, Review Tags, Clinical Tags options"
+
+      - action: browser_click
+        params:
+          selector: "[role='menuitem']:has-text('User Tags')"
+        assert: "User Tags selected"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "text=User Tag Definitions"
+          timeout: 5000
+        assert: "User Tags section loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "User Tags section snapshot"
+        expect: "URL is /workbench/tags/user. User Tag Definitions visible."
+
+    pass_criteria:
+      - "Dropdown menu shows all 3 section options"
+      - "Clicking User Tags navigates to /workbench/tags/user"
+      - "User Tags section loads with definitions panel"
+    error_signatures:
+      - pattern: "TypeError"
+        meaning: "Breadcrumb dropdown component error"
+
+  # ---------------------------------------------------------------------------
+  # CLIN-006  Delete unused clinical tag
+  # ---------------------------------------------------------------------------
+  - id: CLIN-006
+    title: "Delete unused clinical tag"
+    priority: P1
+    tags: [clinical-tags, crud, delete]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "REGRESSION_TEST_TAG exists with 0 sessions"
+    depends_on: [CLIN-003]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/tags/clinical"
+        assert: "Clinical Tags section loaded"
+
+      - action: browser_click
+        params:
+          selector: "button[title='Delete']:near(text=REGRESSION_TEST_TAG)"
+        assert: "Delete button clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "text=Delete clinical tag?"
+          timeout: 3000
+        assert: "Confirmation dialog visible"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Delete'):inside([class*='fixed'])"
+        assert: "Confirm delete clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "hidden"
+          selector: "text=REGRESSION_TEST_TAG"
+          timeout: 5000
+        assert: "Tag removed from list"
+
+    pass_criteria:
+      - "Confirmation dialog appeared before deletion"
+      - "REGRESSION_TEST_TAG no longer appears in the list"
+    error_signatures:
+      - pattern: "409"
+        meaning: "Tag has session references and cannot be deleted"
+
+  # ---------------------------------------------------------------------------
+  # CLIN-007  Deprecated route redirects to Tag Center
+  # ---------------------------------------------------------------------------
+  - id: CLIN-007
+    title: "Deprecated route redirects to Tag Center"
+    priority: P1
+    tags: [clinical-tags, deprecation, redirect]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/review/clinical-tags"
+        assert: "Navigated to deprecated route"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "h2:has-text('Clinical Tag Definitions')"
+          timeout: 5000
+        assert: "Redirected to Clinical Tags section"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Redirect result snapshot"
+        expect: "URL is /workbench/tags/clinical. Clinical Tags section visible."
+
+    pass_criteria:
+      - "URL changed from /review/clinical-tags to /tags/clinical"
+      - "Clinical Tags section is displayed"
+    error_signatures:
+      - pattern: "404"
+        meaning: "Redirect route not configured"
+
+  # ---------------------------------------------------------------------------
+  # CLIN-008  Tag Center sidebar link works
+  # ---------------------------------------------------------------------------
+  - id: CLIN-008
+    title: "Tag Center sidebar link navigates to landing"
+    priority: P1
+    tags: [clinical-tags, navigation, sidebar]
+    role: owner
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Authenticated as owner"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}"
+        assert: "Workbench home loaded"
+
+      - action: browser_click
+        params:
+          selector: "button:has-text('Tag Center')"
+        assert: "Tag Center sidebar link clicked"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "text=User Tags"
+          timeout: 5000
+        assert: "Tag Center landing loaded"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Landing from sidebar snapshot"
+        expect: >
+          URL is /workbench/tags.
+          Landing page with 3 section cards visible.
+
+    pass_criteria:
+      - "URL is /workbench/tags"
+      - "Three section cards are visible"
+      - "Tag Center is highlighted in sidebar"
+    error_signatures:
+      - pattern: "404"
+        meaning: "Tag Center route not found"
