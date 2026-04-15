@@ -113,6 +113,8 @@ execution_order:
   - 13-settings
   - 15-responsive      # Viewport changes last to avoid side effects
   - 16-cross-cutting   # Aggregation checks run last
+  - 17-cx-depression   # CX Agent Depression Protocol (chat frontend)
+  - 18-cx-anxiety      # CX Agent Anxiety Protocol (chat frontend)
 
 # Console messages to IGNORE (not flagged as errors)
 known_acceptable_console:

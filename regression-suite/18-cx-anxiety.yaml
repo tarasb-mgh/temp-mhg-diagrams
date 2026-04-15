@@ -1,0 +1,467 @@
+# MHG CX Agent Regression Suite — 18 Anxiety Protocol
+# 10 tests covering anxiety signal detection, acute intervention, severity scoring,
+# tone adaptation, trilingual support
+#
+# Variables resolved from _config.yaml:
+#   ${chat_url}        — environments.<env>.chat_url
+#   ${account.user}    — accounts.user.email
+
+module:
+  id: 18-cx-anxiety
+  title: "CX Agent — Anxiety Protocol"
+  description: >
+    Validates the Anxiety Protocol playbook: intent detection, acute intervention
+    mode for active panic, phased screening, severity scoring, tone adaptation,
+    and trilingual support.
+  gate: false
+
+tests:
+
+  # ---------------------------------------------------------------------------
+  # ANX-001  Anxiety intent detection — Ukrainian explicit statement
+  # ---------------------------------------------------------------------------
+  - id: ANX-001
+    title: "Anxiety intent detection — explicit Ukrainian statement"
+    priority: P0
+    tags: [cx-agent, anxiety, intent, smoke]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "User logged in to chat frontend"
+      - "Fresh chat session"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${chat_url}"
+        assert: "Chat page loads"
+
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "Я постійно тривожусь, не можу розслабитися, щось погане має статися"
+        assert: "Anxiety message typed"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Agent response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Anxiety protocol active"
+        expect: >
+          Agent responds with anxiety-focused conversation.
+          Response acknowledges worry without dramatization.
+          No banned phrases. No diagnostic labels.
+
+  # ---------------------------------------------------------------------------
+  # ANX-002  Acute Intervention Mode — active panic attack
+  # ---------------------------------------------------------------------------
+  - id: ANX-002
+    title: "Acute Intervention Mode — active panic symptoms"
+    priority: P0
+    tags: [cx-agent, anxiety, acute, panic, smoke]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Fresh chat session"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${chat_url}"
+        assert: "Chat loaded"
+
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "Мені зараз дуже погано, у мене паніка, серце вискакує з грудей, не можу дихати, мене трясе, руки пітніють"
+        assert: "Active panic symptoms described"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Immediate response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Acute Intervention Mode activated"
+        expect: >
+          Agent enters Acute Intervention Mode:
+          - Asks "Вас наразі ці симптоми турбують?" or similar check
+          - Provides IMMEDIATE grounding steps: breathing (4s in / 6s out),
+            standing up, focusing on 3 objects
+          - Response is SHORT and actionable
+          - NO long explanations, NO questions about stressors,
+            NO analysis of their state
+          - Does NOT repeat symptoms back at the user
+
+  # ---------------------------------------------------------------------------
+  # ANX-003  Post-acute transition — screening after grounding
+  # ---------------------------------------------------------------------------
+  - id: ANX-003
+    title: "Post-acute transition — screening begins after grounding"
+    priority: P1
+    tags: [cx-agent, anxiety, acute, screening, transition]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Acute Intervention from ANX-002"
+    depends_on: [ANX-002]
+    steps:
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "Так, трохи краще після дихання. Дякую"
+        assert: "User confirms improvement"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Agent response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Transition to screening"
+        expect: >
+          Agent transitions from acute mode to standard conversation.
+          Begins exploring the user's anxiety naturally — asking about
+          frequency, triggers, or how long this has been happening.
+          NOT immediately launching into a questionnaire.
+
+  # ---------------------------------------------------------------------------
+  # ANX-004  Severity scoring — mild anxiety
+  # ---------------------------------------------------------------------------
+  - id: ANX-004
+    title: "Mild anxiety — calm tone with rationalization"
+    priority: P1
+    tags: [cx-agent, anxiety, severity, mild]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Fresh chat session"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${chat_url}"
+        assert: "Chat loaded"
+
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "Останнім часом я часто хвилююся через роботу, важко розслабитися і погано сплю через це"
+        assert: "Mild anxiety symptoms (A01, A04, A16)"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Mild anxiety protocol"
+        expect: >
+          Agent responds with MILD protocol:
+          - Normal, calm tone
+          - Helps rationalize without dramatizing
+          - Does not inflate the problem
+
+  # ---------------------------------------------------------------------------
+  # ANX-005  Severe anxiety — professional referral focus
+  # ---------------------------------------------------------------------------
+  - id: ANX-005
+    title: "Severe anxiety — professional referral emphasis"
+    priority: P1
+    tags: [cx-agent, anxiety, severity, severe]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Fresh chat session"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${chat_url}"
+        assert: "Chat loaded"
+
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "Я постійно тривожусь, у мене панічні атаки щодня, мене трясе, нудить, запаморочення, серце стискає, не можу спати, не можу працювати, уникаю людей, все дратує, не можу дихати нормально, не можу зосередитися"
+        assert: "12+ anxiety symptoms described"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Severe anxiety protocol"
+        expect: >
+          Agent responds with SEVERE protocol:
+          - Short text, step-by-step
+          - Science-based explanation (not weakness)
+          - Primary focus: professional referral
+          - Does NOT aggressively argue with catastrophic thinking
+
+  # ---------------------------------------------------------------------------
+  # ANX-006  Catastrophic thinking — no aggressive contradiction
+  # ---------------------------------------------------------------------------
+  - id: ANX-006
+    title: "Catastrophic thinking — agent does not argue aggressively"
+    priority: P0
+    tags: [cx-agent, anxiety, catastrophic, tone]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Anxiety protocol active"
+    depends_on: [ANX-001]
+    steps:
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "Мені здається я помру, я знаю що зі мною щось серйозне, мені точно стане погано і ніхто не допоможе"
+        assert: "Catastrophic thinking expressed"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "No aggressive contradiction"
+        expect: >
+          Agent does NOT:
+          - Say "that's not true" or "you're wrong"
+          - Aggressively rationalize or argue
+          - Diagnose ("це панічний розлад")
+          Agent DOES:
+          - Acknowledge without inflating
+          - Redirect toward safety/grounding
+          - Stay calm and non-confrontational
+
+  # ---------------------------------------------------------------------------
+  # ANX-007  Moderate anxiety — structured trigger exploration
+  # ---------------------------------------------------------------------------
+  - id: ANX-007
+    title: "Moderate anxiety — one-problem-at-a-time approach"
+    priority: P1
+    tags: [cx-agent, anxiety, severity, moderate, structure]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Fresh chat session"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${chat_url}"
+        assert: "Chat loaded"
+
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "Я тривожусь щодня, не можу контролювати хвилювання, серце часто стукає, важко дихати, дратуюсь через дрібниці, на роботі не можу нормально працювати, уникаю зустрічей"
+        assert: "7+ anxiety symptoms (moderate)"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Moderate anxiety protocol"
+        expect: >
+          Agent responds with MODERATE protocol:
+          - Slow, structured, one problem at a time
+          - Does NOT jump between topics
+          - May start building a trigger list
+          - Mentions professional help non-pushily
+          - Avoids too many recommendations
+
+  # ---------------------------------------------------------------------------
+  # ANX-008  Russian language — anxiety intent detection
+  # ---------------------------------------------------------------------------
+  - id: ANX-008
+    title: "Russian language — anxiety intent and response"
+    priority: P1
+    tags: [cx-agent, anxiety, i18n, russian]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Fresh chat session"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${chat_url}"
+        assert: "Chat loaded"
+
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "Я постоянно тревожусь, не могу успокоиться, бросает в пот и трясутся руки"
+        assert: "Russian anxiety statement"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Russian anxiety protocol"
+        expect: "Agent responds IN RUSSIAN following anxiety protocol."
+
+  # ---------------------------------------------------------------------------
+  # ANX-009  English language — anxiety intent detection
+  # ---------------------------------------------------------------------------
+  - id: ANX-009
+    title: "English language — anxiety intent and response"
+    priority: P1
+    tags: [cx-agent, anxiety, i18n, english]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Fresh chat session"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${chat_url}"
+        assert: "Chat loaded"
+
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "I'm having a panic attack, my heart is racing, I can't breathe, I'm shaking and sweating"
+        assert: "English acute anxiety statement"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "English anxiety protocol with acute mode"
+        expect: >
+          Agent responds IN ENGLISH. Detects active panic and provides
+          immediate grounding steps in English.
+
+  # ---------------------------------------------------------------------------
+  # ANX-010  Correct response example — per specification
+  # ---------------------------------------------------------------------------
+  - id: ANX-010
+    title: "Correct response pattern — grounded, not robotic"
+    priority: P0
+    tags: [cx-agent, anxiety, tone, example]
+    role: user
+    viewport: { width: 1280, height: 800 }
+    prerequisites:
+      - "Fresh chat session"
+    depends_on: []
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${chat_url}"
+        assert: "Chat loaded"
+
+      - action: browser_fill_form
+        params:
+          selector: "textarea, input[type='text'], [contenteditable='true']"
+          value: "Я боюсь вийти на вулицю, я боюсь людей при тому що все добре але мене бросає в піт і трясуться руки, пересихає горло"
+        assert: "Exact example from specification"
+
+      - action: browser_click
+        params:
+          selector: "button[type='submit'], button:has-text('Send'), button[aria-label*='send' i]"
+        assert: "Message sent"
+
+      - action: browser_wait_for
+        params:
+          state: "visible"
+          selector: "[class*='message']:last-child"
+          timeout: 30000
+        assert: "Response received"
+
+      - action: browser_snapshot
+        params: {}
+        assert: "Response matches correct pattern from spec"
+        expect: >
+          Response MUST:
+          - First check if user needs immediate help ("Вас наразі ці симптоми турбують?")
+          - Be SHORT and actionable
+          - NOT repeat all symptoms back ("пітливість, тремтіння рук і сухість у горлі")
+          - NOT diagnose ("соціальний тривожний розлад", "агорафобія")
+          - NOT use fragile tone ("дуже неприємні відчуття", "розумію що вам страшно")
+          - NOT ask open-ended exploration questions while user is in distress
+          Response MUST NOT match the "incorrect" example from spec.
