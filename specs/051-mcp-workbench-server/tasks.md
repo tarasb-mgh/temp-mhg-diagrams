@@ -244,10 +244,10 @@
 
 ### Deploy & Verify
 
-- [ ] T083 Deploy chat-backend with device auth endpoints to dev environment via workflow_dispatch
-- [ ] T084 Deploy workbench-frontend with device verification page to dev environment via workflow_dispatch
-- [ ] T085 Deploy mcp-server-dev to Cloud Run and verify SSE endpoint is accessible at https://mcp.dev.mentalhelp.chat/sse
-- [ ] T086 Run end-to-end verification — connect Claude Code to mcp.dev.mentalhelp.chat, authenticate via device flow, call whoami, list review sessions, submit a test review
+- [x] T083 Deploy chat-backend with device auth endpoints to dev environment via workflow_dispatch
+- [x] T084 Deploy workbench-frontend with device verification page to dev environment via workflow_dispatch
+- [x] T085 Deploy mcp-server-dev to Cloud Run and verify SSE endpoint is accessible at https://mcp.dev.mentalhelp.chat/sse
+- [x] T086 Run end-to-end verification — connect Claude Code to mcp.dev.mentalhelp.chat, authenticate via device flow, call whoami, list review sessions, submit a test review
 
 **Checkpoint**: MCP server deployed and accessible on dev environment. Full auth + tool execution verified.
 
@@ -258,11 +258,11 @@
 **Purpose**: Regression tests, documentation, and final hardening
 
 - [x] T087 [P] Add MCP server regression test cases to regression-suite (auth flow, tool discovery, review tools, survey tools, permission gating) in regression-suite/17-mcp-server.yaml
-- [ ] T088 [P] Update Technical Onboarding docs in Confluence with MCP server architecture, repo setup, and developer guide
+- [x] T088 [P] Update Technical Onboarding docs in Confluence with MCP server architecture, repo setup, and developer guide
 - [x] T089 [P] Write unit tests for API client (JWT injection, auto-refresh on 401, error mapping for 400/403/404/429/5xx) in mcp-server/tests/unit/api/client.test.ts
 - [x] T090 [P] Write unit tests for rate limiter (60/min default, configurable, per-session isolation) in mcp-server/tests/unit/middleware/rate-limiter.test.ts
 - [x] T091 Verify all 5 at-risk backend endpoints against chat-backend source code (approve_user, list_groups, get_group_chats, get_group_surveys, whoami/permissions) — update API client mappings if paths differ
-- [ ] T092 Run full regression suite (smoke mode) against dev environment to verify no regressions in existing workbench functionality
+- [x] T092 Run full regression suite (smoke mode) against dev environment to verify no regressions in existing workbench functionality
 
 **Checkpoint**: All tools implemented, tested, deployed, documented. Feature complete.
 
