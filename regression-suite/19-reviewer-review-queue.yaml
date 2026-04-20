@@ -1,0 +1,96 @@
+# Reviewer Review Queue — AI-runnable regression module (feature 058)
+#
+# Jira Epic: MTB-1449
+# Spec: specs/058-reviewer-review-queue/spec.md
+# Plan: specs/058-reviewer-review-queue/plan.md
+# Tasks: specs/058-reviewer-review-queue/tasks.md
+#
+# This module is a STUB that lands as part of the Phase-2 foundation PR.
+# Individual test cases (RQ-001..RQ-NNN) will be added per user-story PR
+# according to the task list. The module is pre-registered in
+# `_config.yaml` execution_order between `04-review-session` and
+# `05-review-dashboards` so future US PRs only need to append test
+# cases, not rewire the suite.
+
+module:
+  id: "19-reviewer-review-queue"
+  title: "Reviewer Review Queue (feature 058)"
+  jira_epic: "MTB-1449"
+  owning_spec: "specs/058-reviewer-review-queue/spec.md"
+  description: >-
+    End-to-end validation of the Reviewer / Researcher experience inside
+    MHG Workbench: Space-driven Review Queue, structured rating editor,
+    per-message clinical tags + Red Flag, autosave + offline mode +
+    multi-tab reconciliation, change-request workflow, Space-scoped
+    Reports, WCAG 2.1 AA compliance, server-side PII masking, audit
+    trail. Mirrors the CI-runnable Playwright specs in
+    `chat-ui/tests/reviewer-review-queue/`.
+  default_account: "researcher"
+
+# Planned test-case groups (per user story from spec.md). Each group
+# will receive concrete test cases in the corresponding US PR.
+planned_groups:
+  - us: US-1
+    priority_range: [P0, P1]
+    description: "Reviewer rates a brand-new session end-to-end (MVP happy path)."
+    expected_cases: 8
+    jira_story: "MTB-1450"
+  - us: US-2
+    priority_range: [P0, P1]
+    description: >-
+      Autosave on blur + page-unload, offline mode with banner +
+      IndexedDB queue, Submit countdown, multi-tab focus-fetch
+      reconciliation.
+    expected_cases: 10
+    jira_story: "MTB-1451"
+  - us: US-3
+    priority_range: [P0, P1]
+    description: "Clinical tags, per-message tag comments, Red Flag flow, Expert fan-out."
+    expected_cases: 10
+    jira_story: "MTB-1452"
+  - us: US-4
+    priority_range: [P1, P2]
+    description: "Change-request + Supervisor decision + REPEAT label + canonical/superseded."
+    expected_cases: 7
+    jira_story: "MTB-1453"
+  - us: US-5
+    priority_range: [P1, P2]
+    description: "Reports Reviewer-scoped only; performer filter not in DOM."
+    expected_cases: 5
+    jira_story: "MTB-1454"
+  - us: US-6
+    priority_range: [P0, P1]
+    description: "Two-Reviewer cross-isolation (UI + direct API)."
+    expected_cases: 5
+    jira_story: "MTB-1455"
+  - us: US-7
+    priority_range: [P1, P2]
+    description: "Minimal sidebar, 2FA gate (dev OTP vs prod TOTP), timeout preserves draft."
+    expected_cases: 5
+    jira_story: "MTB-1456"
+  - us: US-8
+    priority_range: [P2, P3]
+    description: "Audit emissions coverage per event type."
+    expected_cases: 8
+    jira_story: "MTB-1457"
+
+# Cross-cutting planned gates (added in the Polish phase)
+planned_gates:
+  - id: A11Y
+    description: "axe-core zero critical / zero serious across Reviewer routes (SC-013g)."
+  - id: PII
+    description: "Zero unmasked PII in DOM / network / console / traces (SC-013p)."
+  - id: PERF
+    description: "TTI / autosave P95 / focus-fetch P95 / bundle / Core Web Vitals budgets (SC-013o)."
+  - id: PWA
+    description: "Manifest + service worker + Lighthouse PWA score ≥ 90 (SC-013m)."
+  - id: RESPONSIVE
+    description: "Desktop / tablet / mobile viewport parity (SC-013l)."
+  - id: BROWSER
+    description: "Chromium + WebKit Playwright projects green (SC-013n)."
+
+# Empty tests: kept as an empty array so the harness can detect the
+# module is registered but still needs implementation. AI agents running
+# the suite MUST skip this module with a "PLANNED" status until the
+# array is populated through the per-US PRs.
+tests: []

@@ -1,0 +1,568 @@
+openapi: 3.1.0
+info:
+  title: Reviewer Review Queue API (058)
+  version: 0.1.0
+  description: |
+    HTTP contract for the Reviewer Review Queue feature (058). Implemented in chat-backend
+    under the /api/* prefix. Consumed by workbench-frontend. All payload types are mirrored
+    in chat-types.
+
+    Authentication: existing session cookie / bearer token. RBAC enforces the Reviewer role
+    plus Space-scoped visibility per FR-010..FR-010b. PII is server-side masked before
+    response per FR-047c..f.
+servers:
+  - url: https://api.dev.mentalhelp.chat
+  - url: https://api.mentalhelp.chat
+
+paths:
+  /api/health/ping:
+    get:
+      summary: Liveness ping for the autosave / offline-mode detector
+      description: FR-031a. Returns 200 quickly when backend is reachable; client uses HTTP failure to flip into offline mode.
+      tags: [health]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  serverTime: { type: string, format: date-time }
+
+  /api/spaces/me:
+    get:
+      summary: Spaces the current Reviewer is a member of
+      description: FR-010, FR-010a. Drives the header Space dropdown.
+      tags: [spaces]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spaces:
+                    type: array
+                    items: { $ref: '#/components/schemas/Space' }
+
+  /api/reviewer/queue/languages:
+    get:
+      summary: Available languages in the Reviewer's queue with counts
+      description: FR-009c. Drives the language filter; returns only locales currently present in the queue.
+      tags: [reviewer-queue]
+      parameters:
+        - name: spaceId
+          in: query
+          schema: { type: string, format: uuid }
+          description: 'Optional Space scope; omit for "All Spaces" (union over Reviewer membership).'
+        - name: tab
+          in: query
+          required: true
+          schema: { type: string, enum: [pending, completed] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  options:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code: { type: string, example: uk }
+                        count: { type: integer, minimum: 0 }
+
+  /api/reviewer/queue:
+    get:
+      summary: Paged list of sessions in the Reviewer's queue
+      description: |
+        FR-006, FR-007, FR-008, FR-008a, FR-009, FR-009a, FR-009b, FR-009c, FR-010, FR-046f.
+        Server-side pagination, page size 25, with chip + date + language filters applied
+        server-side. Returns the page slice plus the total unfiltered count for badges.
+      tags: [reviewer-queue]
+      parameters:
+        - { in: query, name: tab, required: true, schema: { type: string, enum: [pending, completed] } }
+        - { in: query, name: spaceId, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: size, schema: { type: integer, enum: [25] } }
+        - in: query
+          name: subLabels
+          description: Multi-select chip filter on Pending tab.
+          schema:
+            type: array
+            items: { type: string, enum: [NEW, REPEAT, UNFINISHED] }
+            uniqueItems: true
+        - in: query
+          name: languages
+          schema:
+            type: array
+            items: { type: string }
+            uniqueItems: true
+        - { in: query, name: dateFrom, schema: { type: string, format: date } }
+        - { in: query, name: dateTo, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SessionCard' }
+                  totalUnfiltered: { type: integer, minimum: 0 }
+                  totalFiltered: { type: integer, minimum: 0 }
+                  page: { type: integer, minimum: 1 }
+                  pageSize: { type: integer, enum: [25] }
+
+  /api/reviewer/sessions/{sessionId}:
+    parameters:
+      - { in: path, name: sessionId, required: true, schema: { type: string } }
+    get:
+      summary: Reviewer-scoped session detail (full editor state for the current Reviewer)
+      description: |
+        FR-008 (X / Y refresh on detail load), FR-021a, FR-024c, FR-034a (focus-fetch),
+        FR-047c (PII masked). Returns the FULL editor state (Reviewer's own ratings, tag
+        attachments, message tag comments, Red Flags) plus the masked transcript.
+      tags: [reviewer-session]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionDetail' }
+        '403':
+          description: Not in Reviewer's accessible Spaces (FR-010, FR-048).
+        '404':
+          description: Session not found or not in completion-eligible state.
+
+  /api/reviewer/sessions/{sessionId}/state:
+    parameters:
+      - { in: path, name: sessionId, required: true, schema: { type: string } }
+    get:
+      summary: Lightweight current Reviewer-state (for multi-tab focus-fetch reconciliation)
+      description: FR-034a focus-fetch. Returns only the Reviewer's editable fields and their last-write timestamps (no transcript) so reconciliation is cheap.
+      tags: [reviewer-session]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReviewerState' }
+
+  /api/reviewer/reviews/{reviewId}/ratings/{messageId}:
+    parameters:
+      - { in: path, name: reviewId, required: true, schema: { type: string, format: uuid } }
+      - { in: path, name: messageId, required: true, schema: { type: string, format: uuid } }
+    put:
+      summary: Upsert a Rating for an assistant message
+      description: FR-011..FR-019. Idempotent. Server enforces the same FR-018(a..d) gating before persisting (no implicit submit).
+      tags: [reviewer-rating]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RatingUpsert' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Rating' }
+        '422':
+          description: Validation error (e.g., score < 8 with missing criterion / comment / validated answer).
+
+  /api/reviewer/reviews/{reviewId}/tags:
+    parameters:
+      - { in: path, name: reviewId, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: Attach a Clinical Tag to a message in the Reviewer's review
+      description: FR-020..FR-024 (private to author per FR-023). Tag must be a current Tag Center tag whose `language_group` covers the session's `language` (FR-021a).
+      tags: [reviewer-tags]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tagDefId, messageId]
+              properties:
+                tagDefId: { type: string, format: uuid }
+                messageId: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Attachment created.
+          content: { application/json: { schema: { $ref: '#/components/schemas/ClinicalTagAttachment' } } }
+    delete:
+      summary: Remove a Clinical Tag attachment authored by the current Reviewer
+      description: FR-023a. Pre-submit only (post-submit returns 409).
+      parameters:
+        - { in: query, name: tagDefId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: messageId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Removed }
+        '409': { description: Review already submitted (read-only). }
+
+  /api/reviewer/reviews/{reviewId}/tag-comments/{messageId}:
+    parameters:
+      - { in: path, name: reviewId, required: true, schema: { type: string, format: uuid } }
+      - { in: path, name: messageId, required: true, schema: { type: string, format: uuid } }
+    put:
+      summary: Upsert the per-message tag comment for the (message, Reviewer) pair
+      description: FR-022.
+      tags: [reviewer-tags]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/MessageTagComment' } } } }
+
+  /api/reviewer/sessions/{sessionId}/review-tags:
+    parameters:
+      - { in: path, name: sessionId, required: true, schema: { type: string } }
+    post:
+      summary: Attach a Review Tag to the session
+      description: FR-024a..f. Visible across Reviewers in the Space (FR-024f).
+      tags: [reviewer-tags]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tagDefId]
+              properties:
+                tagDefId: { type: string, format: uuid }
+      responses:
+        '201': { description: Attached, content: { application/json: { schema: { $ref: '#/components/schemas/ReviewTagAttachment' } } } }
+    delete:
+      summary: Remove a Review Tag attached by the current Reviewer
+      description: FR-024f. Audit-logged.
+      parameters:
+        - { in: query, name: tagDefId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Removed }
+
+  /api/reviewer/reviews/{reviewId}/red-flags/{messageId}:
+    parameters:
+      - { in: path, name: reviewId, required: true, schema: { type: string, format: uuid } }
+      - { in: path, name: messageId, required: true, schema: { type: string, format: uuid } }
+    put:
+      summary: Upsert the Red Flag on a specific message for the current Reviewer
+      description: FR-025, FR-026, FR-027a. Description is required, non-empty.
+      tags: [reviewer-flags]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [description]
+              properties:
+                description: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/RedFlag' } } } }
+    delete:
+      summary: Clear a Red Flag the current Reviewer raised
+      description: FR-027a. Pre-submit only. If the only Red Flag in the session is cleared, the FR-027 obligation is lifted.
+      responses:
+        '204': { description: Cleared }
+
+  /api/reviewer/reviews/{reviewId}/submit:
+    parameters:
+      - { in: path, name: reviewId, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: Finalise the review (Pending → Completed, or Repeat draft → Repeat completed)
+      description: |
+        FR-018, FR-018a, FR-029, FR-035, FR-040, FR-041. Server enforces every gating
+        condition; rejects with 422 on any unmet requirement. On success, marks the prior
+        canonical Review (if any) as `superseded` per FR-040, fires Red Flag email per
+        FR-028, recomputes session completion per FR-008b.
+      tags: [reviewer-submit]
+      responses:
+        '200':
+          description: Submitted.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Review' } } }
+        '422': { description: Submit-gating failure with structured error list. }
+
+  /api/reviewer/reviews/{reviewId}/change-requests:
+    parameters:
+      - { in: path, name: reviewId, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: Send a change-request to the Supervisor
+      description: FR-036, FR-037. Reason required.
+      tags: [reviewer-change-requests]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        '201': { description: Sent, content: { application/json: { schema: { $ref: '#/components/schemas/ChangeRequest' } } } }
+
+  /api/notifications/unread:
+    get:
+      summary: Reviewer's unread notifications
+      description: FR-039a, FR-039b. Three categories per FR-039b.
+      tags: [notifications]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Notification' }
+
+  /api/notifications/{id}/read:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: Acknowledge / dismiss a notification
+      description: FR-039a. Emits `notification.read` audit log entry per FR-049.
+      tags: [notifications]
+      responses:
+        '204': { description: Acknowledged }
+
+  /api/reviewer/reports:
+    get:
+      summary: Reports metrics for the current Reviewer
+      description: |
+        FR-042, FR-043, FR-044, FR-045, FR-046, FR-047. Server fixes performer = current
+        user; performer parameter is REJECTED (400) if present. Bounded by the active
+        Space scope.
+      tags: [reviewer-reports]
+      parameters:
+        - { in: query, name: from, required: true, schema: { type: string, format: date } }
+        - { in: query, name: to, required: true, schema: { type: string, format: date } }
+        - { in: query, name: spaceId, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/ReviewerReports' } } }
+
+components:
+  schemas:
+    Space:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+
+    SessionCard:
+      type: object
+      required: [id, language, riskLevel, messageCount, ageDays, completedReviewerCount, requiredReviewerCount]
+      properties:
+        id: { type: string, description: 'anonymised session token (FR-008, FR-047)' }
+        userId: { type: string, description: 'anonymised user token' }
+        spaceId: { type: string, format: uuid }
+        spaceName: { type: string }
+        language: { type: string }
+        riskLevel: { type: string, enum: [none, low, medium, high] }
+        messageCount: { type: integer, minimum: 0 }
+        ageDays: { type: integer, minimum: 0 }
+        completedReviewerCount: { type: integer, minimum: 0 }
+        requiredReviewerCount: { type: integer, minimum: 1 }
+        myLabels:
+          type: array
+          items: { type: string, enum: [NEW, REPEAT, UNFINISHED, COMPLETED, URGENT] }
+
+    SessionDetail:
+      type: object
+      required: [id, transcript, review]
+      properties:
+        id: { type: string }
+        spaceId: { type: string, format: uuid }
+        language: { type: string }
+        completedReviewerCount: { type: integer }
+        requiredReviewerCount: { type: integer }
+        transcript:
+          type: array
+          items:
+            type: object
+            required: [id, role, content]
+            properties:
+              id: { type: string, format: uuid }
+              role: { type: string, enum: [user, assistant] }
+              content:
+                type: string
+                description: 'PII-masked content with [REDACTED:type] placeholders (FR-047c).'
+        review: { $ref: '#/components/schemas/Review' }
+        reviewTagAttachments:
+          type: array
+          items: { $ref: '#/components/schemas/ReviewTagAttachment' }
+
+    ReviewerState:
+      type: object
+      required: [reviewId, ratings, tagAttachments, tagComments, redFlags, lastSavedAt]
+      properties:
+        reviewId: { type: string, format: uuid }
+        ratings:
+          type: array
+          items: { $ref: '#/components/schemas/Rating' }
+        tagAttachments:
+          type: array
+          items: { $ref: '#/components/schemas/ClinicalTagAttachment' }
+        tagComments:
+          type: array
+          items: { $ref: '#/components/schemas/MessageTagComment' }
+        redFlags:
+          type: array
+          items: { $ref: '#/components/schemas/RedFlag' }
+        lastSavedAt: { type: string, format: date-time }
+
+    Rating:
+      type: object
+      required: [id, reviewId, messageId, score, versionStatus]
+      properties:
+        id: { type: string, format: uuid }
+        reviewId: { type: string, format: uuid }
+        messageId: { type: string, format: uuid }
+        score: { type: integer, minimum: 1, maximum: 10 }
+        criterionId:
+          type: string
+          enum: [relevance, empathy, psychological_safety, ethical_integrity, clarity_tone, request_match, autonomy, artificiality]
+          nullable: true
+        criterionComment: { type: string, nullable: true }
+        validatedAnswer: { type: string, nullable: true }
+        versionStatus: { type: string, enum: [canonical, superseded] }
+
+    RatingUpsert:
+      type: object
+      required: [score]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 10 }
+        criterionId:
+          type: string
+          enum: [relevance, empathy, psychological_safety, ethical_integrity, clarity_tone, request_match, autonomy, artificiality]
+          nullable: true
+        criterionComment: { type: string, nullable: true, maxLength: 4000 }
+        validatedAnswer: { type: string, nullable: true, maxLength: 4000 }
+
+    ClinicalTagAttachment:
+      type: object
+      required: [id, tagDefId, messageId, reviewId]
+      properties:
+        id: { type: string, format: uuid }
+        tagDefId: { type: string, format: uuid }
+        messageId: { type: string, format: uuid }
+        reviewId: { type: string, format: uuid }
+        deletedAt: { type: string, format: date-time, nullable: true, description: 'Mirrored from ClinicalTagDef.deleted_at; presence triggers (deleted) chip rendering.' }
+
+    ReviewTagAttachment:
+      type: object
+      required: [id, tagDefId, sessionId, attachedByUserId]
+      properties:
+        id: { type: string, format: uuid }
+        tagDefId: { type: string, format: uuid }
+        sessionId: { type: string }
+        attachedByUserId: { type: string, format: uuid }
+        deletedAt: { type: string, format: date-time, nullable: true }
+
+    MessageTagComment:
+      type: object
+      required: [id, messageId, reviewerId, body]
+      properties:
+        id: { type: string, format: uuid }
+        messageId: { type: string, format: uuid }
+        reviewerId: { type: string, format: uuid }
+        body: { type: string, maxLength: 4000 }
+
+    RedFlag:
+      type: object
+      required: [id, messageId, reviewerId, description, state]
+      properties:
+        id: { type: string, format: uuid }
+        messageId: { type: string, format: uuid }
+        reviewerId: { type: string, format: uuid }
+        description: { type: string, maxLength: 4000 }
+        state: { type: string, enum: [draft, submitted] }
+
+    Review:
+      type: object
+      required: [id, sessionId, reviewerId, state, versionStatus]
+      properties:
+        id: { type: string, format: uuid }
+        sessionId: { type: string }
+        reviewerId: { type: string, format: uuid }
+        state: { type: string, enum: [DRAFT, COMPLETED, AWAITING_CHANGE_DECISION, REPEAT_DRAFT, REPEAT_COMPLETED] }
+        versionStatus: { type: string, enum: [canonical, superseded] }
+        submittedAt: { type: string, format: date-time, nullable: true }
+
+    ChangeRequest:
+      type: object
+      required: [id, reviewId, requesterId, reason]
+      properties:
+        id: { type: string, format: uuid }
+        reviewId: { type: string, format: uuid }
+        requesterId: { type: string, format: uuid }
+        reason: { type: string }
+        decision: { type: string, enum: [pending, approved, rejected], default: pending }
+
+    Notification:
+      type: object
+      required: [id, userId, category, payload, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        category:
+          type: string
+          enum: [change_request.decision, red_flag.supervisor_followup, space.membership_change]
+        payload: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+
+    ReviewerReports:
+      type: object
+      required: [period, totals, scoreDistribution, scoreTrend]
+      properties:
+        period:
+          type: object
+          properties:
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+        totals:
+          type: object
+          properties:
+            sessionsByStatus:
+              type: object
+              additionalProperties: { type: integer }
+            ratedSessions: { type: integer }
+            averageScore: { type: number, format: float }
+            commentsCount: { type: integer }
+            redFlagsRaised: { type: integer }
+        scoreDistribution:
+          type: array
+          items:
+            type: object
+            properties:
+              score: { type: integer, minimum: 1, maximum: 10 }
+              count: { type: integer, minimum: 0 }
+        scoreTrend:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              average: { type: number, format: float }

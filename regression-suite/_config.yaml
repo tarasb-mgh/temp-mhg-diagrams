@@ -102,6 +102,7 @@ execution_order:
   - 14-i18n           # Locale switching early, reset to EN after
   - 03-review-queue
   - 04-review-session
+  - 19-reviewer-review-queue  # feature 058 Reviewer scope (MTB-1449)
   - 05-review-dashboards
   - 06-safety-flags
   - 07-survey-schemas
