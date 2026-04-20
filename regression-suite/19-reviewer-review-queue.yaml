@@ -5,12 +5,14 @@
 # Plan: specs/058-reviewer-review-queue/plan.md
 # Tasks: specs/058-reviewer-review-queue/tasks.md
 #
-# This module is a STUB that lands as part of the Phase-2 foundation PR.
-# Individual test cases (RQ-001..RQ-NNN) will be added per user-story PR
-# according to the task list. The module is pre-registered in
-# `_config.yaml` execution_order between `04-review-session` and
-# `05-review-dashboards` so future US PRs only need to append test
-# cases, not rewire the suite.
+# This module exercises the Reviewer Review Queue surface via the
+# Playwright MCP harness. It is scoped to the `e2e-researcher@test.local`
+# fixture (role `Researcher`) and runs against the dev environment by
+# default (`workbench.dev.mentalhelp.chat` + `api.dev.mentalhelp.chat`).
+#
+# Coverage added in this revision (US-1 foundation): RQ-001..RQ-010.
+# Remaining groups (US-2..US-8 + polish) remain planned stubs — new
+# cases will be appended per US PR.
 
 module:
   id: "19-reviewer-review-queue"
@@ -33,8 +35,9 @@ planned_groups:
   - us: US-1
     priority_range: [P0, P1]
     description: "Reviewer rates a brand-new session end-to-end (MVP happy path)."
-    expected_cases: 8
+    expected_cases: 10
     jira_story: "MTB-1450"
+    status: "cases RQ-001..RQ-010 added"
   - us: US-2
     priority_range: [P0, P1]
     description: >-
@@ -89,8 +92,223 @@ planned_gates:
   - id: BROWSER
     description: "Chromium + WebKit Playwright projects green (SC-013n)."
 
-# Empty tests: kept as an empty array so the harness can detect the
-# module is registered but still needs implementation. AI agents running
-# the suite MUST skip this module with a "PLANNED" status until the
-# array is populated through the per-US PRs.
-tests: []
+tests:
+  - id: RQ-001
+    priority: P0
+    story: US-1
+    jira: MTB-1450
+    title: "Reviewer can sign in via email OTP (dev) and land on Review Queue"
+    requirement_refs: [FR-004, FR-006]
+    steps:
+      - action: browser_navigate
+        url: "https://workbench.dev.mentalhelp.chat/"
+      - action: browser_click
+        element: "Sign In to Start button"
+      - action: browser_fill_form
+        fields:
+          - name: email
+            type: textbox
+            value: "e2e-researcher@test.local"
+      - action: browser_click
+        element: "Send Code button"
+      - action: extract_otp_from_console
+        pattern: 'Code:\s+(\d{6})'
+        timeout_ms: 8000
+      - action: browser_fill_form
+        fields:
+          - name: otp
+            type: textbox
+            value: "{extracted_otp}"
+      - action: browser_click
+        element: "Verify button"
+    assertions:
+      - url_matches: "^https://workbench\\.dev\\.mentalhelp\\.chat/workbench"
+      - snapshot_contains_text: "E2e-Researcher"
+      - snapshot_contains_text: "Researcher"
+      - no_console_errors_except: ["api/auth/refresh.*401"]
+
+  - id: RQ-002
+    priority: P0
+    story: US-1
+    jira: MTB-1450
+    title: "Review Queue page exposes Pending + Completed tabs with counts"
+    requirement_refs: [FR-006, FR-008]
+    depends_on: [RQ-001]
+    steps:
+      - action: browser_click
+        element: "Review Queue sidebar item"
+      - action: browser_snapshot
+    assertions:
+      - url_matches: "^https://workbench\\.dev\\.mentalhelp\\.chat/workbench/review$"
+      - snapshot_has_tablist: "Review queue tabs"
+      - snapshot_has_tab_with_count: "Pending"
+      - snapshot_has_tab_with_count: "Completed"
+      - snapshot_shows_pagination: true
+
+  - id: RQ-003
+    priority: P0
+    story: US-1
+    jira: MTB-1450
+    title: "Session detail view shows transcript, rating panel, and progress gate"
+    requirement_refs: [FR-008, FR-011, FR-018]
+    depends_on: [RQ-002]
+    steps:
+      - action: browser_click
+        element: "First review session card"
+      - action: browser_snapshot
+    assertions:
+      - snapshot_contains_text: "Review Session"
+      - snapshot_contains_text: "Transcript"
+      - snapshot_contains_text: "Your Rating"
+      - snapshot_contains_text: "Rate all messages to submit"
+      - snapshot_contains_text: "Blinded"
+      - snapshot_has_radiogroup_aria_label: "Select a score from 1 to 10"
+      - snapshot_has_button_disabled: "Submit Review"
+
+  - id: RQ-004
+    priority: P1
+    story: US-1
+    jira: MTB-1450
+    title: "Scoring < 8 reveals mandatory criterion + comment + validated answer"
+    requirement_refs: [FR-014, FR-015, FR-017]
+    depends_on: [RQ-003]
+    steps:
+      - action: browser_click
+        element: "Score 5 radio"
+    assertions:
+      - snapshot_contains_text: "Criteria Feedback"
+      - snapshot_contains_text: "Required"
+      - snapshot_contains_text: "Relevance"
+      - snapshot_contains_text: "Empathy"
+      - snapshot_contains_text: "Safety"
+      - snapshot_contains_text: "Ethics"
+      - snapshot_contains_text: "Clarity"
+      - snapshot_contains_text: "Request Match"
+      - snapshot_contains_text: "Autonomy Support"
+      - snapshot_contains_text: "Artificiality"
+      - snapshot_contains_text: "Correct Answer"
+      - snapshot_contains_text: "Comment is required for scores below 8"
+      - snapshot_contains_text: "A correct answer is required for scores below 8"
+
+  - id: RQ-005
+    priority: P1
+    story: US-1
+    jira: MTB-1450
+    title: "Scoring >= 8 leaves criterion + correct-answer fields optional"
+    requirement_refs: [FR-016]
+    depends_on: [RQ-003]
+    steps:
+      - action: browser_click
+        element: "Score 9 radio"
+    assertions:
+      - snapshot_does_not_contain_text: "A correct answer is required for scores below 8"
+      - snapshot_does_not_contain_text: "Comment is required for scores below 8"
+      - snapshot_has_button_disabled: "Submit Review"
+        reason: "Other messages remain unrated"
+
+  - id: RQ-006
+    priority: P1
+    story: US-1
+    jira: MTB-1450
+    title: "Score radios expose per-level tooltips via info icons"
+    requirement_refs: [FR-012]
+    depends_on: [RQ-003]
+    steps:
+      - action: browser_hover
+        element: "Show grade description for level 9 info icon"
+    assertions:
+      - snapshot_tooltip_contains: "Score level: 9"
+      - snapshot_tooltip_contains: "Above Average"
+
+  - id: RQ-007
+    priority: P1
+    story: US-1
+    jira: MTB-1450
+    title: "Every message surfaces a Clinical tag and a Red Flag control"
+    requirement_refs: [FR-020, FR-025]
+    depends_on: [RQ-003]
+    steps:
+      - action: browser_snapshot
+    assertions:
+      - snapshot_count_buttons_by_label: "Clinical tag"
+        min: 1
+      - snapshot_count_buttons_by_label: "Red Flag"
+        min: 1
+      - snapshot_contains_text: "Risk Flag"
+        scope: header
+
+  - id: RQ-008
+    priority: P0
+    story: US-1
+    jira: MTB-1450
+    title: "After all assistant messages are rated with >= 8, Submit enables and completes"
+    requirement_refs: [FR-018, FR-019, FR-035]
+    depends_on: [RQ-003]
+    steps:
+      - action: iterate_assistant_messages
+        for_each:
+          - action: click_rate_this_assistant_message
+          - action: click_score_radio
+            value: 9
+          - action: wait
+            ms: 300
+      - action: browser_click
+        element: "Submit Review button"
+      - action: browser_wait_for
+        text: "Review submitted"
+        timeout_ms: 5000
+    assertions:
+      - network_request_succeeded: "POST /api/review/sessions/.+/submit"
+        status: 200
+      - navigation_returned_to: "^https://workbench\\.dev\\.mentalhelp\\.chat/workbench/review"
+      - tab_badge_incremented: "Completed"
+      - no_console_errors_except: ["api/auth/refresh.*401"]
+
+  - id: RQ-009
+    priority: P0
+    story: US-1
+    jira: MTB-1450
+    title: "GET /api/health/ping responds 200 without authentication (FR-031a)"
+    requirement_refs: [FR-031a]
+    steps:
+      - action: http_request
+        method: GET
+        url: "https://api.dev.mentalhelp.chat/api/health/ping"
+        headers: {}
+    assertions:
+      - response_status: 200
+      - response_header: "Cache-Control"
+        equals: "no-store"
+      - response_body_matches:
+          ok: true
+          serverTime: { type: string, iso8601: true }
+      - latency_p95_ms_below: 100
+
+  - id: RQ-010
+    priority: P0
+    story: US-1
+    jira: MTB-1450
+    title: "GET /api/spaces/me returns only the Reviewer's active Spaces (FR-010a)"
+    requirement_refs: [FR-010a]
+    depends_on: [RQ-001]
+    steps:
+      - action: extract_access_token_from_local_storage
+        key: accessToken
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/spaces/me"
+        headers:
+          Authorization: "Bearer {accessToken}"
+    assertions:
+      - response_status: 200
+      - response_body_matches:
+          success: true
+          data:
+            spaces:
+              type: array
+      - response_body_all_items_have:
+          path: "data.spaces[]"
+          fields: [id, name]
+      - negative_case:
+          without_auth_header: true
+          expected_status: 401
