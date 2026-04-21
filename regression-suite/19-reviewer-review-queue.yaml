@@ -10,9 +10,9 @@
 # fixture (role `Researcher`) and runs against the dev environment by
 # default (`workbench.dev.mentalhelp.chat` + `api.dev.mentalhelp.chat`).
 #
-# Coverage added in this revision (US-1 foundation + US-2 + US-3):
-#   RQ-001..RQ-018. Remaining groups (US-4..US-8 + polish) remain
-#   planned stubs — new cases will be appended per US PR.
+# Coverage added in this revision (US-1 + US-2 + US-3 + US-4 + US-5
+#   + US-6 + US-7): RQ-001..RQ-024. Remaining groups (US-8 + polish)
+#   remain planned stubs — new cases will be appended per US PR.
 
 module:
   id: "19-reviewer-review-queue"
@@ -64,24 +64,43 @@ planned_groups:
     status: "cases RQ-017..RQ-018 added"
   - us: US-4
     priority_range: [P1, P2]
-    description: "Change-request + Supervisor decision + REPEAT label + canonical/superseded."
+    description: >-
+      Change-request + Supervisor decision + REPEAT label +
+      canonical/superseded. Shipped: RQ-019..RQ-020 cover the Request
+      Changes button on completed reviews + REPEAT badge on session
+      cards when `myReviewVersion > 1`. Remaining 5 cases cover
+      Supervisor decision + banner/bell lifecycle in a follow-up PR.
     expected_cases: 7
     jira_story: "MTB-1453"
+    status: "cases RQ-019..RQ-020 added"
   - us: US-5
     priority_range: [P1, P2]
-    description: "Reports Reviewer-scoped only; performer filter not in DOM."
+    description: >-
+      Reports Reviewer-scoped only; performer filter not in DOM.
+      Shipped: RQ-021 covers the DOM gate + server-side scoping
+      enforcement; remaining cases cover individual metric correctness.
     expected_cases: 5
     jira_story: "MTB-1454"
+    status: "cases RQ-021 added"
   - us: US-6
     priority_range: [P0, P1]
-    description: "Two-Reviewer cross-isolation (UI + direct API)."
+    description: >-
+      Two-Reviewer cross-isolation (UI + direct API). Shipped:
+      RQ-022..RQ-023 cover the direct-API cross-reviewer probe (GET
+      comments / GET queue scope) + the session-detail leak-check
+      under a second Reviewer session.
     expected_cases: 5
     jira_story: "MTB-1455"
+    status: "cases RQ-022..RQ-023 added"
   - us: US-7
     priority_range: [P1, P2]
-    description: "Minimal sidebar, 2FA gate (dev OTP vs prod TOTP), timeout preserves draft."
+    description: >-
+      Minimal sidebar, 2FA gate (dev OTP vs prod TOTP), timeout
+      preserves draft. Shipped: RQ-024 covers the Researcher sidebar
+      least-privilege contract (only Review Queue + Reports rendered).
     expected_cases: 5
     jira_story: "MTB-1456"
+    status: "cases RQ-024 added"
   - us: US-8
     priority_range: [P2, P3]
     description: "Audit emissions coverage per event type."
@@ -698,5 +717,213 @@ tests:
         testid_prefix: "message-tag-comment-"
         testid_suffix: "-input"
         first_match_value: ""
+    assertions:
+      - console_errors: []
+
+  - id: RQ-019
+    priority: P1
+    story: US-4
+    jira: MTB-1453
+    title: "Completed review: Request Changes button replaces Submit Review (FR-040)"
+    requirement_refs: [FR-040]
+    depends_on: [RQ-001]
+    description: >-
+      Validates that once the Reviewer submits a review and the session
+      is in the `completed` state, the right-panel Submit control is
+      replaced by a Request Changes button. Clicking it opens the
+      supervisor-approval request flow; the button should NOT appear
+      for sessions that are still in Pending / In Progress.
+    steps:
+      - action: navigate_to_completed_session_for_current_reviewer
+      - action: assert_element_absent
+        selector: "button[aria-label*='Submit'], button:has-text('Submit')"
+      - action: assert_element_exists
+        selector: "button:has-text('Request changes')"
+      - action: click
+        selector: "button:has-text('Request changes')"
+      - action: assert_network_request_happened
+        method: POST
+        url_contains: "/api/review/change-requests"
+        expected_status_range: [200, 299]
+    assertions:
+      - console_errors: []
+
+  - id: RQ-020
+    priority: P1
+    story: US-4
+    jira: MTB-1453
+    title: "REPEAT badge renders on session cards when myReviewVersion > 1 (FR-040)"
+    requirement_refs: [FR-040]
+    depends_on: [RQ-001]
+    description: >-
+      After a supervisor-approved change request, the session returns
+      to Pending and `session_reviews.version` is bumped. The queue
+      endpoint surfaces the new value as `myReviewVersion` and the
+      `<SessionCard>` renders an amber REPEAT pill next to the
+      existing status pill. Unit tests cover the render gate exactly;
+      this E2E case locks the end-to-end wiring.
+    steps:
+      - action: seed_supervisor_approved_change_request_for_current_reviewer
+        # Test harness invariant — backs out via direct DB / admin API.
+      - action: navigate
+        url: "https://workbench.dev.mentalhelp.chat/workbench/review?tab=pending&subStatus=repeat"
+      - action: assert_element_exists
+        testid: "session-card-repeat-badge"
+      - action: assert_text_matches
+        testid: "session-card-repeat-badge"
+        contains: "REPEAT"
+    assertions:
+      - network_response_status_range: [200, 299]
+      - frontend_unit_tests_link: "workbench-frontend/src/features/workbench/review/components/__tests__/SessionCard.repeatBadge.test.tsx"
+
+  - id: RQ-021
+    priority: P1
+    story: US-5
+    jira: MTB-1454
+    title: "Reports page: Reviewer sees only own data; no Performer filter in DOM (FR-043)"
+    requirement_refs: [FR-043]
+    depends_on: [RQ-024]
+    description: >-
+      Validates US-5 acceptance scenarios 2 + 3: the Performer filter
+      MUST NOT be rendered for the Reviewer role (not disabled, not
+      display:none — simply absent). Server-side: the backend analytics
+      service forces `performerId = callerId` when the caller's role is
+      `researcher` / `qa_specialist`, so attempts to inject another
+      performer_id via URL are ignored.
+    steps:
+      - action: navigate
+        url: "https://workbench.dev.mentalhelp.chat/workbench/review/reports"
+      - action: assert_element_absent
+        selector: "input[placeholder*='performer'], input[aria-label*='Performer']"
+      - action: extract_access_token_from_local_storage
+        key: accessToken
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/review/reports/analytics?period_start=2026-01-01&period_end=2026-04-21&performer_id=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        headers:
+          Authorization: "Bearer {accessToken}"
+    assertions:
+      - response_status: 200
+      - response_body_matches:
+          # Server-side scope override — injected performer_id is ignored.
+          # Whichever counter appears MUST reflect current reviewer's data only.
+          success: true
+      - console_errors: []
+
+  - id: RQ-022
+    priority: P0
+    story: US-6
+    jira: MTB-1455
+    title: "Cross-reviewer isolation: Reviewer B cannot see Reviewer A's message-tag comments (FR-047)"
+    requirement_refs: [FR-047, FR-047c]
+    depends_on: [RQ-017]
+    description: >-
+      Validates US-6 acceptance scenario 3: direct API request to a
+      session that belongs to Reviewer A's queue MUST NOT leak A's
+      tag comments to Reviewer B. Because
+      `/api/review/sessions/:sid/message-tag-comments` resolves
+      `session_reviews` by `(session_id, reviewer_id = callerId)`
+      first, Reviewer B gets either an empty comments array (if they
+      have their own review on the same session) or an empty payload
+      (no review row). Either way A's text MUST NOT appear.
+    steps:
+      - action: sign_in_as
+        fixture: reviewer_a
+      - action: navigate_to_session_with_clinical_tags
+      - action: type_in_message_tag_comment
+        text: "confidential A-only note"
+      - action: blur_active_element
+      - action: sign_out_then_sign_in_as
+        fixture: reviewer_b
+      - action: extract_access_token_from_local_storage
+        key: accessToken
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/review/sessions/{sessionId}/message-tag-comments"
+        headers:
+          Authorization: "Bearer {accessToken}"
+    assertions:
+      - response_status: 200
+      - response_body_does_not_match:
+          data:
+            comments:
+              contains:
+                comment: "confidential A-only note"
+
+  - id: RQ-023
+    priority: P0
+    story: US-6
+    jira: MTB-1455
+    title: "Cross-reviewer isolation: session detail never leaks another reviewer's ratings/tags/flags (FR-047)"
+    requirement_refs: [FR-047]
+    depends_on: [RQ-022]
+    description: >-
+      Validates US-6 acceptance scenario 1: when Reviewer B opens the
+      same session that Reviewer A has already rated, B MUST see the
+      session as "empty" (no A ratings, no A tags, no A flags). The
+      backend `/api/review/sessions/:sid` endpoint scopes `myReview`
+      resolution by `reviewer_id = callerId`, and its included
+      `ratings` / `tags` / `flags` collections MUST NOT include rows
+      authored by another reviewer for a different `session_reviews`.
+    steps:
+      - action: sign_in_as
+        fixture: reviewer_b
+      - action: extract_access_token_from_local_storage
+        key: accessToken
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/review/sessions/{sessionIdPreviouslyRatedByReviewerA}"
+        headers:
+          Authorization: "Bearer {accessToken}"
+    assertions:
+      - response_status: 200
+      - response_body_matches:
+          success: true
+      - response_body_does_not_contain_reviewer_id:
+          scope: "data.ratings[].reviewerId"
+          other_reviewer_fixture: reviewer_a
+      - response_body_does_not_contain_reviewer_id:
+          scope: "data.tags[].reviewerId"
+          other_reviewer_fixture: reviewer_a
+
+  - id: RQ-024
+    priority: P1
+    story: US-7
+    jira: MTB-1456
+    title: "Researcher sidebar: only Review Queue + Reports rendered (AC 2)"
+    requirement_refs: [FR-000, US-7-AC-2]
+    depends_on: [RQ-001]
+    description: >-
+      Validates the US-7 least-privilege sidebar contract: for the
+      Researcher role the sidebar MUST only contain `Review Queue` and
+      `Reports` entries. The top-level Dashboard entry + `Review
+      Dashboard` + `Team Dashboard` + `Review Settings` + all of
+      Surveys / Agents / People & Access / Security / Group resources
+      MUST be absent from the DOM (not disabled, not hidden —
+      simply not emitted).
+    steps:
+      - action: sign_in_as
+        fixture: researcher
+      - action: navigate
+        url: "https://workbench.dev.mentalhelp.chat/workbench/review"
+      - action: count_sidebar_nav_items
+        min: 2
+        max: 2
+      - action: assert_sidebar_contains
+        exact_texts:
+          - "Review Queue"
+          - "Reports"
+      - action: assert_sidebar_does_not_contain
+        texts:
+          - "Dashboard"
+          - "Review Dashboard"
+          - "Team Dashboard"
+          - "Review Settings"
+          - "Survey Templates"
+          - "Survey Instances"
+          - "Agents"
+          - "Groups"
+          - "Expertise"
+          - "Tag Center"
     assertions:
       - console_errors: []
