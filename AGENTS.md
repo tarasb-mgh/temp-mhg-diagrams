@@ -97,14 +97,43 @@ auto-increments across local branches, remote branches, and `specs/` directories
 
 ### PR Cycle Requirements
 
-- Start from a dedicated `feature/*` or `bugfix/*` branch created from `develop`.
-- Validate relevant unit and UI/E2E tests before opening a PR.
-- Open PR to `develop` with scope, risk notes, and concrete test evidence.
+> **CRITICAL: one feature = one branch = one PR per repo.** Do NOT
+> fragment a single feature across multiple PRs against `develop`.
+> Do NOT stack PRs that depend on each other in the same repo.
+> The owner reviews and merges the complete feature ONCE.
+
+- Start from a dedicated `NNN-feature-name` branch created from `develop`.
+- Hold the branch open for the ENTIRE feature lifecycle; iterate
+  inside the same branch.
+- Deploy the feature branch to dev for iterative testing:
+  `gh workflow run deploy.yml --ref <branch> -f environment=dev`.
+- Validate relevant unit and UI/E2E tests before opening the PR.
+- Open exactly ONE PR per repo when the feature is fully working on
+  dev end-to-end. Include complete scope, risk notes, test evidence.
 - Resolve review feedback in follow-up commits on the same branch.
-- Merge only after all required checks are green and required approvals are present.
-- Prefer squash merge for clean history unless repository policy explicitly differs.
-- Post-merge housekeeping is mandatory: delete remote branch, delete local branch,
-  and hard-sync local `develop` to `origin/develop`.
+- Merge only after all required checks are green and the owner
+  approves the FULL feature.
+- Prefer squash merge for a clean `develop` history.
+- Post-merge housekeeping: delete remote branch, delete local branch,
+ and hard-sync local `develop` to `origin/develop`.
+
+Allowed exceptions to one-PR-per-feature:
+
+- Shared library publish (e.g. `chat-types`, `chat-frontend-common`)
+  that another repo's feature branch depends on MAY merge first as a
+  prerequisite. Prefer local file-linking (`local:deps:link`) to avoid
+  a premature publish when possible.
+- Owner-requested split of a genuinely huge feature into independently-
+  testable slices. Each slice is still a single PR.
+
+Anti-patterns (do NOT do):
+
+- Opening a PR for "US-1 foundation" and a second PR for "US-1 chip
+  bars" against `develop` for the same feature.
+- Rebasing a sibling PR on top of a merged sibling PR and asking the
+  owner to approve a second merge of the same feature.
+- Merging an incomplete slice just to unblock another slice when the
+  whole feature could have lived in one branch.
 
 ### Release Promotion To Main And Production
 

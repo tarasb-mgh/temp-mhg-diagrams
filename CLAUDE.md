@@ -111,13 +111,52 @@ Feature branches follow `NNN-short-name` pattern (e.g., `001-user-auth`). The nu
 
 ### PR Cycle Requirements
 
-- Start from a dedicated `feature/*` or `bugfix/*` branch created from `develop`.
-- Validate relevant unit and UI/E2E tests before opening a PR.
-- Open PR to `develop` with scope, risk notes, and concrete test evidence.
-- Resolve review feedback in follow-up commits on the same branch.
-- Merge only after all required checks are green and required approvals are present.
-- Prefer squash merge for clean history unless repository policy explicitly differs.
-- Post-merge housekeeping is mandatory: delete remote branch, delete local branch, and hard-sync local `develop` to `origin/develop`.
+> **CRITICAL: one feature = one branch = one PR per repo.** Do NOT
+> fragment a single feature across multiple PRs against `develop`.
+> Do NOT stack PRs that depend on each other's contents in the same
+> repo. The owner reviews and merges the complete feature ONCE.
+
+- Start from a dedicated `NNN-feature-name` branch created from `develop`.
+- **Hold the branch open for the ENTIRE feature lifecycle.** Commit
+  fixes, iterate, refactor — all inside the same branch. Push often
+  (the branch is a private workspace until the feature is complete).
+- **Deploy the feature branch to dev for iterative testing**:
+  `gh workflow run deploy.yml --ref <branch> -f environment=dev`.
+  Re-deploy after every material change; validate end-to-end against
+  `https://workbench.dev.mentalhelp.chat` (or the chat frontend for
+  chat-backend features).
+- Validate all relevant unit and UI/E2E tests locally BEFORE opening
+  the PR.
+- **Open exactly ONE PR per repo when the feature is fully working
+  on dev end-to-end.** Include complete scope, risk notes, concrete
+  test evidence, and dev-validation screenshots/links.
+- Resolve review feedback in follow-up commits on the same branch —
+  NEVER by opening a second PR for the same feature.
+- Merge only after all required checks are green and the owner
+  approves the FULL feature.
+- Prefer squash merge for a clean `develop` history.
+- Post-merge housekeeping: delete remote branch, delete local branch,
+  hard-sync local `develop` to `origin/develop`.
+
+#### Allowed exceptions to one-PR-per-feature
+
+- **Shared library publish** (e.g. `chat-types`, `chat-frontend-common`)
+  that another repo's feature branch depends on MAY merge first as a
+  prerequisite. The dependency boundary must be real — i.e. the
+  consumer can't typecheck against the unreleased lib locally. When
+  possible, prefer local file-linking (`local:deps:link` script) to
+  avoid a premature publish.
+- **Owner-requested split** of a genuinely huge feature into
+  independently-testable slices. Each slice is still a single PR.
+
+#### Anti-patterns (do NOT do)
+
+- Opening a PR for "US-1 foundation" and a second PR for "US-1 chip
+  bars" against `develop` for the same feature.
+- Rebasing a sibling PR on top of a merged sibling PR and asking the
+  owner to approve a second merge of the same feature.
+- Merging an incomplete slice just to unblock another slice when the
+  whole feature could have lived in one branch.
 
 ### Release Promotion To Main And Production
 

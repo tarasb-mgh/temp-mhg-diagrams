@@ -47,6 +47,25 @@ Do NOT use direct Cloud Run (`*.run.app`) or GCS bucket URLs. Always use:
 - `main` is promotion-only — via `release/*` branch PR only
 - After merge: delete remote branch, delete local branch, sync `develop`
 
+## Feature Workflow (CRITICAL — single branch, single PR per repo)
+
+- **One feature = one `NNN-feature-name` branch per repo**, held open
+  until the feature is FULLY implemented + dev-validated end-to-end.
+- Iterate inside that branch: commit fixes, push, deploy the branch
+  to dev via `gh workflow run deploy.yml --ref <branch> -f environment=dev`,
+  re-test — as many times as needed.
+- Only ONE PR per repo lands in `develop` per feature. Open it AFTER
+  the full feature is validated on dev, NOT after each intermediate
+  change.
+- NEVER stack multiple PRs for the same feature against `develop`.
+  NEVER ask the owner to approve incomplete slices.
+- EXCEPTION: a shared library publish (e.g. `chat-types`, `chat-frontend-common`)
+  that other repos depend on MAY merge as a prerequisite — but only
+  when the dependency boundary is real, not when the change could
+  have lived in the consumer's feature branch.
+- Production deployment is explicitly out of scope unless the owner
+  asks for it. All validation happens on `dev` exclusively.
+
 ## Production Deployment Gate (CRITICAL)
 
 **NEVER** create a release branch, open a release PR to `main`, or merge to `main`
