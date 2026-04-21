@@ -10,9 +10,9 @@
 # fixture (role `Researcher`) and runs against the dev environment by
 # default (`workbench.dev.mentalhelp.chat` + `api.dev.mentalhelp.chat`).
 #
-# Coverage added in this revision (US-1 foundation): RQ-001..RQ-014.
-# Remaining groups (US-2..US-8 + polish) remain planned stubs — new
-# cases will be appended per US PR.
+# Coverage added in this revision (US-1 foundation + US-2 + US-3):
+#   RQ-001..RQ-018. Remaining groups (US-4..US-8 + polish) remain
+#   planned stubs — new cases will be appended per US PR.
 
 module:
   id: "19-reviewer-review-queue"
@@ -43,14 +43,25 @@ planned_groups:
     description: >-
       Autosave on blur + page-unload, offline mode with banner +
       IndexedDB queue, Submit countdown, multi-tab focus-fetch
-      reconciliation.
+      reconciliation. Foundation shipped: RQ-015..RQ-016 cover
+      offline → enqueue → replay for the per-message tag comment
+      surface + liveness-check polling; remaining cases will cover
+      ratings / tags / red flags wiring, beforeunload guard, and
+      multi-tab reconciliation in follow-up PRs.
     expected_cases: 10
     jira_story: "MTB-1451"
+    status: "cases RQ-015..RQ-016 added"
   - us: US-3
     priority_range: [P0, P1]
-    description: "Clinical tags, per-message tag comments, Red Flag flow, Expert fan-out."
+    description: >-
+      Clinical tags, per-message tag comments, Red Flag flow, Expert
+      fan-out. Shipped: RQ-017..RQ-018 cover FR-022
+      per-(message, reviewer) tag comment (render + blur-save +
+      clear-to-delete). Remaining cases will cover Red Flag flow
+      and Expert fan-out in follow-up PRs.
     expected_cases: 10
     jira_story: "MTB-1452"
+    status: "cases RQ-017..RQ-018 added"
   - us: US-4
     priority_range: [P1, P2]
     description: "Change-request + Supervisor decision + REPEAT label + canonical/superseded."
@@ -504,3 +515,188 @@ tests:
     assertions:
       - frontend_unit_tests_link: "workbench-frontend/src/features/workbench/review/components/__tests__/QueueLanguageChips.test.tsx"
       - backend_integration_tests_link: "chat-backend/tests/integration/reviewer-queue.languages.test.ts"
+
+  - id: RQ-015
+    priority: P0
+    story: US-2
+    jira: MTB-1451
+    title: "Offline banner appears when navigator.onLine flips false; queue + replay drain the op (FR-031..FR-033)"
+    requirement_refs: [FR-031, FR-031a, FR-032, FR-033, FR-034]
+    depends_on: [RQ-017]
+    description: >-
+      Full offline / replay cycle on dev. Exercises:
+      (1) firing a window `offline` event flips the useBackendLiveness
+          hook's `online` state to false → the OfflineBanner renders
+          with amber styling, `role="status"`, `aria-live="polite"`,
+          and a Retry button;
+      (2) typing text into a `<MessageTagComment>` + blurring while
+          offline enqueues an `OfflineOp` in IndexedDB (store `ops`,
+          kind `reviewer.messageTagComment.upsert`) — NO PUT fires;
+      (3) the banner count updates to "1 change queued locally";
+      (4) when the next `/api/health/ping` confirms the backend is
+          reachable again, `online` flips true, `replayOfflineOps`
+          runs the dispatcher, and the queued op is drained (row
+          removed from IDB);
+      (5) the terminal state on the server reflects the queued comment
+          — `GET /message-tag-comments` returns the text that was
+          typed while offline.
+    steps:
+      - action: navigate_to_session_with_clinical_tags
+      - action: dispatch_window_event
+        event: offline
+      - action: wait_ms
+        value: 1500
+      - action: assert_element_exists
+        testid: offline-banner
+      - action: assert_text_matches
+        testid: offline-banner
+        contains: "offline"
+      - action: type_in_message_tag_comment
+        text: "offline queued note"
+      - action: assert_indexeddb_queue_length
+        db: mhg-reviewer-offline
+        store: ops
+        expected_length: 1
+      - action: assert_indexeddb_last_op
+        kind: reviewer.messageTagComment.upsert
+        payload_fields: [sessionId, messageId, comment]
+      - action: wait_until_online_true
+        timeout_ms: 30000
+      - action: assert_indexeddb_queue_length
+        db: mhg-reviewer-offline
+        store: ops
+        expected_length: 0
+      - action: extract_access_token_from_local_storage
+        key: accessToken
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/review/sessions/{sessionId}/message-tag-comments"
+        headers:
+          Authorization: "Bearer {accessToken}"
+    assertions:
+      - response_status: 200
+      - response_body_matches:
+          success: true
+          data:
+            comments:
+              contains:
+                comment: "offline queued note"
+      - console_errors: []
+
+  - id: RQ-016
+    priority: P1
+    story: US-2
+    jira: MTB-1451
+    title: "GET /api/health/ping is polled every 15 s and never returns cached results (FR-031a)"
+    requirement_refs: [FR-031a]
+    depends_on: [RQ-001]
+    description: >-
+      Smoke-test the liveness-check polling loop. Confirms that:
+      (1) the endpoint is reachable unauthenticated AND authenticated
+          (both return 200 with the payload `{ ok: true, serverTime }`);
+      (2) response carries `Cache-Control: no-store` (so the ping is
+          NEVER served from a CDN / worker cache);
+      (3) the frontend polls it at startup + every 15 s (tracked by
+          counting calls in the network request log after sitting on
+          the Review Session view for 35 s — expect ≥ 3 ping calls).
+    steps:
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/health/ping"
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/health/ping"
+        headers:
+          Authorization: "Bearer {accessToken}"
+      - action: navigate_to_session_with_clinical_tags
+      - action: wait_ms
+        value: 35000
+      - action: count_network_requests
+        url_contains: "/api/health/ping"
+        min: 3
+    assertions:
+      - response_status: 200
+      - response_body_matches:
+          ok: true
+      - response_header:
+          name: "Cache-Control"
+          matches_regex: "no-store"
+
+  - id: RQ-017
+    priority: P0
+    story: US-3
+    jira: MTB-1452
+    title: "Per-message tag comment renders inline for each tagged message (FR-022)"
+    requirement_refs: [FR-022]
+    depends_on: [RQ-011]
+    description: >-
+      Validates the FR-022 contract end-to-end after the US-3 refactor:
+      (1) the session-level `Tag comment` textbox that used to live in
+          the right-hand review panel is no longer rendered;
+      (2) each message that carries >=1 clinical tag gets its own
+          inline `<MessageTagComment>` (testid
+          `message-tag-comment-<messageId>`) with a textarea and an
+          "Auto-saved on blur" hint;
+      (3) typing text + blurring triggers a PUT
+          `/api/review/sessions/{id}/message-tag-comments/{messageId}`
+          that returns 200 + `{ success: true, data: { comment: {...}}}`;
+      (4) the comment persists after a full-page reload — GET
+          `/api/review/sessions/{id}/message-tag-comments` returns an
+          entry for the targeted messageId with the exact text;
+      (5) removing the clinical tag hides the comment field on the
+          next render (parent gates visibility on tag presence).
+    steps:
+      - action: navigate_to_session_with_clinical_tags
+      - action: assert_element_absent
+        selector: "[data-testid='clinical-tag-comment']"
+      - action: count_elements
+        selector: "[data-testid^='message-tag-comment-']:not([data-testid$='-input'])"
+        min: 1
+      - action: type_in_message_tag_comment
+        text: "cli note per msg"
+      - action: blur_active_element
+      - action: assert_network_request_happened
+        method: PUT
+        url_contains: "/message-tag-comments/"
+        expected_status: 200
+      - action: reload_page
+      - action: assert_textarea_value
+        testid_prefix: "message-tag-comment-"
+        testid_suffix: "-input"
+        first_match_value: "cli note per msg"
+    assertions:
+      - console_errors: []
+
+  - id: RQ-018
+    priority: P0
+    story: US-3
+    jira: MTB-1452
+    title: "Per-message tag comment — empty input on blur deletes the row (FR-022)"
+    requirement_refs: [FR-022]
+    depends_on: [RQ-017]
+    description: >-
+      Locks the spec-required "clear-to-delete" semantics: submitting
+      an empty / whitespace-only string on blur MUST remove the
+      persisted row rather than storing an empty string. The
+      Reviewer's UI immediately reflects the deletion (no stale
+      value), and a subsequent GET returns the message with NO
+      tag-comment entry.
+    steps:
+      - action: navigate_to_session_with_existing_tag_comment
+      - action: type_in_message_tag_comment
+        text: ""
+      - action: blur_active_element
+      - action: assert_network_request_happened
+        method: PUT
+        url_contains: "/message-tag-comments/"
+        expected_status: 200
+      - action: assert_response_body_matches
+        path: "data.comment"
+        value: null
+      - action: reload_page
+      - action: assert_textarea_value
+        testid_prefix: "message-tag-comment-"
+        testid_suffix: "-input"
+        first_match_value: ""
+    assertions:
+      - console_errors: []
