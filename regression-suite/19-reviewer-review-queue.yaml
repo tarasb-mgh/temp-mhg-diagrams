@@ -10,7 +10,7 @@
 # fixture (role `Researcher`) and runs against the dev environment by
 # default (`workbench.dev.mentalhelp.chat` + `api.dev.mentalhelp.chat`).
 #
-# Coverage added in this revision (US-1 foundation): RQ-001..RQ-010.
+# Coverage added in this revision (US-1 foundation): RQ-001..RQ-012.
 # Remaining groups (US-2..US-8 + polish) remain planned stubs — new
 # cases will be appended per US PR.
 
@@ -35,9 +35,9 @@ planned_groups:
   - us: US-1
     priority_range: [P0, P1]
     description: "Reviewer rates a brand-new session end-to-end (MVP happy path)."
-    expected_cases: 10
+    expected_cases: 12
     jira_story: "MTB-1450"
-    status: "cases RQ-001..RQ-010 added"
+    status: "cases RQ-001..RQ-012 added"
   - us: US-2
     priority_range: [P0, P1]
     description: >-
@@ -309,6 +309,104 @@ tests:
       - response_body_all_items_have:
           path: "data.spaces[]"
           fields: [id, name]
+      - negative_case:
+          without_auth_header: true
+          expected_status: 401
+
+  - id: RQ-011
+    priority: P0
+    story: US-1
+    jira: MTB-1450
+    title: "Red Flag modal blocks empty description + accepts non-PII text (FR-026)"
+    requirement_refs: [FR-026, FR-025, FR-047c]
+    depends_on: [RQ-004]
+    description: >-
+      Validates the three core Red Flag modal behaviours on dev:
+      (1) opening via the per-message Red Flag button renders a dialog
+          with a required Description textarea, a visible character
+          minimum indicator, and a Confirm Red Flag button;
+      (2) clicking Confirm with an empty description keeps the dialog
+          open (client-side gating);
+      (3) clicking Confirm with a safe (non-PII) description submits
+          POST /api/review/sessions/{id}/red-flags, dismisses the
+          dialog, and renders a `Red Flag` pill on the targeted message
+          that survives a full-page reload.
+    steps:
+      - action: navigate_to_first_pending_session
+      - action: click_red_flag_button_on_first_user_message
+      - action: expect_dialog_visible
+        role: dialog
+        name: "Red Flag"
+      - action: assert_dialog_has_textarea
+        label: "Description"
+        required: true
+      - action: click_button_in_dialog
+        name: "Confirm Red Flag"
+      - action: expect_dialog_still_visible
+      - action: fill_dialog_textarea
+        label: "Description"
+        value: "critical situation detected by automated regression"
+      - action: click_button_in_dialog
+        name: "Confirm Red Flag"
+      - action: expect_no_dialog
+      - action: expect_element_on_message
+        message_index: 0
+        role: user
+        contains_text: "Red Flag"
+      - action: reload_page
+      - action: expect_element_on_message
+        message_index: 0
+        role: user
+        contains_text: "Red Flag"
+    assertions:
+      - network_post_succeeded:
+          url_suffix: "/red-flags"
+          expected_status_range: [200, 299]
+      - console_errors: []
+      - known_flake: false
+
+  - id: RQ-012
+    priority: P1
+    story: US-1
+    jira: MTB-1450
+    title: "GET /api/reviewer/queue/languages returns options envelope (FR-009c)"
+    requirement_refs: [FR-009c, FR-021a]
+    depends_on: [RQ-001]
+    description: >-
+      Smoke-test the 058 language-filter endpoint. Verifies the
+      envelope shape, that unknown `tab` values collapse to the
+      default, and that a missing auth header yields 401. Does not
+      assert non-empty options because dev fixture sessions do not
+      always have `sessions.language` populated — option content is
+      covered by integration tests in chat-backend.
+    steps:
+      - action: extract_access_token_from_local_storage
+        key: accessToken
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/reviewer/queue/languages"
+        headers:
+          Authorization: "Bearer {accessToken}"
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/reviewer/queue/languages?tab=completed"
+        headers:
+          Authorization: "Bearer {accessToken}"
+      - action: http_request
+        method: GET
+        url: "https://api.workbench.dev.mentalhelp.chat/api/reviewer/queue/languages?tab=bogus"
+        headers:
+          Authorization: "Bearer {accessToken}"
+    assertions:
+      - response_status: 200
+      - response_body_matches:
+          success: true
+          data:
+            options:
+              type: array
+      - response_body_all_items_have:
+          path: "data.options[]"
+          fields: [code, count]
       - negative_case:
           without_auth_header: true
           expected_status: 401
