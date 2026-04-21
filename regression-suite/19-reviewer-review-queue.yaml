@@ -10,7 +10,7 @@
 # fixture (role `Researcher`) and runs against the dev environment by
 # default (`workbench.dev.mentalhelp.chat` + `api.dev.mentalhelp.chat`).
 #
-# Coverage added in this revision (US-1 foundation): RQ-001..RQ-012.
+# Coverage added in this revision (US-1 foundation): RQ-001..RQ-014.
 # Remaining groups (US-2..US-8 + polish) remain planned stubs — new
 # cases will be appended per US PR.
 
@@ -35,9 +35,9 @@ planned_groups:
   - us: US-1
     priority_range: [P0, P1]
     description: "Reviewer rates a brand-new session end-to-end (MVP happy path)."
-    expected_cases: 12
+    expected_cases: 14
     jira_story: "MTB-1450"
-    status: "cases RQ-001..RQ-012 added"
+    status: "cases RQ-001..RQ-014 added"
   - us: US-2
     priority_range: [P0, P1]
     description: >-
@@ -410,3 +410,97 @@ tests:
       - negative_case:
           without_auth_header: true
           expected_status: 401
+
+  - id: RQ-013
+    priority: P0
+    story: US-1
+    jira: MTB-1450
+    title: "Pending sub-status chip bar (new/unfinished/repeat) filters the queue (FR-009a)"
+    requirement_refs: [FR-009a, FR-009b]
+    depends_on: [RQ-001]
+    description: >-
+      End-to-end validation of the FR-009a multi-select chip bar on the
+      Pending tab. Exercises:
+      (1) chip bar renders with three chips (New / Unfinished / Repeat),
+          all `role="switch"` with `aria-checked="false"` initially and
+          a `role="group"` wrapper with an accessible name;
+      (2) toggling a single chip issues
+          `GET /api/review/queue?tab=pending&subStatus=<value>`;
+      (3) multi-select emits the OR union
+          `GET /api/review/queue?tab=pending&subStatus=<a>,<b>`;
+      (4) Clear button empties the selection, restores the default
+          semantics, removes the Filters-active badge.
+      Implicitly covers FR-009b (page size 25 is now the default; the
+      UI constant `PAGE_SIZE` was bumped to match).
+    steps:
+      - action: navigate
+        url: "https://workbench.dev.mentalhelp.chat/workbench/review"
+      - action: assert_element_exists
+        testid: "pending-sub-status-chip-new"
+      - action: assert_element_exists
+        testid: "pending-sub-status-chip-unfinished"
+      - action: assert_element_exists
+        testid: "pending-sub-status-chip-repeat"
+      - action: assert_aria_checked
+        testid: "pending-sub-status-chip-new"
+        value: "false"
+      - action: click
+        testid: "pending-sub-status-chip-unfinished"
+      - action: assert_aria_checked
+        testid: "pending-sub-status-chip-unfinished"
+        value: "true"
+      - action: assert_network_request_happened
+        url_contains: "/api/review/queue"
+        query_contains: "subStatus=unfinished"
+      - action: click
+        testid: "pending-sub-status-chip-new"
+      - action: assert_network_request_happened
+        url_contains: "/api/review/queue"
+        query_contains: "subStatus=unfinished%2Cnew"
+      - action: click
+        testid: "pending-sub-status-clear"
+      - action: assert_aria_checked_all
+        testids:
+          - "pending-sub-status-chip-new"
+          - "pending-sub-status-chip-unfinished"
+          - "pending-sub-status-chip-repeat"
+        value: "false"
+    assertions:
+      - console_errors_excluding:
+          url_prefix_allow:
+            - "https://api.workbench.dev.mentalhelp.chat/api/auth/me"  # pre-login 401
+      - network_response_status_range: [200, 299]
+
+  - id: RQ-014
+    priority: P1
+    story: US-1
+    jira: MTB-1450
+    title: "Language chip bar hides when no locales present; renders chips when populated (FR-009c)"
+    requirement_refs: [FR-009c, FR-009b]
+    depends_on: [RQ-001]
+    description: >-
+      Validates that the FR-009c language chip bar component
+      (`queue-language-chips`) behaves correctly in both states:
+      (1) when the endpoint returns an empty `options` list for the
+          active queue window, the component renders nothing (no chip
+          bar, no empty card-chrome, no label);
+      (2) when the endpoint returns ≥1 locale, one chip per locale is
+          rendered with a count bubble; chips share the a11y contract
+          (`role="switch"` + `aria-checked`).
+      In dev today every session has `language=null`, so only the
+      hidden-on-empty path is exercised live. The populated path is
+      covered by chat-backend integration tests + the
+      `QueueLanguageChips` unit tests in workbench-frontend.
+    steps:
+      - action: navigate
+        url: "https://workbench.dev.mentalhelp.chat/workbench/review"
+      - action: assert_element_absent
+        testid: "queue-language-chips"
+      - action: assert_network_request_happened
+        url: "/api/reviewer/queue/languages?tab=pending"
+        expected_status: 200
+        expected_response_body_path: "data.options"
+        expected_response_body_shape: "array"
+    assertions:
+      - frontend_unit_tests_link: "workbench-frontend/src/features/workbench/review/components/__tests__/QueueLanguageChips.test.tsx"
+      - backend_integration_tests_link: "chat-backend/tests/integration/reviewer-queue.languages.test.ts"
