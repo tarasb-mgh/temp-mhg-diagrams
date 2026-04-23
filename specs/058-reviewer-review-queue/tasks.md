@@ -48,7 +48,7 @@ description: "Tasks: Reviewer Review Queue — Full Implementation and E2E Valid
 - [ ] T012 [P] Create shared type module `chat-types/src/reviewer-review-queue/red-flag.ts` with `RedFlag` per `data-model.md` §11
 - [ ] T013 [P] Create shared type module `chat-types/src/reviewer-review-queue/change-request.ts` with `ChangeRequest` per `data-model.md` §13
 - [ ] T014 [P] Create shared type module `chat-types/src/reviewer-review-queue/notification.ts` with `Notification` and the three category enums per `data-model.md` §14
-- [ ] T015 [P] Create shared type module `chat-types/src/reviewer-review-queue/reports.ts` with `ReviewerReports` per contract `openapi.yaml#/components/schemas/ReviewerReports`
+- [ ] T015 [P] Create shared type module `chat-types/src/reviewer-review-queue/reports.ts` with `ReviewerReports` per contract `openapi.yaml#/components/schemas/ReviewerReports` (volume / productivity KPIs only — no score distribution or score trend)
 - [ ] T016 [P] Extend `chat-types/src/audit-log.ts` to add `legalHold: boolean` and `tier: 'hot'|'warm'|'cold'` per `data-model.md` §15
 - [ ] T017 Re-export every new module from `chat-types/src/reviewer-review-queue/index.ts` and `chat-types/src/index.ts`
 - [ ] T018 Tag a `chat-types` minor release; bump dependency in `chat-backend/package.json` and `workbench-frontend/package.json`
@@ -211,9 +211,9 @@ description: "Tasks: Reviewer Review Queue — Full Implementation and E2E Valid
 
 ---
 
-## Phase 7: User Story 5 — Reviewer reviews their own analytics in Reports (Priority: P2)
+## Phase 7: User Story 5 — Reviewer reviews their own productivity KPIs in Reports (Priority: P2)
 
-**Goal**: Reports page with Reviewer-scope only (no performer filter in DOM), period filter, the metrics catalogue listed in FR-044, no export controls.
+**Goal**: Reports page shows volume / productivity KPIs only (Total Sessions, Reviewed, Pending, Comments, Tags Applied, Red Flags, Throughput Trend, Sessions by Status). Quality metrics (score distribution, criteria breakdown, agreement rate) live on My Stats exclusively. No performer filter in DOM, no export controls.
 
 **Independent Test**: Quickstart §"Reports validation" steps 1–4.
 
@@ -225,9 +225,9 @@ description: "Tasks: Reviewer Review Queue — Full Implementation and E2E Valid
 
 ### Implementation for User Story 5
 
-- [ ] T112 [P] [US5] Implement `chat-backend/src/modules/reviewer-queue/services/reports-service.ts` returning `ReviewerReports` per contract; SERVER MUST reject any non-self performer parameter with 400 (FR-043)
+- [ ] T112 [P] [US5] Implement `chat-backend/src/modules/reviewer-queue/services/reports-service.ts` returning `ReviewerReports` per updated contract (volume KPIs: totalAssigned, reviewedSessions, pendingSessions, commentsCount, tagsApplied, redFlagsRaised, throughputTrend, sessionsByStatus); SERVER MUST reject any non-self performer parameter with 400 (FR-043)
 - [ ] T113 [US5] Implement `GET /api/reviewer/reports` route in `chat-backend/src/modules/reviewer-queue/routes/reports.ts`
-- [ ] T114 [P] [US5] Implement `workbench-frontend/src/modules/reviewer-queue/pages/ReviewerReportsPage.tsx` reusing existing chart components from `chat-frontend-common` (Score Distribution, Average Score Trend); NO performer filter, NO export control
+- [ ] T114 [P] [US5] Implement `workbench-frontend/src/modules/reviewer-queue/pages/ReviewerReportsPage.tsx` — Row 1: 6 KPI cards (Total Sessions, Reviewed, Pending, Comments Written, Tags Applied, Red Flags Raised); Row 2: Throughput Trend bar chart (sessions/week, per-day when period < 2 weeks); Row 3: Sessions by Status stacked bar or donut (all 4 statuses always shown). NO score distribution, NO average score trend, NO performer filter, NO export control
 - [ ] T115 [P] [US5] Add i18n strings for the Reports page namespace `reviewer.reports`
 - [ ] T116 [US5] Manual validation against quickstart §"Reports validation" — record evidence in `evidence/058-T116/`
 

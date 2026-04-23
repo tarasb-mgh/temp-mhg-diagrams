@@ -16,6 +16,7 @@
 - Q: How are primary and repeat ratings represented after an approved change request? → A: The repeat rating is canonical for analytics and the current Supervisor view; the primary rating is marked `superseded` and remains available in a per-session "version history" panel for the Supervisor (read-only, audit only).
 - Q: How does the Reviewer filter Pending sessions by sub-label (NEW / REPEAT / UNFINISHED)? → A: Single Pending list with a horizontal chip-bar filter supporting multi-select over NEW / REPEAT / UNFINISHED; the Pending tab badge keeps showing the total count. No nested sub-tabs.
 - Q: How is the performer filter rendered on Reports for the Reviewer role? → A: Hidden completely from the DOM (least-information principle); the server always fixes performer = current user. The Reviewer sees only the period filter and never any indication that other performers exist.
+- Q: How do Reports and My Stats differ? → A: Reports focus on volume / productivity KPIs (session counts, tags applied, comments written, red flags, throughput trend, status breakdown). My Stats focuses on review quality and character (score distribution, criteria breakdown, agreement rate, activity trend). No metric appears on both pages.
 
 ### Session 2026-04-16 (Round 2)
 
@@ -244,38 +245,47 @@ account), verify the session returns to Pending with the REPEAT label.
 
 ---
 
-### User Story 5 — Reviewer reviews their own analytics in Reports (Priority: P2)
+### User Story 5 — Reviewer reviews their own productivity KPIs in Reports (Priority: P2)
 
-The Reviewer opens the Reports page and sees metrics for their own work
-only (sessions, ratings, flags, average scores) over a chosen period. No
-data of other Reviewers is visible; the performer filter is either absent
-or locked to their own ID.
+The Reviewer opens the Reports page and sees volume / productivity metrics
+for their own work only (session counts, tags applied, comments written,
+red flags raised) over a chosen period. No data of other Reviewers is
+visible; the performer filter is either absent or locked to their own ID.
+Quality and rating-character metrics (score distribution, criteria
+breakdown, agreement rate) live exclusively on the My Stats page to avoid
+duplication.
 
-**Why this priority**: Helps the Reviewer track their own performance and
-quality. Doesn't block the core rating flow but matters for self-management
-and 1-on-1 meetings with the Supervisor.
+**Why this priority**: Helps the Reviewer track their throughput and
+engagement. Doesn't block the core rating flow but matters for
+self-management and 1-on-1 meetings with the Supervisor.
 
 **Independent Test**: Sign in as Reviewer, open Reports, pick a period,
 verify the metrics shown match only this Reviewer's activity (e.g., the
-session count matches Completed for the same period).
+reviewed-sessions count matches Completed for the same period).
 
 **Acceptance Scenarios**:
 
 1. **Given** the Reviewer opened Reports, **When** they pick the last 30
-   days, **Then** they see: session counts by status (Pending/UNFINISHED/
-   Completed/RED FLAG), number of rated sessions, average score, number of
-   comments, Score Distribution (1–10 bar chart), Average Score Trend
-   (daily/weekly), and the count of Red Flags they raised.
+   days, **Then** they see: KPI cards (Total Sessions assigned, Reviewed
+   Sessions completed, Pending Sessions, Comments Written, Tags Applied,
+   Red Flags Raised), a Throughput Trend chart (sessions completed per
+   week or per day if the period is shorter than two weeks), and a Sessions
+   by Status visual breakdown (Pending / Unfinished / Completed / Red Flag
+   proportions shown as a stacked bar or donut — all statuses rendered even
+   when count is 0).
 2. **Given** the Reviewer is on Reports, **When** they look at filters,
    **Then** only the period (From/To) filter is rendered. No performer
    filter exists in the DOM (not disabled, not hidden via display:none —
    simply not emitted). No tooltip, placeholder, or hint mentions other
    performers or other roles.
 3. **Given** the Reviewer rated 5 sessions in the chosen period, **When**
-   they look at "Rated sessions", **Then** the value is exactly 5; no other
-   Reviewer's sessions are counted.
+   they look at "Reviewed Sessions", **Then** the value is exactly 5; no
+   other Reviewer's sessions are counted.
 4. **Given** the Reviewer is on Reports, **When** they view the page,
    **Then** there are no export/download controls in this section.
+5. **Given** the Reviewer is on Reports, **When** they look for score
+   distribution, average score, or criteria breakdown, **Then** none of
+   these elements exist on the page — they live exclusively on My Stats.
 
 ---
 
@@ -974,8 +984,8 @@ and sees at least 5 corresponding entries within the time window.
   category from 058 backend code is prohibited.
 - **FR-040**: After a repeat submit (REPEAT label) the system MUST store
   both ratings as separate records. The repeat rating becomes the canonical
-  version used by analytics (Reports, Supervisor view, Score Distribution,
-  Average Score Trend) and by the current Supervisor view; the primary
+  version used by analytics (Reports throughput counters, My Stats quality
+  charts, Supervisor view) and by the current Supervisor view; the primary
   rating is marked `superseded` and is excluded from default Supervisor
   view and from analytics aggregates.
 - **FR-041**: A `superseded` primary rating MUST remain accessible to the
@@ -998,11 +1008,21 @@ and sees at least 5 corresponding entries within the time window.
   Space dropdown selection (FR-010a): metrics for a single Space cover
   only that Space; "All Spaces" unions across the Reviewer's member
   Spaces.
-- **FR-044**: Reports MUST include at least the following metrics for the
-  selected period: session counts by status (Pending/UNFINISHED/Completed/
-  RED FLAG), number of rated sessions, average score, number of comments,
-  Score Distribution (1–10 bar chart), Average Score Trend (over time), and
-  the count of Red Flags raised by the Reviewer.
+- **FR-044**: Reports MUST focus exclusively on volume / productivity
+  KPIs for the selected period. Quality and rating-character metrics
+  (average score, score distribution, criteria breakdown, agreement rate)
+  MUST NOT appear on Reports — they live on My Stats only. The required
+  Reports content is:
+  - **KPI cards** (Row 1, 3×2 grid): Total Sessions assigned, Reviewed
+    Sessions completed, Pending Sessions, Comments Written, Tags Applied,
+    Red Flags Raised.
+  - **Throughput Trend** (Row 2, full-width bar chart): sessions completed
+    per week; switches to per-day granularity when the selected period is
+    shorter than two weeks. X-axis = time buckets, Y-axis = count.
+  - **Sessions by Status** (Row 3, visual breakdown): a stacked
+    horizontal bar or donut showing Pending / Unfinished / Completed /
+    Red Flag proportions. All four statuses MUST be rendered even when
+    their count is 0 (greyed-out segment).
 - **FR-045**: A period filter (From/To dates) MUST be available on Reports.
 - **FR-046**: The Reports page for the Reviewer MUST NOT contain any
   export/download controls (per US-01: raw data export is available only
@@ -1547,6 +1567,10 @@ and sees at least 5 corresponding entries within the time window.
   E2E.
 - Reports for the Reviewer reuse the existing Reports component with
   additional filtering by data ownership; no separate page is created.
+  Reports focus on volume / productivity KPIs (session counts, tags,
+  comments, red flags, throughput trend); quality / rating-character
+  metrics (score distribution, criteria breakdown, agreement rate) live
+  exclusively on My Stats to avoid duplication between the two pages.
 - The 8 evaluation criteria are hard-coded in the system with stable IDs
   and i18n-localised labels; admin CRUD of the criteria list is out of
   scope and may be picked up by a later feature if needed.

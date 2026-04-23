@@ -76,9 +76,12 @@ planned_groups:
   - us: US-5
     priority_range: [P1, P2]
     description: >-
-      Reports Reviewer-scoped only; performer filter not in DOM.
-      Shipped: RQ-021 covers the DOM gate + server-side scoping
-      enforcement; remaining cases cover individual metric correctness.
+      Reports shows volume / productivity KPIs only (session counts, tags,
+      comments, red flags, throughput trend, status breakdown). Quality
+      metrics (score distribution, criteria breakdown) live on My Stats.
+      Performer filter not in DOM. Shipped: RQ-021 covers the DOM gate +
+      server-side scoping enforcement; remaining cases cover individual
+      metric correctness.
     expected_cases: 5
     jira_story: "MTB-1454"
     status: "cases RQ-021 added"
@@ -780,16 +783,19 @@ tests:
     priority: P1
     story: US-5
     jira: MTB-1454
-    title: "Reports page: Reviewer sees only own data; no Performer filter in DOM (FR-043)"
-    requirement_refs: [FR-043]
+    title: "Reports page: volume KPIs only, no Performer filter, no quality charts (FR-043, FR-044)"
+    requirement_refs: [FR-043, FR-044]
     depends_on: [RQ-024]
     description: >-
-      Validates US-5 acceptance scenarios 2 + 3: the Performer filter
-      MUST NOT be rendered for the Reviewer role (not disabled, not
-      display:none — simply absent). Server-side: the backend analytics
-      service forces `performerId = callerId` when the caller's role is
-      `researcher` / `qa_specialist`, so attempts to inject another
-      performer_id via URL are ignored.
+      Validates US-5: Reports shows volume / productivity KPIs (Total
+      Sessions, Reviewed, Pending, Comments, Tags Applied, Red Flags,
+      Throughput Trend, Sessions by Status breakdown). Quality metrics
+      (score distribution, average score, criteria breakdown) MUST NOT
+      appear — they live on My Stats. The Performer filter MUST NOT be
+      rendered (not disabled, not display:none — absent). Server-side:
+      the backend forces `performerId = callerId` when the caller's role
+      is `researcher` / `qa_specialist`, so injected performer_id is
+      ignored.
     steps:
       - action: navigate
         url: "https://workbench.dev.mentalhelp.chat/workbench/review/reports"
@@ -808,6 +814,16 @@ tests:
           # Server-side scope override — injected performer_id is ignored.
           # Whichever counter appears MUST reflect current reviewer's data only.
           success: true
+      # Volume KPI cards present
+      - element_visible: "[data-testid='kpi-total-assigned'], [data-testid='kpi-reviewed']"
+      - element_visible: "[data-testid='kpi-pending'], [data-testid='kpi-comments']"
+      - element_visible: "[data-testid='kpi-tags-applied'], [data-testid='kpi-red-flags']"
+      # Throughput trend and status breakdown present
+      - element_visible: "[data-testid='throughput-trend-chart']"
+      - element_visible: "[data-testid='sessions-by-status-chart']"
+      # Quality metrics MUST NOT appear on Reports (they live on My Stats)
+      - element_absent: "[data-testid='score-distribution'], [data-testid='score-distribution-chart']"
+      - element_absent: "[data-testid='average-score-trend'], [data-testid='criteria-breakdown']"
       - console_errors: []
 
   - id: RQ-022
@@ -925,5 +941,122 @@ tests:
           - "Groups"
           - "Expertise"
           - "Tag Center"
+    assertions:
+      - console_errors: []
+
+  # ════════════════════════════════════════════════════════════════
+  # Feature 059 — Reviewer MVP Gap Closure (RQ-025..RQ-034)
+  # ════════════════════════════════════════════════════════════════
+
+  - id: RQ-025
+    title: "Submit countdown shows pending offline count"
+    priority: P1
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/review/session/{any_session_id}"
+      - action: browser_snapshot
+    assertions:
+      - element_contains:
+          selector: "[data-testid='submit-label']"
+          text_pattern: "Submit"
+
+  - id: RQ-026
+    title: "Retired tag shows (retired) prefix"
+    priority: P1
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/review"
+      - action: browser_snapshot
+    assertions:
+      - console_errors: []
+
+  - id: RQ-027
+    title: "Shared loading skeleton renders (no spinner)"
+    priority: P1
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/review"
+      - action: browser_snapshot
+    assertions:
+      - no_element:
+          selector: ".fixed .spin, .absolute .spin"
+
+  - id: RQ-028
+    title: "Empty state with illustration and CTA"
+    priority: P1
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/review"
+      - action: browser_snapshot
+    assertions:
+      - console_errors: []
+
+  - id: RQ-029
+    title: "Unsaved changes modal on in-app navigation"
+    priority: P2
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/review/session/{any_session_id}"
+      - action: browser_snapshot
+    assertions:
+      - console_errors: []
+
+  - id: RQ-030
+    title: "Inactivity timeout admin setting"
+    priority: P2
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/settings"
+      - action: browser_snapshot
+    assertions:
+      - console_errors: []
+
+  - id: RQ-031
+    title: "Verbose autosave toggle admin setting"
+    priority: P2
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/settings"
+      - action: browser_snapshot
+    assertions:
+      - console_errors: []
+
+  - id: RQ-032
+    title: "Space membership notification rendering"
+    priority: P2
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/review"
+      - action: browser_snapshot
+    assertions:
+      - console_errors: []
+
+  - id: RQ-033
+    title: "Browser capability guard"
+    priority: P3
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/review"
+      - action: browser_snapshot
+    assertions:
+      - console_errors: []
+
+  - id: RQ-034
+    title: "Multi-tab reconciliation overlay"
+    priority: P2
+    role: researcher
+    steps:
+      - action: browser_navigate
+        url: "/workbench/review/session/{any_session_id}"
+      - action: browser_snapshot
     assertions:
       - console_errors: []

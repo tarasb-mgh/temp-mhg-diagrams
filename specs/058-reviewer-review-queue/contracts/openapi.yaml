@@ -346,11 +346,13 @@ paths:
 
   /api/reviewer/reports:
     get:
-      summary: Reports metrics for the current Reviewer
+      summary: Volume / productivity KPIs for the current Reviewer
       description: |
-        FR-042, FR-043, FR-044, FR-045, FR-046, FR-047. Server fixes performer = current
-        user; performer parameter is REJECTED (400) if present. Bounded by the active
-        Space scope.
+        FR-043, FR-044, FR-045, FR-046, FR-047. Returns throughput and engagement
+        metrics only — quality metrics (score distribution, criteria breakdown) are
+        served by GET /api/review/dashboard/me (My Stats). Server fixes performer =
+        current user; performer parameter is REJECTED (400) if present. Bounded by
+        the active Space scope.
       tags: [reviewer-reports]
       parameters:
         - { in: query, name: from, required: true, schema: { type: string, format: date } }
@@ -534,8 +536,12 @@ components:
         createdAt: { type: string, format: date-time }
 
     ReviewerReports:
+      description: >
+        Volume / productivity KPIs for the Reviewer's Reports page.
+        Quality metrics (score distribution, criteria breakdown, agreement
+        rate) live on My Stats only — see ReviewerDashboardStats.
       type: object
-      required: [period, totals, scoreDistribution, scoreTrend]
+      required: [period, totals, throughputTrend, sessionsByStatus]
       properties:
         period:
           type: object
@@ -545,24 +551,27 @@ components:
         totals:
           type: object
           properties:
-            sessionsByStatus:
-              type: object
-              additionalProperties: { type: integer }
-            ratedSessions: { type: integer }
-            averageScore: { type: number, format: float }
-            commentsCount: { type: integer }
-            redFlagsRaised: { type: integer }
-        scoreDistribution:
-          type: array
-          items:
-            type: object
-            properties:
-              score: { type: integer, minimum: 1, maximum: 10 }
-              count: { type: integer, minimum: 0 }
-        scoreTrend:
+            totalAssigned: { type: integer, description: Sessions assigned to this Reviewer in the period }
+            reviewedSessions: { type: integer, description: Completed reviews }
+            pendingSessions: { type: integer, description: Sessions still awaiting review }
+            commentsCount: { type: integer, description: Criteria comments authored }
+            tagsApplied: { type: integer, description: Tags set on sessions }
+            redFlagsRaised: { type: integer, description: Red flags raised }
+        throughputTrend:
+          description: Sessions completed per time bucket (weekly; daily when period < 2 weeks)
           type: array
           items:
             type: object
             properties:
               date: { type: string, format: date }
-              average: { type: number, format: float }
+              completedCount: { type: integer, minimum: 0 }
+        sessionsByStatus:
+          description: >
+            Visual breakdown — Pending / Unfinished / Completed / Red Flag.
+            All four keys MUST always be present (0 when empty).
+          type: object
+          properties:
+            pending: { type: integer, minimum: 0 }
+            unfinished: { type: integer, minimum: 0 }
+            completed: { type: integer, minimum: 0 }
+            redFlag: { type: integer, minimum: 0 }

@@ -101,8 +101,11 @@ Mirrors `spec.md` US-1, US-2, US-3 acceptance scenarios.
 
 1. Sign in as Reviewer A; navigate to `Reports`.
 2. Confirm only the period filter is rendered — no performer filter is in the DOM (US-5 AC2 + Round-3 Q5 clarification).
-3. Pick a 30-day period; confirm the displayed counters match Reviewer A's actual activity in that window (US-5 AC1, AC3).
-4. Confirm there is NO export / download control in this section (US-5 AC4 + FR-046).
+3. Pick a 30-day period; confirm 6 KPI cards are shown (Total Sessions, Reviewed, Pending, Comments Written, Tags Applied, Red Flags Raised) and values match Reviewer A's actual activity in that window (US-5 AC1, AC3).
+4. Confirm Throughput Trend chart is present (bar chart, sessions completed per week or per day).
+5. Confirm Sessions by Status visual breakdown is present with all 4 statuses (Pending / Unfinished / Completed / Red Flag).
+6. Confirm NO quality metrics appear (no score distribution, no average score trend, no criteria breakdown — these live on My Stats).
+7. Confirm there is NO export / download control in this section (US-5 AC4 + FR-046).
 
 ---
 
@@ -163,4 +166,4 @@ The runner uses Playwright MCP, captures console / network errors per the suite-
 - Audit Log contains entries for every category listed above (SC-006).
 - 0 axe-core critical / serious violations across the smoke run (SC-013g).
 - 0 PII leaks observed in DOM / network / console / Playwright traces (SC-013p).
-- Reports counters match the Reviewer's own activity (SC-004 reinforcement).
+- Reports volume KPIs match the Reviewer's own activity; no quality charts present (SC-004 reinforcement).
