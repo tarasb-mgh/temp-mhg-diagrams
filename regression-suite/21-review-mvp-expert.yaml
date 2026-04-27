@@ -1,0 +1,292 @@
+# MHG Workbench Regression Suite — Module 21: Review MVP — Expert Role
+# 14 tests | Role: expert | Depends on: AUTH-001
+#
+# Validates the Expert-role end-to-end functional surface against the
+# Review MVP user stories:
+#   US-14 (MC-29) — Expert views only sessions matching their clinical tags
+#   US-15 (MC-30) — Expert submits mandatory comment, completes expert review
+#
+# Cross-cutting NFs as they apply to this role:
+#   NF-01 (MC-32), NF-02 (MC-33), NF-04 (MC-35).
+
+module:
+  id: "21-review-mvp-expert"
+  title: "Review MVP — Expert Role"
+  description: "End-to-end functional coverage for the Expert role: tag-filtered queue, conversation viewing with tag highlighting, blocked Reviewer/Supervisor surfaces, mandatory comment workflow, plus cross-cutting NF-01/02/04."
+  role: expert
+  depends_on: [AUTH-001]
+  viewport: default
+  prerequisites:
+    - "Expert test account (`expert` in _config.yaml) is provisioned on dev with role=Expert."
+    - "Expert is assigned exactly one tag matching `expert.expected_tag` (e.g. 'depression') in _config.yaml."
+    - "At least 2 sessions exist in PENDING EXPERT REVIEW with that tag (run SV-022 first to seed them, or seed manually)."
+    - "At least 1 session exists in PENDING EXPERT REVIEW with a tag the Expert is NOT assigned to (used for negative test EX-001)."
+
+tests:
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-14 (MC-29) — Tag-filtered Expert queue
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: EX-001
+    title: "PENDING EXPERT REVIEW lists ONLY sessions with this Expert's tags"
+    priority: P0
+    tags: [expert, us-14, smoke, rbac]
+    role: expert
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=pending-expert-review" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='session-card']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Every session card shows the Expert's tag (e.g., 'depression'). Sessions tagged with other tags are absent from the list."
+        extract:
+          tags_per_card: "Tag values per card"
+          expected_tag: "${expert.expected_tag}"
+    pass_criteria:
+      - "Every session card has the Expert's expected_tag"
+      - "No card has unrelated tags only"
+    error_signatures:
+      - { pattern: "data-tag\\s*=\\s*\"(?!${expert.expected_tag})", meaning: "Expert sees a session tagged with a different clinical tag — RBAC violation" }
+
+  - id: EX-002
+    title: "Multi-tag session is visible to multiple matching Experts"
+    priority: P1
+    tags: [expert, us-14, multi-tag]
+    role: expert
+    depends_on: [EX-001]
+    steps:
+      - action: evidence_capture
+        params: { description: "Pre-condition: a session is tagged with both 'depression' AND another tag (e.g., 'anxiety')." }
+      - action: browser_snapshot
+        params: { extract: { multi_tag_session_visible: "True if a multi-tag session is in this Expert's queue" } }
+    pass_criteria:
+      - "Multi-tag session visible to this Expert"
+      - "Same session visible to a second Expert with the other tag (verify via parallel session)"
+
+  - id: EX-003
+    title: "Expert opens session and sees full conversation"
+    priority: P0
+    tags: [expert, us-14, smoke]
+    role: expert
+    depends_on: [EX-001]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='message'], [class*='message']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "All user messages and AI responses are rendered in the same order/structure as Reviewer/Supervisor views."
+
+  - id: EX-004
+    title: "Tagged conversation parts are highlighted"
+    priority: P1
+    tags: [expert, us-14, highlight]
+    role: expert
+    depends_on: [EX-003]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        expect: "Messages where the Expert's tag was set (by the Supervisor) have a distinct visual marker (border, color, badge). Untagged parts of the conversation are visible but not emphasised."
+    pass_criteria:
+      - "Tagged messages distinguishable from untagged"
+      - "Highlighting is keyboard-navigable / accessible (not color-only)"
+
+  - id: EX-005
+    title: "Expert does NOT see Reviewer scores or criteria"
+    priority: P0
+    tags: [expert, us-14, isolation, rbac]
+    role: expert
+    depends_on: [EX-003]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        expect: "No score values, no criteria checkboxes, no comments-from-Reviewers panel. Only the conversation + Expert's own input area is visible."
+    pass_criteria:
+      - "No data-testid containing 'reviewer-score'"
+      - "No 'criteria' panel rendered"
+    error_signatures:
+      - { pattern: "data-testid.*reviewer.score", meaning: "Reviewer scores leaked to Expert UI — NF-04 violation" }
+      - { pattern: "status == 200 AND /api/.*reviewer.scores", meaning: "API leak: Expert can read reviewer scoring data" }
+
+  - id: EX-006
+    title: "Expert comment NOT visible to Supervisor during supervision phase"
+    priority: P1
+    tags: [expert, us-14, isolation]
+    role: expert
+    depends_on: [EX-003]
+    steps:
+      - action: browser_fill_form
+        params:
+          fields:
+            - { selector: "[data-testid='expert-comment'], textarea[name='expertComment']", value: "E2E: this comment must not be visible to Supervisor during supervision." }
+      - action: evidence_capture
+        params: { description: "Out-of-band: Supervisor opens the same session via SV-003 path BEFORE Expert clicks 'Complete expert review' — comment must not be visible." }
+    pass_criteria:
+      - "Supervisor view shows no expert-comment field with content"
+
+  - id: EX-007
+    title: "EC-09: Deactivated Expert → tag-matched sessions visible to other Experts; deactivated user marked"
+    priority: P2
+    tags: [expert, us-14, edge-case]
+    role: expert
+    depends_on: [EX-001]
+    steps:
+      - action: evidence_capture
+        params: { description: "Pre-condition: a second Expert with the same tag exists. Deactivate them via Admin UI." }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=pending-expert-review" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Sessions previously assigned to the deactivated Expert remain visible to the active Expert with the same tag. Anywhere the deactivated user's name appears, it is annotated 'deactivated' (or strikethrough / badge)."
+    pass_criteria:
+      - "Sessions still visible to other Experts with matching tag"
+      - "Deactivated user clearly marked"
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-15 (MC-30) — Mandatory comment + complete expert review
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: EX-010
+    title: "Comment field is mandatory; 'Complete expert review' disabled when empty"
+    priority: P0
+    tags: [expert, us-15, validation, smoke]
+    role: expert
+    depends_on: [EX-003]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        expect: "Expert comment textarea visible and is required. 'Complete expert review' button starts in disabled state with the textarea empty."
+        extract:
+          button_disabled: "True if Complete button has aria-disabled or [disabled]"
+    pass_criteria:
+      - "button_disabled == True"
+      - "Button has clear affordance/explanation for why it's disabled"
+
+  - id: EX-011
+    title: "Filling comment enables 'Complete expert review' button"
+    priority: P0
+    tags: [expert, us-15, validation]
+    role: expert
+    depends_on: [EX-010]
+    steps:
+      - action: browser_fill_form
+        params:
+          fields:
+            - { selector: "[data-testid='expert-comment']", value: "Clinical assessment: model response was incomplete. Recommend retraining on differential diagnosis examples." }
+      - action: browser_snapshot
+        params: { extract: { button_disabled_after: "Same as EX-010 but after filling" } }
+    pass_criteria:
+      - "button_disabled_after == False"
+
+  - id: EX-012
+    title: "After 'Complete expert review' → session moves to COMPLETED EXPERT REVIEWS tab"
+    priority: P0
+    tags: [expert, us-15, routing, smoke]
+    role: expert
+    depends_on: [EX-011]
+    steps:
+      - action: browser_click
+        params: { selector: "button:has-text('Complete expert review')" }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=completed-expert-reviews" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Just-completed session is now in COMPLETED EXPERT REVIEWS tab. Pending tab no longer lists it."
+    pass_criteria:
+      - "Session in COMPLETED EXPERT REVIEWS"
+      - "Session NOT in PENDING EXPERT REVIEW"
+
+  - id: EX-013
+    title: "COMPLETED EXPERT REVIEWS tab NOT visible to Reviewers/Supervisors"
+    priority: P0
+    tags: [expert, us-15, isolation, rbac]
+    role: reviewer
+    depends_on: [AUTH-001]
+    steps:
+      - action: evidence_capture
+        params: { description: "Switch to the reviewer test account for this test (it cross-checks isolation from a Reviewer perspective)." }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=completed-expert-reviews" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Either tab is not visible in the bar OR direct URL hits a 'Not authorized' state OR redirects to a permitted tab."
+      - action: evidence_capture
+        params: { description: "Repeat as supervisor — same expectation." }
+    pass_criteria:
+      - "Reviewer cannot reach the tab"
+      - "Supervisor cannot reach the tab"
+    error_signatures:
+      - { pattern: "status == 200 AND /api/.*expert.review", meaning: "Non-Expert can read completed expert reviews — RBAC violation" }
+
+  # ════════════════════════════════════════════════════════════════════
+  #  Cross-cutting NF requirements as they apply to Expert
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: EX-020
+    title: "NF-01: Expert login requires TOTP 2FA"
+    priority: P0
+    tags: [nf-01, auth, 2fa, smoke]
+    role: expert
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/login" }
+      - action: browser_fill_form
+        params:
+          fields:
+            - { selector: "input[type='email']", value: "${expert.email}" }
+      - action: browser_click
+        params: { selector: "button[type='submit']" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='totp-input'], input[autocomplete='one-time-code']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "TOTP input required as for any other Workbench role."
+
+  - id: EX-021
+    title: "NF-04: Expert cannot reach Reviewer or Supervisor surfaces"
+    priority: P0
+    tags: [nf-04, rbac, isolation, smoke]
+    role: expert
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=pending-evaluation" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Reviewer queue not visible / access denied."
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=ready-for-supervision" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Supervisor queue not visible / access denied."
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=processed" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Processed sessions tab not visible (per US-11 AC: not visible to Reviewers AND Experts)."
+    pass_criteria:
+      - "All three forbidden tabs blocked"
+    error_signatures:
+      - { pattern: "status == 200 AND /api/review/queue", meaning: "Expert can read reviewer queue — RBAC violation" }
+
+  - id: EX-022
+    title: "NF-04: Reports page NOT available to Expert (US-16 scope is Reviewer + Supervisor)"
+    priority: P1
+    tags: [nf-04, rbac, isolation]
+    role: expert
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review/reports" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Either redirected away, sidebar entry hidden, or 403 page. Reports endpoint is out of scope for Expert per US-16 AC."
+    pass_criteria:
+      - "Expert cannot view aggregate reports"
+      - "Note: per US-16 'Note: Analytics for Experts is also required (per OQ-08)' — that work is scoped separately. Once the Expert reports surface ships, retire this isolation test."
+
+# End of module 21 — 14 tests covering Expert role end-to-end.

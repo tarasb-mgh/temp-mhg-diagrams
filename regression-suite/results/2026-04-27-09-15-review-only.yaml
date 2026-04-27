@@ -1,0 +1,105 @@
+run:
+  id: "2026-04-27-09-15-review-only"
+  mode: "custom (modules:03,04,05,06 priority:P0,P1)"
+  environment: dev
+  account: "playwright@mentalhelp.global"
+  account_role: owner
+  started: "2026-04-27T09:13:33Z"
+  completed: "2026-04-27T09:17:00Z"
+  duration_seconds: 207
+  invocation: "interactive single-conversation run via Playwright MCP"
+
+summary:
+  total_in_scope: 24
+  executed: 11
+  passed: 10
+  failed: 1
+  deferred: 13
+  pass_rate_executed: "91%"
+  by_priority:
+    P0: { total: 7,  executed: 7, passed: 6, failed: 1, deferred: 0 }
+    P1: { total: 17, executed: 4, passed: 4, failed: 0, deferred: 13 }
+  by_module:
+    03-review-queue:      { total: 7, executed: 3, passed: 2, failed: 1, deferred: 4 }
+    04-review-session:    { total: 8, executed: 4, passed: 4, failed: 0, deferred: 4 }
+    05-review-dashboards: { total: 3, executed: 0, passed: 0, failed: 0, deferred: 3 }
+    06-safety-flags:      { total: 6, executed: 4, passed: 4, failed: 0, deferred: 2 }
+
+results:
+  - { id: AUTH-001, module: 01-auth,           priority: P0, outcome: pass }
+  - { id: RQ-001,   module: 03-review-queue,   priority: P0, outcome: pass,    note: "Queue page loads, breadcrumb + tablist render" }
+  - { id: RQ-002,   module: 03-review-queue,   priority: P0, outcome: pass,    note: "All 7 tabs visible with badges: Pending(0)/Flagged(0)/InProgress(2)/Completed(1)/Excluded/SupervisionQueue(0)/AwaitingFeedback(0)" }
+  - { id: RQ-003,   module: 03-review-queue,   priority: P0, outcome: partial, note: "Click-from-Pending blocked by D-1; validated via In Progress card; session detail loaded successfully" }
+  - { id: RQ-010,   module: 03-review-queue,   priority: P1, outcome: deferred }
+  - { id: RQ-011,   module: 03-review-queue,   priority: P1, outcome: deferred }
+  - { id: RQ-012,   module: 03-review-queue,   priority: P1, outcome: deferred }
+  - { id: RQ-013,   module: 03-review-queue,   priority: P1, outcome: deferred }
+  - { id: RS-001,   module: 04-review-session, priority: P0, outcome: pass,    note: "8 user + 8 assistant messages rendered, visually distinguishable" }
+  - { id: RS-002,   module: 04-review-session, priority: P0, outcome: pass,    note: "Each assistant message has 'Rate this assistant message' button" }
+  - { id: RS-003,   module: 04-review-session, priority: P0, outcome: pass,    note: "1-10 rating control with per-grade description tooltips" }
+  - { id: RS-004,   module: 04-review-session, priority: P0, outcome: pass,    note: "Comment field rendered, Submit Review [disabled] until all rated" }
+  - { id: RS-005,   module: 04-review-session, priority: P1, outcome: deferred }
+  - { id: RS-006,   module: 04-review-session, priority: P1, outcome: deferred }
+  - { id: RS-007,   module: 04-review-session, priority: P1, outcome: deferred }
+  - { id: RS-009,   module: 04-review-session, priority: P1, outcome: deferred }
+  - { id: RD-001,   module: 05-review-dashboards, priority: P1, outcome: deferred }
+  - { id: RD-002,   module: 05-review-dashboards, priority: P1, outcome: deferred }
+  - { id: RD-004,   module: 05-review-dashboards, priority: P1, outcome: deferred }
+  - { id: SF-001,   module: 06-safety-flags,   priority: P1, outcome: pass,    note: "Risk Flag button on session header" }
+  - { id: SF-002,   module: 06-safety-flags,   priority: P1, outcome: pass,    note: "Categories: CrisisIndicators/SelfHarmLanguage/InappropriateAIResponse/EthicalConcern/OtherSafetyConcern" }
+  - { id: SF-003,   module: 06-safety-flags,   priority: P1, outcome: pass,    note: "Details textbox with 'Minimum 10 characters required' validation" }
+  - { id: SF-004,   module: 06-safety-flags,   priority: P1, outcome: pass,    note: "Modal structure: Risk Flag heading + Close/Cancel/Submit Flag" }
+  - { id: SF-005,   module: 06-safety-flags,   priority: P1, outcome: deferred }
+  - { id: SF-006,   module: 06-safety-flags,   priority: P1, outcome: deferred }
+
+defects:
+  - id: D-1
+    title: "Dashboard 'Pending Review' counter does not match Queue Pending tab count"
+    severity: medium
+    related_tests: [RQ-002, RQ-003]
+    symptom: "Dashboard shows Pending Review = 91; Review Queue Pending tab = 0."
+    root_cause: "Queue API filters by selected Space (groupId param); Dashboard counter does not."
+    network_evidence: "GET /api/review/queue?page=1&groupId=ba1ced2d-e827-4a2e-8d16-94fc3085962e&tab=pending → 200, 0 results"
+    user_impact: "Reviewer follows the 91-counter to an empty queue and is confused."
+    fix_options:
+      - "Make Dashboard tile respect active Space selection."
+      - "Label as 'Pending Review (All Spaces)' with per-space breakdown."
+      - "Auto-switch Space to All Spaces when navigating from Dashboard tile."
+
+  - id: D-2
+    title: "Broken sessions are reachable from Reviewer In Progress tab"
+    severity: high
+    related_tests: [RQ-002, RQ-003]
+    symptom: "Both sessions in In Progress tab carry Broken badge with tooltip 'no assistant replies — surfaced by mistake'."
+    user_impact: "Reviewer opens a broken session, can't complete review, has to navigate back."
+    fix: "Exclude Broken/surfaced-by-mistake sessions from the queue, or gate them behind an explicit filter."
+
+  - id: D-3
+    title: "Broken-session tooltip contradicts actual session content"
+    severity: medium
+    related_tests: [RQ-003, RS-001]
+    symptom: "Tooltip claims 'no assistant replies'; opening session be2dc550-... shows 8 assistant messages."
+    user_impact: "Mistrust in broken-session detection logic."
+    fix: "Audit the broken-session detection criteria and align tooltip wording with actual catch logic."
+
+global_health:
+  console_errors_unexpected: 0
+  network_errors_unexpected: 0
+  api_endpoints_exercised: 14
+  console_errors_filtered:
+    - { pattern: "401.*api/auth/refresh", count: 1, reason: "pre-auth token check, expected" }
+  spaces_in_selector: 9
+  i18n_literal_keys_found: []
+
+verdict: PARTIAL_PASS
+verdict_reason: "All 7 P0 tests in scope passed (RQ-003 partial, validated via alternate path). 4 of 17 P1 sampled — all 4 passed. 3 real defects flagged on review-queue data layer that warrant triage before MC-63 release. 13 P1 deferred for follow-up run."
+
+next_actions:
+  - id: NA-1
+    description: "Triage D-1, D-2, D-3 before chat-backend release (MC-63) cuts to main."
+    blocking_for: [MC-63, MC-52]
+  - id: NA-2
+    description: "Re-run deferred P1 tests after D-1 fixed (many depend on Pending tab having real cards)."
+  - id: NA-3
+    description: "Provision e2e-reviewer / e2e-supervisor / e2e-expert accounts on dev to unblock modules 19/20/21 (Review MVP role coverage)."
+    blocking_for: [MC-49, MC-50, MC-52]

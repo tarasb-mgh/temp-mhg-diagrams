@@ -54,6 +54,35 @@ accounts:
     otp_pattern: "Code:\\s+(\\d{6})"
     expected_role_label:
       en: "Group Admin"
+  # ── Review MVP roles (modules 19-21) ───────────────────────────────────
+  # These accounts must be provisioned before running modules 19/20/21:
+  #   1. Create accounts on dev with the role assigned at the workbench level.
+  #   2. Each must have 2FA TOTP set up (per NF-01).
+  #   3. The expert account must have at least one clinical tag assigned (per US-14).
+  reviewer:
+    email: "e2e-reviewer@test.local"
+    otp_source: "browser_console"
+    otp_pattern: "Code:\\s+(\\d{6})"
+    expected_role_label:
+      en: "Reviewer"
+      uk: "Рев'юер"
+  supervisor:
+    email: "e2e-supervisor@test.local"
+    otp_source: "browser_console"
+    otp_pattern: "Code:\\s+(\\d{6})"
+    expected_role_label:
+      en: "Supervisor"
+      uk: "Супервайзер"
+  expert:
+    email: "e2e-expert@test.local"
+    otp_source: "browser_console"
+    otp_pattern: "Code:\\s+(\\d{6})"
+    expected_role_label:
+      en: "Expert"
+      uk: "Експерт"
+    # Tag this expert is assigned to (used by US-14 tag-filter tests).
+    # Provision the tag on dev before running EX-001..EX-007.
+    expected_tag: "depression"
 
 # Default browser viewport
 default_viewport:
@@ -116,6 +145,9 @@ execution_order:
   - 16-cross-cutting   # Aggregation checks run last
   - 17-cx-depression   # CX Agent Depression Protocol (chat frontend)
   - 18-cx-anxiety      # CX Agent Anxiety Protocol (chat frontend)
+  - 19-review-mvp-reviewer    # Review MVP Reviewer role coverage (US-06..US-08, US-16)
+  - 20-review-mvp-supervisor  # Review MVP Supervisor role coverage (US-09..US-13, US-16)
+  - 21-review-mvp-expert      # Review MVP Expert role coverage (US-14..US-15)
 
 # Console messages to IGNORE (not flagged as errors)
 known_acceptable_console:

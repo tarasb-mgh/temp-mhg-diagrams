@@ -117,6 +117,125 @@ tests:
         meaning: "Session list data is undefined — API response may be malformed"
 
   # ──────────────────────────────────────────────────────────
+  # RQ-002a  Dashboard "Pending Review" tile == Queue Pending badge
+  #          Closes MC-64 (Feature 060). Verifies that the team-stats
+  #          tile and the queue Pending tab apply the same eligibility
+  #          filters (parity guard, capacity, exclusions) so the two
+  #          surfaces never diverge under matching Space scope.
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-002a
+    title: "Dashboard Pending Review tile equals Queue Pending tab badge (matching scope)"
+    priority: P0
+    tags: [review-queue, review-dashboard, counter-parity, mc-64, regression]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Feature 060 backend deployed to dev (reviewDashboard.service queue-depth filters extended)"
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/dashboard"
+        assert: "Workbench Dashboard loads"
+      - action: browser_wait_for
+        params:
+          selector: "[data-testid='pending-review-tile'], [class*='tile'], [class*='card']"
+          timeout: 10000
+        assert: "Dashboard tiles render"
+      - action: browser_snapshot
+        params: {}
+        expect: "The 'Pending Review' tile is visible with a numeric count, and the Space combobox shows the active scope."
+        extract:
+          dashboard_pending_count: "Numeric value displayed on the 'Pending Review' tile"
+          dashboard_space_scope: "Currently selected Space label (e.g., 'Dev team' or 'All Spaces')"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-002a-dashboard-tile.png"
+        assert: "Dashboard tile screenshot captured"
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist']"
+          timeout: 10000
+        assert: "Tab bar visible"
+      - action: evidence_capture
+        params:
+          description: "Confirm the Space combobox on the queue page matches the Space scope captured from the Dashboard. If different, switch the queue's Space to match before reading the badge."
+      - action: browser_snapshot
+        params: {}
+        expect: "Pending tab badge displays a numeric count."
+        extract:
+          queue_pending_badge: "Numeric badge value next to the 'Pending' tab label"
+          queue_space_scope: "Currently selected Space label on the queue page"
+      - action: evidence_capture
+        params:
+          description: "Compare dashboard_pending_count to queue_pending_badge under the same Space scope. They MUST be equal — this is the MC-64 contract."
+          check: "dashboard_pending_count == queue_pending_badge AND dashboard_space_scope == queue_space_scope"
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-002a-queue-badge.png"
+        assert: "Queue badge screenshot captured"
+      - action: evidence_capture
+        params:
+          description: "Repeat the comparison under 'All Spaces' scope to confirm parity holds at the unscoped boundary."
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/dashboard"
+        assert: "Return to Dashboard"
+      - action: browser_select_option
+        params:
+          selector: "select[aria-label='Select space'], [role='combobox']"
+          value: "All Spaces"
+        assert: "Dashboard Space changed to All Spaces"
+      - action: browser_wait_for
+        params:
+          time: 2
+        assert: "Tile refreshes for All Spaces scope"
+      - action: browser_snapshot
+        params: {}
+        expect: "Pending Review tile shows an updated count for All Spaces."
+        extract:
+          dashboard_pending_count_all: "Numeric value displayed on the 'Pending Review' tile under All Spaces"
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Return to Review Queue"
+      - action: browser_select_option
+        params:
+          selector: "select[aria-label='Select space'], [role='combobox']"
+          value: "All Spaces"
+        assert: "Queue Space changed to All Spaces"
+      - action: browser_wait_for
+        params:
+          time: 2
+        assert: "Queue refreshes for All Spaces scope"
+      - action: browser_snapshot
+        params: {}
+        expect: "Pending tab badge shows an updated count for All Spaces."
+        extract:
+          queue_pending_badge_all: "Numeric badge value under All Spaces"
+      - action: evidence_capture
+        params:
+          description: "Compare dashboard_pending_count_all to queue_pending_badge_all. They MUST be equal."
+          check: "dashboard_pending_count_all == queue_pending_badge_all"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors"
+    pass_criteria:
+      - "Dashboard 'Pending Review' tile and Review Queue Pending tab badge display the same number under the single-Space scope."
+      - "Dashboard 'Pending Review' tile and Review Queue Pending tab badge display the same number under 'All Spaces' scope."
+      - "No console errors."
+    error_signatures:
+      - pattern: "dashboard_pending_count != queue_pending_badge"
+        meaning: "MC-64 regression — Dashboard tile and queue Pending badge diverge. Check reviewDashboard.service.ts queue-depth filter shape against reviewQueue.service.ts."
+      - pattern: "status >= 500"
+        meaning: "Backend error fetching team stats or queue counts."
+
+  # ──────────────────────────────────────────────────────────
   # RQ-003  Session card click opens detail
   # ──────────────────────────────────────────────────────────
   - id: RQ-003
@@ -782,3 +901,98 @@ tests:
     error_signatures:
       - pattern: "status >= 500"
         meaning: "Backend failed to return awaiting-feedback sessions"
+
+  # ──────────────────────────────────────────────────────────
+  # RQ-100  No "Broken" badge cards in any reviewer-facing tab
+  #         Closes MC-65 (Feature 060). Verifies the parity
+  #         guard extension to flagged + in_progress tabs.
+  #         (ID jumps to 100 to escape the RQ-NNN range that
+  #          modules 03 and 19 both populate up to RQ-034.)
+  # ──────────────────────────────────────────────────────────
+  - id: RQ-100
+    title: "Reviewer-facing tabs show no Broken-badge cards (any Space scope)"
+    priority: P0
+    tags: [review-queue, parity-guard, mc-65, regression]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner (AUTH-001 passed)"
+      - "Review queue loaded (RQ-001 passed)"
+      - "Feature 060 backend deployed to dev (parity guard extended to flagged + in_progress)"
+    depends_on: [AUTH-001, RQ-001]
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review"
+        assert: "Review queue page loads"
+      - action: browser_wait_for
+        params:
+          selector: "[role='tablist']"
+          timeout: 10000
+        assert: "Tab bar visible"
+      - action: evidence_capture
+        params:
+          description: "Iterate Pending, Flagged, In Progress, Completed under the currently selected Space."
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('Pending'), button:has-text('Pending')"
+        assert: "Pending tab activated"
+      - action: browser_snapshot
+        params: {}
+        expect: "No card displays the Broken badge or the 'surfaced by mistake' tooltip in the Pending tab."
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('Flagged'), button:has-text('Flagged')"
+        assert: "Flagged tab activated"
+      - action: browser_snapshot
+        params: {}
+        expect: "No card displays the Broken badge or the 'surfaced by mistake' tooltip in the Flagged tab."
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('In Progress'), button:has-text('In Progress')"
+        assert: "In Progress tab activated"
+      - action: browser_snapshot
+        params: {}
+        expect: "No card displays the Broken badge or the 'surfaced by mistake' tooltip in the In Progress tab. (This is the primary MC-65 regression check.)"
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('Completed'), button:has-text('Completed')"
+        assert: "Completed tab activated"
+      - action: browser_snapshot
+        params: {}
+        expect: "No card displays the Broken badge or the 'surfaced by mistake' tooltip in the Completed tab."
+      - action: evidence_capture
+        params:
+          description: "Repeat the four-tab iteration under 'All Spaces' scope to confirm the parity guard applies regardless of groupId filter."
+      - action: browser_select_option
+        params:
+          selector: "select[aria-label='Select space'], [role='combobox']"
+          value: "All Spaces"
+        assert: "Space changed to All Spaces"
+      - action: browser_wait_for
+        params:
+          time: 2
+        assert: "Queue refreshes for the new scope"
+      - action: browser_click
+        params:
+          selector: "[role='tab']:has-text('In Progress'), button:has-text('In Progress')"
+        assert: "In Progress tab under All Spaces"
+      - action: browser_snapshot
+        params: {}
+        expect: "Still no Broken badges visible under All Spaces — the parity guard is groupId-independent."
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-100-no-broken-cards.png"
+        assert: "Screenshot captured"
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors"
+    pass_criteria:
+      - "No Broken badge text appears in any reviewer-facing tab (Pending, Flagged, In Progress, Completed) under either single-Space or All-Spaces scope."
+      - "No 'surfaced by mistake' tooltip text is visible anywhere."
+      - "No console errors."
+    error_signatures:
+      - pattern: "surfaced by mistake"
+        meaning: "MC-65 regression — broken sessions are reaching the reviewer's queue again. The 'surfaced by mistake' phrase only appears in the broken-badge tooltip, so any visible match is conclusive."
+      - pattern: "status >= 500"
+        meaning: "Backend error during queue fetch."

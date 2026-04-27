@@ -1,0 +1,61 @@
+Feature 060 — workbench-frontend local validation evidence (T501)
+==================================================================
+Branch: bugfix/060-review-mvp-fixes
+Captured: 2026-04-27
+
+Targeted feature-060 unit test run
+-----------------------------------
+Command:
+  cd /d/src/mhg/workbench-frontend && npx vitest run \
+    src/features/workbench/review/__tests__/TeamDashboard.spaceParity.test.ts \
+    src/features/workbench/review/__tests__/ReviewQueueView.tabBadge.test.ts
+
+Result:
+  RUN v4.0.18
+
+  ✓ src/features/workbench/review/__tests__/ReviewQueueView.tabBadge.test.ts (7 tests) 3ms
+  ✓ src/features/workbench/review/__tests__/TeamDashboard.spaceParity.test.ts (8 tests) 5ms
+
+  Test Files  2 passed (2)
+       Tests  15 passed (15)
+    Duration  2.69s
+
+Coverage map
+------------
+- TeamDashboard.spaceParity.test.ts (8 tests, NEW for 060):
+    Pins the contract of the new exported helper
+    `computeTeamSpaceOptions` from TeamDashboard.tsx. Covers:
+      * privileged path returns managed groups (the MC-67 bug)
+      * privileged path with zero memberships (exact owner repro)
+      * privileged path doesn't double-count when memberships overlap
+      * privileged path with empty admin response returns []
+      * non-privileged path returns active memberships
+      * non-privileged path with zero memberships → empty (correct
+        empty-state path)
+      * defence-in-depth: non-privileged ignores managedGroups
+      * stable ordering preserved
+    Covers US3 (MC-67) — workbench-frontend@2899219.
+
+- ReviewQueueView.tabBadge.test.ts (7 tests, pre-existing, regression
+    check): Confirms the queue tab-badge logic from feature 058 still
+    works after the SQL changes in chat-backend.
+
+TypeScript baseline
+-------------------
+A `tsc -b --noEmit` run produces a list of pre-existing errors on
+develop (NotificationBell, ReviewerDecisionBanner, SessionCard,
+ReviewDashboard, reviewerApi, settings/SettingsView) tracked
+separately. Verified by git-stash diff: pre-patch and post-patch
+error lists are IDENTICAL — feature 060's TeamDashboard.tsx changes
+introduce zero new errors.
+
+Conclusion
+----------
+Feature 060 workbench-frontend changes:
+- Introduce zero new TypeScript errors.
+- Pass 15/15 targeted unit tests (8 new + 7 regression).
+- Cleanly mirror GroupScopeSelector's privileged-vs-personal logic
+  via the testable `computeTeamSpaceOptions` helper.
+
+Commits touching workbench-frontend on this branch:
+  2899219  fix(060/MC-67): TeamDashboard mirrors GroupScopeSelector for available Spaces

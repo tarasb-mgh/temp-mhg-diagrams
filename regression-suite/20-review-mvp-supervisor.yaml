@@ -1,0 +1,484 @@
+# MHG Workbench Regression Suite — Module 20: Review MVP — Supervisor Role
+# 25 tests | Role: supervisor | Depends on: AUTH-001
+#
+# Validates the Supervisor-role end-to-end functional surface against the
+# Review MVP user stories:
+#   US-09 (MC-24) — Supervisor views sessions Ready for Supervision
+#   US-10 (MC-25) — "Attention Required" tab with flagged responses
+#   US-11 (MC-26) — Mark incorrect responses, route to Expert review
+#   US-12 (MC-27) — Process Red Flag sessions with mandatory report
+#   US-13 (MC-28) — Approve/Deny Reviewer change requests via email
+#   US-16 (MC-31) — Supervisor generates reports across any reviewer
+#
+# Cross-cutting NFs as they apply to this role:
+#   NF-01 (MC-32), NF-02 (MC-33), NF-04 (MC-35).
+
+module:
+  id: "20-review-mvp-supervisor"
+  title: "Review MVP — Supervisor Role"
+  description: "End-to-end functional coverage for the Supervisor role: ready-for-supervision queue, attention-required tab, mark-incorrect + expert routing, red-flag processing with report, email approve/deny, cross-reviewer reports, plus cross-cutting NF-01/02/04."
+  role: supervisor
+  depends_on: [AUTH-001]
+  viewport: default
+  prerequisites:
+    - "Supervisor test account (`supervisor` in _config.yaml) is provisioned on dev with role=Supervisor."
+    - "At least 2 sessions exist in READY FOR SUPERVISION (i.e. evaluated by ≥ min-reviewer-count Reviewers)."
+    - "At least 1 RED FLAG session exists (run RV-003 first to seed)."
+    - "At least 1 outstanding change request from a Reviewer exists (run RV-023 first)."
+    - "Test mailbox / network capture is reachable for SV-040 email assertions."
+
+tests:
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-09 (MC-24) — Sessions Ready for Supervision
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: SV-001
+    title: "READY FOR SUPERVISION tab visible to Supervisor"
+    priority: P0
+    tags: [supervision, us-09, smoke]
+    role: supervisor
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review" }
+      - action: browser_snapshot
+        params: {}
+        expect: "A 'Ready for Supervision' tab is visible in the queue tab bar."
+    pass_criteria:
+      - "Tab visible and clickable"
+
+  - id: SV-002
+    title: "Tab lists only sessions evaluated by min-reviewer-count Reviewers"
+    priority: P0
+    tags: [supervision, us-09, threshold]
+    role: supervisor
+    depends_on: [SV-001]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='tab-ready-for-supervision']" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='session-card']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Each session card shows its review count, and that count is ≥ the configured minimum (e.g., 1 or 3 depending on dev config)."
+        extract:
+          min_review_count: "Configured threshold (read from session description or settings)"
+          all_review_counts: "Per-card review counts"
+
+  - id: SV-003
+    title: "Per-session view shows average + per-Reviewer scores"
+    priority: P0
+    tags: [supervision, us-09, scores]
+    role: supervisor
+    depends_on: [SV-002]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='supervisor-scores'], [class*='score-summary']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Average score is displayed prominently. Per-Reviewer breakdown lists each Reviewer name + their individual score."
+    pass_criteria:
+      - "Average score rendered as numeric value"
+      - "Per-reviewer rows match the count from SV-002"
+
+  - id: SV-004
+    title: "EC-07: min-review-count=1 + tag → session in BOTH ready-for-supervision AND pending-expert-review"
+    priority: P2
+    tags: [supervision, us-09, edge-case]
+    role: supervisor
+    depends_on: [SV-001]
+    steps:
+      - action: evidence_capture
+        params: { description: "Pre-condition: a session was evaluated by 1 Reviewer who assigned an expert tag." }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=ready-for-supervision" }
+      - action: browser_snapshot
+        params: { extract: { ids_in_supervision: "Session IDs in this tab" } }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=pending-expert-review" }
+      - action: browser_snapshot
+        params: { extract: { ids_in_expert: "Session IDs in this tab" } }
+    pass_criteria:
+      - "At least one session id is present in both lists (intersection non-empty)"
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-10 (MC-25) — Attention Required tab
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: SV-010
+    title: "ATTENTION REQUIRED tab auto-generated within session"
+    priority: P0
+    tags: [attention, us-10, smoke]
+    role: supervisor
+    depends_on: [SV-003]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='tab-attention-required']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Tab exists and lists message-level cards. Empty state shown if no responses meet criteria."
+
+  - id: SV-011
+    title: "Includes responses where any Reviewer scored < 8"
+    priority: P0
+    tags: [attention, us-10, criteria]
+    role: supervisor
+    depends_on: [SV-010]
+    steps:
+      - action: browser_snapshot
+        params: { extract: { rows: "Response rows in the tab; each shows the lowest score" } }
+        expect: "All listed rows have at least one Reviewer score < 8."
+
+  - id: SV-012
+    title: "Includes responses where score divergence ≥ 3"
+    priority: P1
+    tags: [attention, us-10, divergence]
+    role: supervisor
+    depends_on: [SV-010]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        expect: "Rows where (max_score - min_score) >= 3 across Reviewers are included regardless of score floor."
+
+  - id: SV-013
+    title: "Includes responses with criteria comments OR suggested model response"
+    priority: P1
+    tags: [attention, us-10, qualitative]
+    role: supervisor
+    depends_on: [SV-010]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        expect: "Responses where any Reviewer added a criterion comment or suggested an alternate model response are present in the tab even if scores are >= 8 and not divergent."
+
+  - id: SV-014
+    title: "Supervisor sees full Reviewer detail per response"
+    priority: P0
+    tags: [attention, us-10, drill-down]
+    role: supervisor
+    depends_on: [SV-010]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='attention-row']:first-of-type" }
+      - action: browser_snapshot
+        params: {}
+        expect: "All Reviewer scores, selected criteria, comments, and suggested responses for that message are visible."
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-11 (MC-26) — Mark Incorrect + Route to Expert
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: SV-020
+    title: "Supervisor can set INCORRECT RESPONSE label on AI response"
+    priority: P0
+    tags: [mark-incorrect, us-11, smoke]
+    role: supervisor
+    depends_on: [SV-003]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='ai-message']:first-of-type [data-testid='mark-incorrect']" }
+      - action: browser_wait_for
+        params: { text: "INCORRECT" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Message now shows INCORRECT RESPONSE label visually distinct from regular state."
+
+  - id: SV-021
+    title: "Supervisor assigns expert tag to session"
+    priority: P0
+    tags: [mark-incorrect, us-11, tagging]
+    role: supervisor
+    depends_on: [SV-020]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='assign-expert-tag']" }
+      - action: browser_wait_for
+        params: { selector: "[role='listbox'], [data-testid='tag-picker']" }
+      - action: browser_click
+        params: { selector: "[data-testid='tag-option-depression'], [role='option']:first-of-type" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Tag is now applied to the session and visible in the session header."
+    pass_criteria:
+      - "Tag visible in session metadata"
+      - "Tag picker only shows the configured set of clinical tags (not arbitrary text)"
+
+  - id: SV-022
+    title: "Supervision complete on tagged session → moves to PENDING EXPERT REVIEW"
+    priority: P0
+    tags: [mark-incorrect, us-11, routing]
+    role: supervisor
+    depends_on: [SV-021]
+    steps:
+      - action: browser_click
+        params: { selector: "button:has-text('Processed')" }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=pending-expert-review" }
+      - action: browser_snapshot
+        params: {}
+        expect: "The just-supervised tagged session is now listed in PENDING EXPERT REVIEW."
+    pass_criteria:
+      - "Session id in expert-review queue"
+      - "Session id NO LONGER in READY FOR SUPERVISION"
+
+  - id: SV-023
+    title: "After 'Processed' → session moves to PROCESSED SESSIONS with SUPERVISION COMPLETED"
+    priority: P0
+    tags: [mark-incorrect, us-11, routing]
+    role: supervisor
+    depends_on: [SV-022]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=processed" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Session appears in PROCESSED SESSIONS tab with SUPERVISION COMPLETED label."
+    pass_criteria:
+      - "Session in PROCESSED tab"
+      - "SUPERVISION COMPLETED label visible"
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-12 (MC-27) — Process Red Flag with mandatory report
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: SV-030
+    title: "RED FLAG tab lists flagged-and-evaluated sessions only"
+    priority: P0
+    tags: [red-flag, us-12, smoke]
+    role: supervisor
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=red-flag" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='session-card'], [class*='empty']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "All listed sessions have at least one Red Flag AND have completed evaluation. URGENT label visible per session."
+
+  - id: SV-031
+    title: "Per-session view shows flag detail (label, author, timestamp, comment)"
+    priority: P0
+    tags: [red-flag, us-12, detail]
+    role: supervisor
+    depends_on: [SV-030]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Flag panel is visible and shows: flag label, Reviewer's name, exact timestamp, the description text the Reviewer entered."
+
+  - id: SV-032
+    title: "Mandatory Report field gates closing the Red Flag"
+    priority: P0
+    tags: [red-flag, us-12, validation]
+    role: supervisor
+    depends_on: [SV-031]
+    steps:
+      - action: browser_click
+        params: { selector: "button:has-text('Processed'), button:has-text('Close flag')" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Action is blocked / button disabled / inline error: 'Report field is required'."
+      - action: browser_fill_form
+        params:
+          fields:
+            - { selector: "[data-testid='red-flag-report'], textarea[name='report']", value: "Test report: required actions documented." }
+      - action: browser_click
+        params: { selector: "button:has-text('Processed')" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Now succeeds; session moves to PROCESSED with SUPERVISION COMPLETED."
+
+  - id: SV-033
+    title: "Red Flag notification: badge on tab + email"
+    priority: P1
+    tags: [red-flag, us-12, notification]
+    role: supervisor
+    depends_on: [AUTH-001]
+    steps:
+      - action: evidence_capture
+        params: { description: "Out-of-band: Reviewer fires a new Red Flag (RV-003 path)." }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench" }
+      - action: browser_snapshot
+        params: {}
+        expect: "RED FLAG tab shows an unread badge with count >= 1. Test mailbox shows email to supervisor with session link."
+    pass_criteria:
+      - "Tab badge increments"
+      - "Email present in test mailbox"
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-13 (MC-28) — Email approve / deny change requests
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: SV-040
+    title: "Supervisor receives change-request email with Allow/Deny buttons"
+    priority: P0
+    tags: [change-request, us-13, smoke, email]
+    role: supervisor
+    depends_on: [AUTH-001]
+    steps:
+      - action: evidence_capture
+        params: { description: "Out-of-band: Reviewer triggers RV-023 to send a change request." }
+      - action: evidence_capture
+        params: { description: "Open the supervisor's test mailbox and find the change-request email." }
+      - action: browser_snapshot
+        params: {}
+        expect: "Email body contains: session name, Reviewer's name, request date+time. Two buttons present: 'Allow' and 'Deny', each linking to a unique signed URL."
+    pass_criteria:
+      - "Both buttons visible"
+      - "URLs are short-lived signed tokens (not raw IDs)"
+
+  - id: SV-041
+    title: "Clicking 'Allow' approves the request; Reviewer notified"
+    priority: P0
+    tags: [change-request, us-13, allow]
+    role: supervisor
+    depends_on: [SV-040]
+    steps:
+      - action: browser_navigate
+        params: { url: "${allow_url_from_email}" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Confirmation page: 'Change request approved'. Out-of-band: Reviewer's RV-024 confirms in-app notification arrives."
+    pass_criteria:
+      - "Page shows approval confirmation"
+      - "Single click suffices (no extra confirm step needed unless UX explicitly requires it)"
+
+  - id: SV-042
+    title: "Clicking 'Deny' denies the request; Reviewer notified"
+    priority: P1
+    tags: [change-request, us-13, deny]
+    role: supervisor
+    depends_on: [SV-040]
+    steps:
+      - action: browser_navigate
+        params: { url: "${deny_url_from_email}" }
+      - action: browser_snapshot
+        params: {}
+        expect: "'Change request denied' confirmation. Reviewer-side RV-026 verifies session stays COMPLETED."
+
+  - id: SV-043
+    title: "During supervision of repeat-reviewed session, both reviews shown"
+    priority: P1
+    tags: [change-request, us-13, dual-review]
+    role: supervisor
+    depends_on: [SV-041]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=ready-for-supervision" }
+      - action: browser_click
+        params: { selector: "[data-testid='session-card'][data-label='REPEAT']:first-of-type" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Session detail shows both the original Reviewer evaluation and the repeat evaluation as distinct sections / columns / tabs with timestamps."
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-16 (MC-31) — Reports across any Reviewer
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: SV-050
+    title: "Supervisor reports filter shows ALL Reviewers (not locked to self)"
+    priority: P0
+    tags: [reports, us-16, rbac, smoke]
+    role: supervisor
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review/reports" }
+      - action: browser_click
+        params: { selector: "[data-testid='reviewer-filter']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Picker shows ALL Reviewers in the org plus an 'All assignees' option (default). Compare with RV-030 where the same picker is locked."
+    pass_criteria:
+      - "Reviewer dropdown is unlocked"
+      - "'All assignees' is the default selection"
+
+  - id: SV-051
+    title: "Score distribution + risk-flag count work for any selected Reviewer"
+    priority: P1
+    tags: [reports, us-16]
+    role: supervisor
+    depends_on: [SV-050]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='reviewer-filter'] [data-reviewer-name='${reviewer.email}']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Histogram updates to that Reviewer's data; risk-flag count column reflects only flags they set."
+
+  # ════════════════════════════════════════════════════════════════════
+  #  Cross-cutting NF requirements as they apply to Supervisor
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: SV-060
+    title: "NF-01: Supervisor login requires TOTP 2FA"
+    priority: P0
+    tags: [nf-01, auth, 2fa, smoke]
+    role: supervisor
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/login" }
+      - action: browser_fill_form
+        params:
+          fields:
+            - { selector: "input[type='email']", value: "${supervisor.email}" }
+      - action: browser_click
+        params: { selector: "button[type='submit']" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='totp-input'], input[autocomplete='one-time-code']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "TOTP input required."
+
+  - id: SV-061
+    title: "NF-02: 30-min idle session timeout applies"
+    priority: P2
+    tags: [nf-02, session-timeout]
+    role: supervisor
+    depends_on: [AUTH-001]
+    steps:
+      - action: evidence_capture
+        params: { description: "Same mechanic as RV-041; Supervisor's progress on a flag report is preserved on re-auth." }
+
+  - id: SV-062
+    title: "NF-04: Supervisor cannot reach Audit Logs (Master/Admin only)"
+    priority: P0
+    tags: [nf-04, rbac, isolation, smoke]
+    role: supervisor
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/security" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Either redirected away, sidebar entry hidden, or shows 'Access denied'. Audit Logs page must NOT render."
+    pass_criteria:
+      - "No log entries leaked to Supervisor"
+    error_signatures:
+      - { pattern: "status == 200 AND /api/audit", meaning: "Supervisor can read audit logs — RBAC violation per NF-03+NF-04" }
+
+  - id: SV-063
+    title: "NF-04: Supervisor cannot impersonate another Reviewer's view"
+    priority: P1
+    tags: [nf-04, rbac, isolation]
+    role: supervisor
+    depends_on: [AUTH-001]
+    steps:
+      - action: evidence_capture
+        params: { description: "Direct API probe: GET /api/review/sessions?reviewer_id=<other> as supervisor — should return aggregate data only, not sit-in-the-Reviewer's-shoes UI state." }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review/reports?reviewer=other" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Read-only aggregate visible (per US-16). No mutation actions enabled. Cannot create/edit/delete on behalf of another Reviewer."
+    pass_criteria:
+      - "API endpoints that mutate review state require the actor be the review's author Reviewer"
+
+# End of module 20 — 25 tests covering Supervisor role end-to-end.

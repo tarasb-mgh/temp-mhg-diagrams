@@ -1,0 +1,619 @@
+# MHG Workbench Regression Suite — Module 19: Review MVP — Reviewer Role
+# 27 tests | Role: reviewer | Depends on: AUTH-001
+#
+# Validates the Reviewer-role end-to-end functional surface against the
+# Review MVP user stories:
+#   US-06 (MC-21) — Reviewer sets Red Flag to escalate critical session
+#   US-07 (MC-22) — Reviewer resumes incomplete session evaluation
+#   US-08 (MC-23) — Reviewer saves final evaluation, requests revision
+#   US-16 (MC-31) — Reviewer generates filtered session reports (own data only)
+#
+# Also covers the cross-cutting non-functional requirements as they apply
+# to this role:
+#   NF-01 (MC-32) — Mandatory 2FA TOTP at login
+#   NF-02 (MC-33) — Auto session timeout after 30min inactivity
+#   NF-04 (MC-35) — Role-based data isolation (negative tests)
+#   NF-05 (MC-36) — Auto-save review progress every 30s
+
+module:
+  id: "19-review-mvp-reviewer"
+  title: "Review MVP — Reviewer Role"
+  description: "End-to-end functional coverage for the Reviewer role: red-flag escalation, resume incomplete evaluation, save final evaluation + request revision, reports, plus cross-cutting NF-01/02/04/05 as they apply to this role."
+  role: reviewer
+  depends_on: [AUTH-001]
+  viewport: default
+  prerequisites:
+    - "Reviewer test account (`reviewer` in _config.yaml) is provisioned on dev with role=Reviewer."
+    - "At least 3 dev sessions exist in PENDING EVALUATION assigned to or claimable by this Reviewer."
+    - "Workbench has min-reviewer-count configured (≥1) so completed evaluations transition tabs."
+    - "Email capture (test mailbox or dev tools) is reachable for tests RV-006, RV-024, RV-028 OR those tests are run in 'verify-only' mode against pre-recorded notification fixtures."
+
+tests:
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-06 (MC-21) — Reviewer sets Red Flag to escalate
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: RV-001
+    title: "Red Flag button visible on every user message and AI response"
+    priority: P0
+    tags: [red-flag, us-06, smoke]
+    role: reviewer
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review" }
+        assert: "Reviewer queue loads"
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type, [class*='session-card']:first-of-type, tr:first-of-type" }
+        assert: "Open first session in PENDING EVALUATION"
+      - action: browser_wait_for
+        params: { selector: "[class*='message'], [data-message-role]", timeout: 10000 }
+      - action: browser_snapshot
+        params: {}
+        expect: "Every user message AND every AI response has a Red Flag affordance (icon button, menu item, or context action)."
+        extract:
+          user_msg_count: "Number of user messages"
+          ai_msg_count: "Number of AI responses"
+          flag_button_count: "Number of red-flag buttons across all messages"
+    pass_criteria:
+      - "flag_button_count >= user_msg_count + ai_msg_count (every message has the affordance)"
+      - "Affordance is keyboard-accessible (focusable, has role/aria-label)"
+    error_signatures:
+      - { pattern: "status == 403", meaning: "Reviewer cannot open session — RBAC misconfigured" }
+
+  - id: RV-002
+    title: "Red Flag modal requires mandatory situation description"
+    priority: P0
+    tags: [red-flag, us-06, validation]
+    role: reviewer
+    depends_on: [RV-001]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='red-flag-button']:first-of-type, [aria-label*='red flag' i]:first-of-type, [aria-label*='red flag' i]:first" }
+        assert: "Red Flag modal opens"
+      - action: browser_wait_for
+        params: { selector: "[role='dialog'], [class*='modal']" }
+      - action: browser_click
+        params: { selector: "[role='dialog'] button[type='submit'], [class*='modal'] button[type='submit']" }
+        assert: "Try to confirm without entering a description"
+      - action: browser_snapshot
+        params: {}
+        expect: "Submit button is either disabled or, if clicked, surfaces a validation error indicating description is required. Modal stays open; flag is NOT created."
+    pass_criteria:
+      - "Cannot confirm Red Flag without description (button disabled OR validation error)"
+      - "No POST /api/.../red-flag fires when description is empty"
+    error_signatures:
+      - { pattern: "status == 201 AND red.flag", meaning: "Flag created without mandatory description — validation bypassed" }
+
+  - id: RV-003
+    title: "Red Flag set + evaluation complete → session moves to RED FLAG tab with URGENT label"
+    priority: P0
+    tags: [red-flag, us-06, end-to-end]
+    role: reviewer
+    depends_on: [RV-002]
+    steps:
+      - action: browser_fill_form
+        params:
+          fields:
+            - { selector: "[role='dialog'] textarea, [class*='modal'] textarea", value: "E2E test: simulated critical situation" }
+        assert: "Description filled"
+      - action: browser_click
+        params: { selector: "[role='dialog'] button[type='submit']" }
+        assert: "Confirm Red Flag"
+      - action: browser_wait_for
+        params: { text: "flagged" }
+      - action: evidence_capture
+        params: { description: "Reviewer is now required to complete evaluation before flag fully takes effect." }
+      # NOTE: Complete the evaluation (rate every AI response) — abbreviated for brevity.
+      # See RV-020 for the rating-completion mechanics.
+      - action: browser_click
+        params: { selector: "[data-testid='complete-evaluation'], button:has-text('Save evaluation results')" }
+        assert: "Submit final evaluation"
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=red-flag" }
+      - action: browser_wait_for
+        params: { text: "URGENT" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Session appears in RED FLAG tab with URGENT label visible."
+    pass_criteria:
+      - "Session appears in RED FLAG tab"
+      - "Session shows URGENT label"
+      - "Session no longer in PENDING EVALUATION"
+
+  - id: RV-004
+    title: "EC-01: Red Flag set but evaluation NOT complete → session stays in PENDING; supervisor email NOT sent"
+    priority: P1
+    tags: [red-flag, us-06, edge-case]
+    role: reviewer
+    depends_on: [RV-001]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='red-flag-button']:first-of-type" }
+      - action: browser_fill_form
+        params:
+          fields:
+            - { selector: "[role='dialog'] textarea", value: "EC-01: flag without completing eval" }
+      - action: browser_click
+        params: { selector: "[role='dialog'] button[type='submit']" }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Session remains in PENDING EVALUATION tab (NOT moved to RED FLAG)."
+      - action: evidence_capture
+        params: { description: "Verify via test mailbox / network capture: no email-send POST fired to supervisors." }
+    pass_criteria:
+      - "Session in PENDING EVALUATION tab"
+      - "No supervisor notification email triggered (verify via outbox or absence of POST to /api/notifications)"
+    error_signatures:
+      - { pattern: "POST.*notifications.*red.?flag", meaning: "Email fired prematurely — should wait for eval completion" }
+
+  - id: RV-005
+    title: "EC-10: Repeat review — second Red Flag is recorded as separate event"
+    priority: P2
+    tags: [red-flag, us-06, edge-case]
+    role: reviewer
+    depends_on: [RV-003]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=evaluated" }
+      - action: browser_click
+        params: { selector: "button:has-text('Request Changes')" }
+      - action: evidence_capture
+        params: { description: "Assume Supervisor approves change; session re-opens with REPEAT label (see RV-026)." }
+      - action: browser_click
+        params: { selector: "[data-testid='red-flag-button']:first-of-type" }
+      - action: browser_fill_form
+        params:
+          fields:
+            - { selector: "[role='dialog'] textarea", value: "EC-10: second flag on repeat review" }
+      - action: browser_click
+        params: { selector: "[role='dialog'] button[type='submit']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Both flags are stored as separate audit events (visible in session history with separate timestamps)."
+    pass_criteria:
+      - "Two distinct flag events recorded (visible in session audit panel or DB)"
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-07 (MC-22) — Reviewer resumes incomplete evaluation
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: RV-010
+    title: "Auto-save: progress persists when navigating away mid-evaluation"
+    priority: P0
+    tags: [resume, us-07, smoke]
+    role: reviewer
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review" }
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='rating-control'], [class*='rating']" }
+      - action: browser_click
+        params: { selector: "[data-rating='7']:first-of-type, button:has-text('7'):first" }
+        assert: "Rate first AI response with 7/10"
+      - action: browser_wait_for
+        params: { time: 1500 }
+        assert: "Allow auto-save debounce"
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Session card shows INCOMPLETE label and stays in PENDING EVALUATION tab."
+    pass_criteria:
+      - "Session shows INCOMPLETE label"
+      - "Session remains in PENDING EVALUATION (not moved to EVALUATED)"
+
+  - id: RV-011
+    title: "Resume from last saved point on re-entry"
+    priority: P0
+    tags: [resume, us-07, smoke]
+    role: reviewer
+    depends_on: [RV-010]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card'][data-status='INCOMPLETE']:first-of-type" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='rating-control']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "First AI response already shows the 7/10 rating from RV-010 — saved state restored."
+    pass_criteria:
+      - "Previous rating value (7) is pre-populated"
+      - "User does not need to re-rate already-rated responses"
+
+  - id: RV-012
+    title: "Browser Back during eval → guard modal blocks accidental data loss"
+    priority: P1
+    tags: [resume, us-07, ux-guard]
+    role: reviewer
+    depends_on: [RV-010]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='rating-control']" }
+      - action: browser_click
+        params: { selector: "[data-rating='5']:first-of-type" }
+        assert: "Make a partial rating"
+      - action: browser_navigate_back
+        params: {}
+      - action: browser_snapshot
+        params: {}
+        expect: "A guard modal appears with two buttons: 'Stay on page' and 'Close session and lose data'. Modal MUST NOT be dismissable by clicking outside (only via the explicit buttons)."
+    pass_criteria:
+      - "Modal is shown with both options visible"
+      - "Modal blocks navigation until user chooses"
+
+  - id: RV-013
+    title: "'Stay on page' cancels back-navigation; eval continues"
+    priority: P1
+    tags: [resume, us-07, ux-guard]
+    role: reviewer
+    depends_on: [RV-012]
+    steps:
+      - action: browser_click
+        params: { selector: "[role='dialog'] button:has-text('Stay'), button:has-text('Stay on page')" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Still on session detail page; rating UI present and rating from before is preserved."
+    pass_criteria:
+      - "URL still points to session detail"
+      - "Partial rating preserved"
+
+  - id: RV-014
+    title: "'Close and lose data' exits to queue; in-flight rating discarded"
+    priority: P2
+    tags: [resume, us-07, ux-guard]
+    role: reviewer
+    depends_on: [RV-012]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type" }
+      - action: browser_click
+        params: { selector: "[data-rating='3']:first-of-type" }
+        assert: "Make an unsaved rating change beyond the auto-save window"
+      - action: browser_navigate_back
+        params: {}
+      - action: browser_click
+        params: { selector: "button:has-text('Close session and lose data'), button:has-text('Discard')" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Returned to review queue; the in-flight unsaved rating is NOT persisted (re-opening shows previous saved value, not 3)."
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-08 (MC-23) — Save final evaluation + request revision
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: RV-020
+    title: "'Save evaluation results' button disabled until ALL AI responses scored"
+    priority: P0
+    tags: [save-eval, us-08, validation, smoke]
+    role: reviewer
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='rating-control']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Save button is disabled (greyed/aria-disabled). Tooltip or helper text explains: 'Rate all assistant responses to enable.'"
+        extract:
+          unrated_count: "Number of unrated AI responses"
+      - action: evidence_capture
+        params: { description: "Rate every AI response one by one and watch the Save button enable only after the last." }
+    pass_criteria:
+      - "Save button is disabled while any AI response is unrated"
+      - "Save button enables only when unrated_count reaches 0"
+
+  - id: RV-021
+    title: "After save → COMPLETED label, session moved to EVALUATED SESSIONS tab"
+    priority: P0
+    tags: [save-eval, us-08, smoke]
+    role: reviewer
+    depends_on: [RV-020]
+    steps:
+      - action: evidence_capture
+        params: { description: "Rate all AI responses (use a script-like clicker)." }
+      - action: browser_click
+        params: { selector: "button:has-text('Save evaluation results')" }
+      - action: browser_wait_for
+        params: { url: "${workbench_url}/workbench/review*" }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=evaluated" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Session appears in EVALUATED SESSIONS tab with COMPLETED label."
+    pass_criteria:
+      - "Session in EVALUATED SESSIONS tab"
+      - "Session has COMPLETED label"
+      - "Session NOT in PENDING EVALUATION"
+
+  - id: RV-022
+    title: "Completed session is read-only for the Reviewer"
+    priority: P1
+    tags: [save-eval, us-08, read-only]
+    role: reviewer
+    depends_on: [RV-021]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card'][data-status='COMPLETED']:first-of-type" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='rating-control'], [class*='rating']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "All rating controls are disabled / read-only. Comments visible but not editable. No 'save' button."
+    pass_criteria:
+      - "Rating controls are aria-disabled or display-only"
+      - "Comment fields are not editable"
+
+  - id: RV-023
+    title: "'Request Changes' button available on completed session"
+    priority: P0
+    tags: [save-eval, us-08, request-changes]
+    role: reviewer
+    depends_on: [RV-022]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        expect: "A 'Request Changes' button is visible on a COMPLETED session viewed by its author Reviewer."
+      - action: browser_click
+        params: { selector: "button:has-text('Request Changes')" }
+      - action: browser_wait_for
+        params: { selector: "[role='dialog']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Modal asks for a reason / justification (optional or required, depends on UX); Confirm button posts to /api/.../change-request"
+
+  - id: RV-024
+    title: "Reviewer notified of supervisor approve/deny decision"
+    priority: P1
+    tags: [save-eval, us-08, notification]
+    role: reviewer
+    depends_on: [RV-023]
+    steps:
+      - action: evidence_capture
+        params: { description: "Out-of-band: have supervisor approve the request via SV-040 path. Wait up to 60s." }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench" }
+      - action: browser_wait_for
+        params: { text: "Change request" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Notification (in-app pop-up or notification badge) tells Reviewer the request was approved or denied."
+
+  - id: RV-025
+    title: "Approved change request → session returns to PENDING with REPEAT label"
+    priority: P0
+    tags: [save-eval, us-08, repeat]
+    role: reviewer
+    depends_on: [RV-024]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Session is back in PENDING EVALUATION tab; label changed to REPEAT (not COMPLETED, not INCOMPLETE)."
+    pass_criteria:
+      - "Session in PENDING EVALUATION tab"
+      - "Session has REPEAT label"
+
+  - id: RV-026
+    title: "Denied change request → session stays in EVALUATED with COMPLETED"
+    priority: P1
+    tags: [save-eval, us-08, denied]
+    role: reviewer
+    depends_on: [RV-024]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=evaluated" }
+      - action: browser_snapshot
+        params: {}
+        expect: "After supervisor denies, session is unchanged: still in EVALUATED, COMPLETED label."
+
+  - id: RV-027
+    title: "Re-evaluation stores both original and repeat evaluations separately"
+    priority: P1
+    tags: [save-eval, us-08, history]
+    role: reviewer
+    depends_on: [RV-025]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card'][data-label='REPEAT']:first-of-type" }
+      - action: evidence_capture
+        params: { description: "Re-rate AI responses with different scores; save." }
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review/sessions/${session_id}/history" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Both evaluations (original + repeat) appear in session history with distinct timestamps and reviewer-version markers; original is NOT overwritten."
+    pass_criteria:
+      - "Both reviews visible in session history"
+      - "Original review's scores are unchanged"
+
+  - id: RV-028
+    title: "EC-08: Change request approved AFTER supervision complete → error"
+    priority: P2
+    tags: [save-eval, us-08, edge-case]
+    role: reviewer
+    depends_on: [RV-023]
+    steps:
+      - action: evidence_capture
+        params: { description: "Out-of-band: have supervisor complete supervision on this session BEFORE approving the change request." }
+      - action: browser_click
+        params: { selector: "button:has-text('Request Changes')" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Error displayed: 'Session is not available for changes after supervision'. Change request NOT created."
+    pass_criteria:
+      - "User-facing error message shown"
+      - "No state change to session"
+
+  # ════════════════════════════════════════════════════════════════════
+  #  US-16 (MC-31) — Reviewer generates filtered reports (own data only)
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: RV-030
+    title: "Reports page shows ONLY this Reviewer's reviews"
+    priority: P0
+    tags: [reports, us-16, rbac, smoke]
+    role: reviewer
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review/reports" }
+      - action: browser_wait_for
+        params: { selector: "[data-testid='reports-table'], [class*='reports']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "All listed reviews are authored by the current Reviewer's account. No other reviewers' rows visible."
+        extract:
+          row_count: "Total report rows"
+          unique_reviewer_names: "Distinct reviewer names in the table"
+    pass_criteria:
+      - "unique_reviewer_names == 1"
+      - "Reviewer assignee filter is locked to self (or absent for this role)"
+    error_signatures:
+      - { pattern: "data-reviewer-id\\s*=\\s*\"(?!${reviewer_user_id})", meaning: "Reports leak other reviewers' data — RBAC violation" }
+
+  - id: RV-031
+    title: "Time-period filter narrows results"
+    priority: P1
+    tags: [reports, us-16, filters]
+    role: reviewer
+    depends_on: [RV-030]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='date-range-filter'], [class*='date-range']" }
+      - action: evidence_capture
+        params: { description: "Choose 'Last 7 days'." }
+      - action: browser_snapshot
+        params: {}
+        expect: "Row count shrinks (or stays same if all data is recent); all visible rows have created_at within last 7 days."
+
+  - id: RV-032
+    title: "Status breakdown by label is rendered"
+    priority: P1
+    tags: [reports, us-16, breakdown]
+    role: reviewer
+    depends_on: [RV-030]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        expect: "Report includes a status breakdown showing counts for COMPLETED, INCOMPLETE, REPEAT, URGENT (Red Flag) labels."
+
+  - id: RV-033
+    title: "Score distribution + risk-flag count present"
+    priority: P2
+    tags: [reports, us-16, stats]
+    role: reviewer
+    depends_on: [RV-030]
+    steps:
+      - action: browser_snapshot
+        params: {}
+        expect: "Report shows: average score for the period, score distribution histogram, count of risk flags this reviewer set."
+
+  # ════════════════════════════════════════════════════════════════════
+  #  Cross-cutting NF requirements as they apply to Reviewer
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: RV-040
+    title: "NF-01: Login requires TOTP 2FA"
+    priority: P0
+    tags: [nf-01, auth, 2fa, smoke]
+    role: reviewer
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/login" }
+      - action: browser_fill_form
+        params:
+          fields:
+            - { selector: "input[type='email']", value: "${reviewer.email}" }
+      - action: browser_click
+        params: { selector: "button[type='submit']" }
+      - action: browser_wait_for
+        params: { selector: "input[autocomplete='one-time-code'], [data-testid='totp-input']" }
+      - action: browser_snapshot
+        params: {}
+        expect: "After password/OTP step, a TOTP entry field is shown. Login cannot proceed without a valid 6-digit TOTP code from the authenticator app."
+    pass_criteria:
+      - "TOTP step is required (not skippable)"
+      - "Invalid TOTP rejected with clear error"
+
+  - id: RV-041
+    title: "NF-02: Session times out after 30min of inactivity; progress preserved on redirect"
+    priority: P1
+    tags: [nf-02, session-timeout]
+    role: reviewer
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type" }
+      - action: browser_click
+        params: { selector: "[data-rating='8']:first-of-type" }
+        assert: "Make some progress"
+      - action: evidence_capture
+        params: { description: "Wait 30 min idle (or stub the session-timeout backend setting to 30s for the test)." }
+      - action: browser_wait_for
+        params: { url: "*/login*", timeout: 35000 }
+      - action: browser_snapshot
+        params: {}
+        expect: "Redirected to login. After re-auth, session detail re-opens with the rating from earlier preserved (auto-saved)."
+    pass_criteria:
+      - "Auto-redirect to login after timeout"
+      - "Re-login restores incomplete review with last-saved progress"
+
+  - id: RV-042
+    title: "NF-05: Auto-save fires at least every 30s during active rating"
+    priority: P1
+    tags: [nf-05, auto-save]
+    role: reviewer
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_click
+        params: { selector: "[data-testid='session-card']:first-of-type" }
+      - action: browser_click
+        params: { selector: "[data-rating='6']:first-of-type" }
+      - action: browser_network_requests
+        params: { filter: "PATCH|PUT.*draft|/api/.*review.*draft" }
+        capture_window_seconds: 35
+        expect: "At least one PATCH/PUT to a draft-save endpoint within 30 seconds of the rating click."
+    pass_criteria:
+      - "Auto-save HTTP request observed in network within 30s"
+
+  - id: RV-043
+    title: "NF-04: Reviewer cannot reach Supervisor or Expert tabs (RBAC)"
+    priority: P0
+    tags: [nf-04, rbac, isolation, smoke]
+    role: reviewer
+    depends_on: [AUTH-001]
+    steps:
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=ready-for-supervision" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Tab is not visible OR returns 'Access denied' OR redirects to a permitted tab. No supervisor data leaks."
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=pending-expert-review" }
+      - action: browser_snapshot
+        params: {}
+        expect: "Same: no expert data leaks."
+      - action: browser_navigate
+        params: { url: "${workbench_url}/workbench/review?tab=processed-sessions" }
+      - action: browser_snapshot
+        params: {}
+        expect: "PROCESSED SESSIONS tab is not visible to Reviewers (per US-11 AC)."
+    pass_criteria:
+      - "All three forbidden tabs rejected at UI level"
+      - "Direct API hits to corresponding endpoints return 403 (verify in network panel)"
+    error_signatures:
+      - { pattern: "status == 200 AND /api/.*supervision", meaning: "Reviewer can read supervisor data — RBAC bypass" }
+      - { pattern: "status == 200 AND /api/.*expert.review", meaning: "Reviewer can read expert data — RBAC bypass" }
+
+# End of module 19 — 27 tests covering Reviewer role end-to-end.

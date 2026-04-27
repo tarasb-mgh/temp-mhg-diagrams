@@ -380,3 +380,78 @@ tests:
         meaning: "Review config API endpoint missing or route not registered"
       - pattern: "403"
         meaning: "Owner role lacks permission to view review configuration"
+
+  # ---------------------------------------------------------------------------
+  # RD-007: Team Dashboard renders for an Owner with admin-managed Spaces
+  #         Closes MC-67 (Feature 060). Verifies the empty-state gate now
+  #         mirrors GroupScopeSelector — privileged users see content even
+  #         when they have zero personal Space memberships.
+  #         (Spec called this "RD-005" but RD-005 was already used for the
+  #         Review Tags page; using next free ID.)
+  # ---------------------------------------------------------------------------
+  - id: RD-007
+    title: "Team Dashboard renders for Owner with managed Spaces"
+    priority: P0
+    tags: [review, team-dashboard, membership-parity, mc-67, regression]
+    role: owner
+    viewport: default
+    prerequisites:
+      - "Authenticated as owner via AUTH-001"
+      - "Owner has at least one Space visible in the global Space combobox (managed via admin or active membership)"
+      - "Feature 060 frontend deployed (TeamDashboard uses computeTeamSpaceOptions)"
+    depends_on: [AUTH-001]
+
+    steps:
+      - action: browser_navigate
+        params:
+          url: "${workbench_url}/workbench/review/dashboard/team"
+        assert: "Team Dashboard route begins loading without redirect"
+
+      - action: browser_wait_for
+        params:
+          selector: "h1, [role='tablist'], .card"
+          timeout: 10000
+        expect: "Team Dashboard chrome (title + tabs or KPI cards) is present in the DOM"
+
+      - action: browser_snapshot
+        params: {}
+        expect: >
+          The page does NOT show the "No active team membership" empty
+          state. Either KPI cards (Total Reviews / Team Average / IRR /
+          Pending Escalations), the queue-depth donut, or the workload
+          table are visible. The "no totals yet" empty state is acceptable
+          (that means the user has Space access but no completed reviews
+          in the current period); the membership empty state is NOT.
+        extract:
+          empty_state_visible: "true if 'No active team membership' text appears, else false"
+          chrome_visible: "true if any of: KPI cards, queue-depth chart, workload table appear"
+
+      - action: evidence_capture
+        params:
+          description: >
+            MC-67 contract: empty_state_visible MUST be false AND
+            chrome_visible MUST be true. The membership-empty state is
+            now reserved for non-privileged users with zero memberships.
+          check: "empty_state_visible == false AND chrome_visible == true"
+
+      - action: browser_take_screenshot
+        params:
+          filename: "rd-007-team-dashboard-renders.png"
+        assert: "Screenshot captured for evidence"
+
+      - action: browser_console_messages
+        params: {}
+        assert: "No critical console errors during Team Dashboard render"
+
+    pass_criteria:
+      - "Team Dashboard renders content (KPIs, charts, or workload table) for an Owner with ≥1 Space access."
+      - "The 'No active team membership' empty state does NOT appear for this user."
+      - "No console errors."
+
+    error_signatures:
+      - pattern: "No active team membership"
+        meaning: "MC-67 regression — TeamDashboard reverted to the membership-only gate. Check computeTeamSpaceOptions wiring in TeamDashboard.tsx."
+      - pattern: "status >= 500"
+        meaning: "Backend error fetching /api/review/dashboard/team."
+      - pattern: "status == 403"
+        meaning: "Owner role lacks REVIEW_TEAM_DASHBOARD permission — separate permission issue, not MC-67."

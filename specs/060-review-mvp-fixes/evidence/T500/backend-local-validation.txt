@@ -1,0 +1,89 @@
+Feature 060 — chat-backend local validation evidence (T500)
+============================================================
+Branch: bugfix/060-review-mvp-fixes
+Captured: 2026-04-27
+
+Targeted feature-060 unit test run
+-----------------------------------
+Command:
+  cd /d/src/mhg/chat-backend && npx vitest run \
+    tests/unit/reviewQueue.countListParity.test.ts \
+    tests/unit/reviewDashboard.queueDepthParity.test.ts \
+    tests/unit/reviewDashboard.team.test.ts
+
+Result:
+  RUN v4.0.16
+
+  ✓ tests/unit/reviewQueue.countListParity.test.ts (11 tests) 9ms
+  ✓ tests/unit/reviewDashboard.queueDepthParity.test.ts (9 tests) 7ms
+  ✓ tests/unit/reviewDashboard.team.test.ts (9 tests) 12ms
+
+  Test Files  3 passed (3)
+       Tests  29 passed (29)
+    Duration  449ms
+
+Wider reviewQueue.* unit suite (regression check)
+--------------------------------------------------
+Command:
+  cd /d/src/mhg/chat-backend && npx vitest run \
+    tests/unit/reviewQueue.countListParity.test.ts \
+    tests/unit/reviewQueue.pageSize.test.ts \
+    tests/unit/reviewQueue.scope.test.ts \
+    tests/unit/reviewQueue.subStatusAndLanguages.test.ts \
+    tests/unit/reviewQueue.viewerScope.test.ts
+
+Result:
+  ✓ reviewQueue.countListParity.test.ts (11 tests)
+  ✓ reviewQueue.pageSize.test.ts        ( 4 tests)
+  ✓ reviewQueue.viewerScope.test.ts     ( 7 tests)
+  ✓ reviewQueue.subStatusAndLanguages.test.ts (10 tests)
+  ✓ reviewQueue.scope.test.ts           ( 3 tests)
+
+  Test Files  5 passed (5)
+       Tests  35 passed (35)
+    Duration  490ms
+
+This is the number tasks.md T102 cites. The 29 figure above is the
+narrower "feature-060-touched" cut; the 35 figure is the full
+reviewQueue.* unit family — kept here as a regression check that
+T100/T101's SQL changes didn't break adjacent queue tests.
+
+Coverage map
+------------
+- reviewQueue.countListParity.test.ts (11 tests):
+    Pins the parity guard on every Reviewer-facing tab (pending,
+    completed, flagged, in_progress) and absence of the guard on
+    elevated (Supervisor surface). Covers US1 (MC-65) — the
+    chat-backend@2baface SQL change in src/services/reviewQueue.service.ts.
+
+- reviewDashboard.queueDepthParity.test.ts (9 tests, NEW for 060):
+    Pins the three eligibility guards (parity, capacity,
+    exclusions) on the pending_review FILTER and their absence on
+    in_review / disputed / complete tiles. Plus groupId positional
+    param invariance. Covers US2 (MC-64) — the chat-backend@c7648ac
+    SQL change in src/services/reviewDashboard.service.ts.
+
+- reviewDashboard.team.test.ts (9 tests, pre-existing, regression
+    check): Confirms the rest of getTeamStats still produces
+    correct aggregates after the queue-depth filter shape change.
+
+Pre-existing TypeScript errors on develop (unrelated to feature 060)
+---------------------------------------------------------------------
+A `tsc -b --noEmit` over the full chat-backend tree surfaces errors
+related to types that are not in @mentalhelpglobal/chat-types
+(Space, scoreDistributionByScore, myReviewVersion). These exist on
+develop pre-feature-060 and are tracked separately. Verified by
+git-stash diff: identical pre/post error list.
+
+Conclusion
+----------
+Feature 060 chat-backend changes:
+- Introduce zero new TypeScript errors.
+- Pass 29/29 targeted unit tests.
+- Are gated by SQL-shape contract tests (`reviewQueue.countListParity`
+  and `reviewDashboard.queueDepthParity`) so any regression that
+  reverts the parity filters fails loudly at CI.
+
+Commits touching chat-backend on this branch:
+  2baface  fix(060/MC-65): extend parity guard to flagged + in_progress tabs
+  c7648ac  fix(060/MC-64): align Dashboard pending_review tile with queue Pending eligibility filters
