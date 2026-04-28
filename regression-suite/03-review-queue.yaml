@@ -117,123 +117,122 @@ tests:
         meaning: "Session list data is undefined — API response may be malformed"
 
   # ──────────────────────────────────────────────────────────
-  # RQ-002a  Dashboard "Pending Review" tile == Queue Pending badge
-  #          Closes MC-64 (Feature 060). Verifies that the team-stats
-  #          tile and the queue Pending tab apply the same eligibility
-  #          filters (parity guard, capacity, exclusions) so the two
-  #          surfaces never diverge under matching Space scope.
+  # RQ-002b  Workbench Dashboard tile reads "Pending Moderation"
+  #          Closes MC-64 (follow-up after Feature 060). Replaces
+  #          the original RQ-002a (tile == queue equality) which
+  #          was based on a wrong premise — the tile and the
+  #          Review Queue Pending tab query different DB columns
+  #          (moderation_status vs review_status) and were never
+  #          going to match. The actual fix was renaming the tile
+  #          label so it stops creating a false equivalence with
+  #          the Review Queue.
   # ──────────────────────────────────────────────────────────
-  - id: RQ-002a
-    title: "Dashboard Pending Review tile equals Queue Pending tab badge (matching scope)"
+  - id: RQ-002b
+    title: "Workbench Admin Dashboard tile reads 'Pending Moderation', not 'Pending Review'"
     priority: P0
-    tags: [review-queue, review-dashboard, counter-parity, mc-64, regression]
+    tags: [admin-dashboard, label-correctness, mc-64, regression, i18n]
     role: owner
     viewport: default
     prerequisites:
       - "Authenticated as owner (AUTH-001 passed)"
-      - "Feature 060 backend deployed to dev (reviewDashboard.service queue-depth filters extended)"
+      - "Feature 061 frontend deployed to dev (workbench-frontend i18n key renamed)"
     depends_on: [AUTH-001]
     steps:
       - action: browser_navigate
         params:
-          url: "${workbench_url}/workbench/dashboard"
-        assert: "Workbench Dashboard loads"
+          url: "${workbench_url}/workbench"
+        assert: "Workbench Admin Dashboard loads"
       - action: browser_wait_for
         params:
-          selector: "[data-testid='pending-review-tile'], [class*='tile'], [class*='card']"
+          selector: "[class*='card'], main"
           timeout: 10000
-        assert: "Dashboard tiles render"
+        assert: "Dashboard tile region rendered"
+
+      # ── EN locale ──
+      - action: evidence_capture
+        params:
+          description: "Confirm active locale is English. If not, click the locale combobox and switch to '🇬🇧 English'."
       - action: browser_snapshot
         params: {}
-        expect: "The 'Pending Review' tile is visible with a numeric count, and the Space combobox shows the active scope."
-        extract:
-          dashboard_pending_count: "Numeric value displayed on the 'Pending Review' tile"
-          dashboard_space_scope: "Currently selected Space label (e.g., 'Dev team' or 'All Spaces')"
+        expect: |
+          The /workbench Admin Dashboard renders a tile labeled exactly "Pending Moderation"
+          with subtitle "Sessions awaiting moderation" and a numeric value.
+          The literal string "Pending Review" must NOT appear on this tile.
+          (The "Pending approvals" tile is a SEPARATE tile and is allowed.)
       - action: browser_take_screenshot
         params:
-          filename: "rq-002a-dashboard-tile.png"
-        assert: "Dashboard tile screenshot captured"
-      - action: browser_navigate
-        params:
-          url: "${workbench_url}/workbench/review"
-        assert: "Review queue page loads"
-      - action: browser_wait_for
-        params:
-          selector: "[role='tablist']"
-          timeout: 10000
-        assert: "Tab bar visible"
+          filename: "rq-002b-dashboard-tile-en.png"
+
+      # ── UK locale ──
       - action: evidence_capture
         params:
-          description: "Confirm the Space combobox on the queue page matches the Space scope captured from the Dashboard. If different, switch the queue's Space to match before reading the badge."
-      - action: browser_snapshot
-        params: {}
-        expect: "Pending tab badge displays a numeric count."
-        extract:
-          queue_pending_badge: "Numeric badge value next to the 'Pending' tab label"
-          queue_space_scope: "Currently selected Space label on the queue page"
-      - action: evidence_capture
-        params:
-          description: "Compare dashboard_pending_count to queue_pending_badge under the same Space scope. They MUST be equal — this is the MC-64 contract."
-          check: "dashboard_pending_count == queue_pending_badge AND dashboard_space_scope == queue_space_scope"
-      - action: browser_take_screenshot
-        params:
-          filename: "rq-002a-queue-badge.png"
-        assert: "Queue badge screenshot captured"
-      - action: evidence_capture
-        params:
-          description: "Repeat the comparison under 'All Spaces' scope to confirm parity holds at the unscoped boundary."
-      - action: browser_navigate
-        params:
-          url: "${workbench_url}/workbench/dashboard"
-        assert: "Return to Dashboard"
-      - action: browser_select_option
-        params:
-          selector: "select[aria-label='Select space'], [role='combobox']"
-          value: "All Spaces"
-        assert: "Dashboard Space changed to All Spaces"
+          description: "Switch the locale combobox to '🇺🇦 Українська'. Wait for re-render."
       - action: browser_wait_for
         params:
           time: 2
-        assert: "Tile refreshes for All Spaces scope"
+        assert: "UI re-renders under Ukrainian locale"
       - action: browser_snapshot
         params: {}
-        expect: "Pending Review tile shows an updated count for All Spaces."
-        extract:
-          dashboard_pending_count_all: "Numeric value displayed on the 'Pending Review' tile under All Spaces"
-      - action: browser_navigate
+        expect: |
+          The same tile now reads exactly "Очікують модерації" with subtitle
+          "Сесії очікують модерації". The literal string "Очікують перевірки"
+          must NOT appear on this tile.
+      - action: browser_take_screenshot
         params:
-          url: "${workbench_url}/workbench/review"
-        assert: "Return to Review Queue"
-      - action: browser_select_option
+          filename: "rq-002b-dashboard-tile-uk.png"
+
+      # ── RU locale ──
+      - action: evidence_capture
         params:
-          selector: "select[aria-label='Select space'], [role='combobox']"
-          value: "All Spaces"
-        assert: "Queue Space changed to All Spaces"
+          description: "Switch the locale combobox to '🇷🇺 Русский'. Wait for re-render."
       - action: browser_wait_for
         params:
           time: 2
-        assert: "Queue refreshes for All Spaces scope"
+        assert: "UI re-renders under Russian locale"
       - action: browser_snapshot
         params: {}
-        expect: "Pending tab badge shows an updated count for All Spaces."
-        extract:
-          queue_pending_badge_all: "Numeric badge value under All Spaces"
+        expect: |
+          The same tile now reads exactly "Ожидают модерации" with subtitle
+          "Сессии ожидают модерации". The literal string "Ожидают проверки"
+          must NOT appear on this tile.
+      - action: browser_take_screenshot
+        params:
+          filename: "rq-002b-dashboard-tile-ru.png"
+
+      # ── Reset to EN + tail-end checks ──
       - action: evidence_capture
         params:
-          description: "Compare dashboard_pending_count_all to queue_pending_badge_all. They MUST be equal."
-          check: "dashboard_pending_count_all == queue_pending_badge_all"
+          description: "Switch back to '🇬🇧 English' so subsequent tests see the default locale."
+      - action: browser_snapshot
+        params: {}
+        expect: |
+          Verify the literal i18n key "dashboard.stats.pendingModeration" or
+          "dashboard.stats.pendingReview" does NOT appear in the rendered DOM
+          (which would indicate i18n key resolution failure).
       - action: browser_console_messages
         params: {}
-        assert: "No critical console errors"
+        assert: "No critical console errors during locale switching"
+
     pass_criteria:
-      - "Dashboard 'Pending Review' tile and Review Queue Pending tab badge display the same number under the single-Space scope."
-      - "Dashboard 'Pending Review' tile and Review Queue Pending tab badge display the same number under 'All Spaces' scope."
-      - "No console errors."
+      - "Tile reads 'Pending Moderation' under English."
+      - "Tile reads 'Очікують модерації' under Ukrainian."
+      - "Tile reads 'Ожидают модерации' under Russian."
+      - "Subtitle remains the localized 'Sessions awaiting moderation' under all three locales."
+      - "Literal 'Pending Review' / 'Очікують перевірки' / 'Ожидают проверки' does NOT appear on the Admin Dashboard tile under their respective locales."
+      - "No literal i18n key strings appear in the rendered DOM."
+      - "No console errors during locale switching."
+
     error_signatures:
-      - pattern: "dashboard_pending_count != queue_pending_badge"
-        meaning: "MC-64 regression — Dashboard tile and queue Pending badge diverge. Check reviewDashboard.service.ts queue-depth filter shape against reviewQueue.service.ts."
-      - pattern: "status >= 500"
-        meaning: "Backend error fetching team stats or queue counts."
+      - pattern: "Pending Review"
+        meaning: "MC-64 regression — i18n key rename was reverted, or the EN locale entry was lost. Check workbench-frontend/src/locales/en.json dashboard.stats.pendingModeration."
+      - pattern: "Очікують перевірки"
+        meaning: "MC-64 regression for UK locale — uk.json dashboard.stats.pendingModeration missing or reverted."
+      - pattern: "Ожидают проверки"
+        meaning: "MC-64 regression for RU locale — ru.json dashboard.stats.pendingModeration missing or reverted."
+      - pattern: "dashboard\\.stats\\.pendingModeration"
+        meaning: "i18n key did not resolve — translation entry missing in one or more locale files. Check that all 3 locales were updated."
+      - pattern: "dashboard\\.stats\\.pendingReview"
+        meaning: "Stale reference to the old i18n key — Dashboard.tsx consumer or another component was not updated during the rename."
 
   # ──────────────────────────────────────────────────────────
   # RQ-003  Session card click opens detail
