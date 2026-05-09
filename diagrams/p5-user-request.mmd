@@ -1,0 +1,33 @@
+flowchart TB
+    USER["User opens mentalhelp.chat"]
+    DNS["Cloud DNS\nresolve mentalhelp.chat"]
+    GCLB["Global HTTPS LB"]
+    GCS["Cloud Storage\nchat-frontend-prod"]
+    APP["React SPA loads"]
+    API_CALL["API call to api.mentalhelp.chat"]
+    CR["Cloud Run\nchat-backend-prod"]
+    AUTH["Authenticate (JWT / OTP)"]
+    ROUTE["Express route handler"]
+    CX_API["Dialogflow CX API v3"]
+    CX_AGENT["Dialogflow CX Agent"]
+    VA["Vertex AI\ngemini-2.5-flash"]
+    RESPONSE["Agent response"]
+    USER_END["User sees response"]
+
+    USER --> DNS
+    DNS --> GCLB
+    GCLB --> GCS
+    GCS --> APP
+    APP --> API_CALL
+    API_CALL --> GCLB
+    GCLB --> CR
+    CR --> AUTH
+    AUTH --> ROUTE
+    ROUTE --> CX_API
+    CX_API --> CX_AGENT
+    CX_AGENT --> VA
+    VA --> CX_AGENT
+    CX_AGENT --> RESPONSE
+    RESPONSE --> CR
+    CR --> APP
+    APP --> USER_END

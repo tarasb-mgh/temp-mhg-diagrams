@@ -1,0 +1,29 @@
+flowchart LR
+    subgraph GH["GitHub Repos"]
+        CB["chat-backend"]
+        CF["chat-frontend"]
+        WF["workbench-frontend"]
+        CT["chat-types"]
+        CXD["cx-agent-definition"]
+        MCP["mcp-server"]
+    end
+
+    subgraph GHA["GitHub Actions"]
+        A_DEPLOY["deploy.yml"]
+        A_PUBLISH["publish.yml"]
+        A_E2E["e2e.yml"]
+    end
+
+    subgraph GCP["GCP"]
+        CR["Cloud Run"]
+        GCS["Cloud Storage"]
+        NPM["npm registry"]
+        CX_API["Dialogflow CX API"]
+    end
+
+    CB -->|deploy| A_DEPLOY -->|WIF| CR
+    CF -->|deploy| A_DEPLOY -->|WIF| GCS
+    WF -->|deploy| A_DEPLOY -->|WIF| GCS
+    CT -->|publish| A_PUBLISH -->|PKG_TOKEN| NPM
+    CXD -->|manual curl| CX_API
+    MCP -->|deploy| A_DEPLOY -->|WIF| CR

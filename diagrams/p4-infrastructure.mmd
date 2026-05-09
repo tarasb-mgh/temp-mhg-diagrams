@@ -1,0 +1,26 @@
+flowchart TB
+    subgraph Network["Network"]
+        DNS["Cloud DNS\nmentalhelp.chat"]
+        GCLB["Global HTTPS LB"]
+    end
+
+    subgraph Compute["Compute"]
+        CR["Cloud Run\n3 services"]
+        GCS["Cloud Storage\n4 buckets"]
+    end
+
+    subgraph Data["Data"]
+        SQL["Cloud SQL\n2 instances"]
+        SM["Secret Manager\n9 secrets"]
+    end
+
+    subgraph Registry["Registry"]
+        AR["Artifact Registry\n3 repos"]
+    end
+
+    DNS --> GCLB
+    GCLB --> CR
+    GCLB --> GCS
+    CR --> SQL
+    CR --> SM
+    CR --> AR

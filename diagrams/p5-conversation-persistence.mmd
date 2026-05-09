@@ -1,0 +1,17 @@
+flowchart LR
+    USER_MSG["User message"]
+    BACKEND["chat-backend"]
+    CX_SESSION["Dialogflow CX Session"]
+    GCS_STATE["Cloud Storage\nState Timeline"]
+    SQL_ASSESS["Cloud SQL\nStructured Assessments"]
+    REVIEW_Q["Workbench Review Queue"]
+    REVIEWER["Human Reviewer"]
+    DB_UPDATE["Database Update"]
+
+    USER_MSG --> BACKEND
+    BACKEND --> CX_SESSION
+    CX_SESSION --> GCS_STATE
+    CX_SESSION --> SQL_ASSESS
+    SQL_ASSESS --> REVIEW_Q
+    REVIEW_Q --> REVIEWER
+    REVIEWER --> DB_UPDATE

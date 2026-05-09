@@ -1,0 +1,41 @@
+graph TB
+    AGENT["Dialogflow CX Agent\nMental Health First Responder"]
+
+    subgraph Flows["Flows"]
+        F_DEFAULT["Default Start Flow\n(3 transition routes)"]
+    end
+
+    subgraph Playbooks["Playbooks"]
+        P_MAIN["Mental Help Assistant\nTrauma-informed support assistant"]
+        P_DEP["Depression Protocol\nScreening & severity scoring"]
+        P_ANX["Anxiety Protocol\nScreening & acute intervention"]
+    end
+
+    subgraph Intents["Intents"]
+        I_DEP["DEPRESSION_SIGNALS"]
+        I_ANX["ANXIETY_SIGNALS"]
+        I_SUI["SUICIDAL_IDEATION"]
+        I_HOM["HOMICIDAL_IDEATION"]
+        I_DEL["DELUSIONAL_THINKING"]
+        I_REQ["REQUEST_HUMAN"]
+        I_WEL["Default Welcome Intent"]
+        I_NEG["Default Negative Intent"]
+    end
+
+    subgraph Tools["Tools"]
+        T_KB["Mental Health Knowledge Base\nData Store (Vertex AI Search)"]
+    end
+
+    AGENT --> F_DEFAULT
+    F_DEFAULT --> P_MAIN
+    P_MAIN --> P_DEP
+    P_MAIN --> P_ANX
+    P_DEP --> I_DEP
+    P_ANX --> I_ANX
+    P_MAIN --> I_SUI
+    P_MAIN --> I_HOM
+    P_MAIN --> I_DEL
+    P_MAIN --> I_REQ
+    P_MAIN --> I_WEL
+    P_MAIN --> I_NEG
+    P_MAIN --> T_KB

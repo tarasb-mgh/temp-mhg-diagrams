@@ -1,0 +1,27 @@
+flowchart TB
+    USER["User"]
+    DNS["Cloud DNS\n(mentalhelp.chat)"]
+    GCLB["Global HTTPS Load Balancer"]
+    CERT["Managed SSL Certificate"]
+
+    subgraph Frontends["Frontend Hosting"]
+        GCS_CHAT["GCS Bucket\nchat-frontend-prod"]
+        GCS_WB["GCS Bucket\nworkbench-frontend-prod"]
+        GCS_DEL["GCS Bucket\ndelivery-workbench-frontend-prod"]
+    end
+
+    subgraph Backends["API Backends"]
+        CR["Cloud Run\nchat-backend-prod"]
+        CR_DEL["Cloud Run\ndelivery-workbench-backend-prod"]
+        CR_MCP["Cloud Run\nmcp-server-prod"]
+    end
+
+    USER -->|HTTPS request| DNS
+    DNS -->|resolve to| GCLB
+    GCLB -->|SSL termination| CERT
+    GCLB -->|host: mentalhelp.chat| GCS_CHAT
+    GCLB -->|host: workbench.mentalhelp.chat| GCS_WB
+    GCLB -->|host: delivery.mentalhelp.chat| GCS_DEL
+    GCLB -->|host: api.mentalhelp.chat| CR
+    GCLB -->|host: api.delivery.mentalhelp.chat| CR_DEL
+    GCLB -->|host: mcp.mentalhelp.chat| CR_MCP

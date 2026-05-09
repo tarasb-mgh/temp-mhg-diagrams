@@ -1,0 +1,42 @@
+flowchart TB
+    subgraph GitHub["GitHub: MentalHelpGlobal org"]
+        GH_REPOS["Repositories\n(15 repos)"]
+        GH_ACTIONS["GitHub Actions\n(CI/CD pipelines)"]
+    end
+
+    subgraph GCP["GCP: mental-help-global-25"]
+        subgraph Network["Network Layer"]
+            DNS["Cloud DNS\n(mentalhelp.chat)"]
+            GCLB["Global HTTPS LB"]
+        end
+        subgraph Compute["Compute"]
+            CR["Cloud Run\n(chat-backend-prod)"]
+            GCS["Cloud Storage\n(frontend buckets)"]
+        end
+        subgraph Data["Data"]
+            SQL["Cloud SQL\n(PostgreSQL)"]
+            SM["Secret Manager"]
+        end
+        subgraph AI["AI / ML"]
+            CX["Dialogflow CX Agent\nMental Health First Responder"]
+            VA["Vertex AI\n(gemini-2.5-flash)"]
+            DS["Data Store\n(Mental Health Knowledge Base)"]
+        end
+    end
+
+    subgraph Users["Users"]
+        USER["End User\n(mentalhelp.chat)"]
+        ADMIN["Admin / Reviewer\n(workbench.mentalhelp.chat)"]
+    end
+
+    USER -->|HTTPS| DNS
+    DNS -->|resolve| GCLB
+    GCLB -->|frontend assets| GCS
+    GCLB -->|API calls| CR
+    CR -->|SQL queries| SQL
+    CR -->|secret retrieval| SM
+    CR -->|agent conversation| CX
+    CX -->|LLM inference| VA
+    CX -->|knowledge retrieval| DS
+    GH_REPOS -->|deploy via| GH_ACTIONS
+    GH_ACTIONS -->|WIF auth| GCP

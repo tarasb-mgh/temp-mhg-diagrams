@@ -1,0 +1,18 @@
+flowchart LR
+    subgraph Backend["chat-backend"]
+        WEBHOOK["cx-webhook.service.ts\nSession-end webhook"]
+    end
+
+    subgraph GCP["GCP"]
+        CX["Dialogflow CX Agent"]
+        VA["Vertex AI\ngemini-2.5-flash"]
+        DS["Data Store\nMental Health Knowledge Base"]
+        GCS["Cloud Storage\nState Timeline"]
+        SQL["Cloud SQL\nStructured Assessments"]
+    end
+
+    WEBHOOK -->|POST| CX
+    CX -->|LLM call| VA
+    CX -->|knowledge retrieval| DS
+    CX -->|state persistence| GCS
+    WEBHOOK -->|assessment write| SQL

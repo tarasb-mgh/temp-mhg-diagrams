@@ -1,0 +1,19 @@
+flowchart TB
+    WB_USER["Workbench User"]
+    SCHEMA["Create Survey Schema"]
+    PUBLISH["Publish Schema"]
+    INSTANCE["Deploy Instance"]
+    END_USER["End User"]
+    TAKE["Take Survey"]
+    RESPONSES["Store Responses"]
+    SQL["Cloud SQL"]
+    ANALYTICS["Analytics / Reports"]
+
+    WB_USER --> SCHEMA
+    SCHEMA --> PUBLISH
+    PUBLISH --> INSTANCE
+    INSTANCE --> END_USER
+    END_USER --> TAKE
+    TAKE --> RESPONSES
+    RESPONSES --> SQL
+    SQL --> ANALYTICS
